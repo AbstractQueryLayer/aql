@@ -1,6 +1,6 @@
 {
     "name": "ifcastle/aql-storagepool",
-    "description": "No description available.",
+    "description": "Storage pooling and connection management for AQL",
     "keywords": [
         "aql",
         "query",

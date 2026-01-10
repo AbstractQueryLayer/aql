@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-pdodriver",
-  "description": "* @var array<string, string>",
+  "description": "PDO driver abstraction for AQL",
   "keywords": [
     "aql",
     "query",

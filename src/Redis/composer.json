@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-redis",
-  "description": "* @throws StorageException",
+  "description": "Redis storage adapter for AQL",
   "keywords": [
     "aql",
     "query",

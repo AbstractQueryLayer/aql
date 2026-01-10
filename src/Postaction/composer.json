@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-postaction",
-  "description": "No description available.",
+  "description": "Post-action handlers for AQL",
   "keywords": [
     "aql",
     "query",

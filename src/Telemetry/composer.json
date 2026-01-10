@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-telemetry",
-  "description": "No description available.",
+  "description": "Telemetry and monitoring interfaces for AQL",
   "keywords": [
     "aql",
     "query",

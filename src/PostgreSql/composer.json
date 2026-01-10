@@ -1,6 +1,6 @@
 {
     "name": "ifcastle/aql-postgresql",
-    "description": "* @throws ParseException",
+    "description": "PostgreSQL storage adapter for AQL",
     "keywords": [
         "aql",
         "query",

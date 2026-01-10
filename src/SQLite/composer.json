@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-sqlite",
-  "description": "* ## EntityToTable",
+  "description": "SQLite storage adapter for AQL",
   "keywords": [
     "aql",
     "query",

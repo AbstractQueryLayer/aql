@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-generator",
-  "description": "* ## Generator interface",
+  "description": "DDL and migration generator for AQL",
   "keywords": [
     "aql",
     "query",

@@ -1,6 +1,6 @@
 {
   "name": "ifcastle/aql-mysql",
-  "description": "* ## EntityToTable",
+  "description": "MySQL storage adapter for AQL",
   "keywords": [
     "aql",
     "query",
