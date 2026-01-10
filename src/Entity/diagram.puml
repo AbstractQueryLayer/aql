@@ -1,0 +1,250 @@
+@startuml package-related-diagram
+skinparam linetype ortho
+  package IfCastle.AQL.Entity as Entity {
+    package Builder {
+      package NamingStrategy {
+      }
+    }
+    package Constraints {
+    }
+    package DerivedEntity {
+    }
+    package Exceptions {
+    }
+    package Functions {
+    }
+    package Key {
+    }
+    package Manager {
+    }
+    package Modifiers {
+    }
+    package Populator {
+    }
+    package PostAction {
+    }
+    package Property {
+    }
+    package Relation {
+    }
+  }
+  package IfCastle #DDDDDD {
+    package AQL #DDDDDD {
+      package Dsl #DDDDDD {
+        package Relation #DDDDDD {
+        }
+        package Sql #DDDDDD {
+          package FunctionReference #DDDDDD {
+          }
+          package Query #DDDDDD {
+            package Expression #DDDDDD {
+              package Operation #DDDDDD {
+              }
+            }
+            package Exceptions #DDDDDD {
+            }
+          }
+          package Column #DDDDDD {
+          }
+          package Tuple #DDDDDD {
+          }
+          package Constant #DDDDDD {
+          }
+          package Helpers #DDDDDD {
+          }
+          package Conditions #DDDDDD {
+          }
+        }
+        package Ddl #DDDDDD {
+        }
+        package Node #DDDDDD {
+          package Exceptions #DDDDDD {
+          }
+        }
+        package Parser #DDDDDD {
+          package Exceptions #DDDDDD {
+          }
+        }
+      }
+      package Executor #DDDDDD {
+        package Context #DDDDDD {
+        }
+        package Exceptions #DDDDDD {
+        }
+        package Plan #DDDDDD {
+        }
+        package Ddl #DDDDDD {
+        }
+        package Helpers #DDDDDD {
+        }
+        package Resolver #DDDDDD {
+        }
+        package ResultComposer #DDDDDD {
+        }
+      }
+      package Aspects #DDDDDD {
+        package AccessControl #DDDDDD {
+          package AccessByGroups #DDDDDD {
+          }
+        }
+      }
+      package Result #DDDDDD {
+      }
+      package DataBase #DDDDDD {
+      }
+      package Expressions #DDDDDD {
+        package Constants #DDDDDD {
+        }
+        package Functions #DDDDDD {
+          package Sql #DDDDDD {
+          }
+        }
+        package Parameters #DDDDDD {
+        }
+      }
+    }
+    package DI #DDDDDD {
+    }
+    package AOP #DDDDDD {
+    }
+    package DesignPatterns #DDDDDD {
+      package ExecutionPlan #DDDDDD {
+      }
+    }
+    package Exceptions #DDDDDD {
+    }
+    package TypeDefinitions #DDDDDD {
+      package Value #DDDDDD {
+      }
+    }
+  }
+
+  Entity --> Relation
+  Entity <-[#red,plain,thickness=4]-> Manager
+  Entity --> DI
+  Entity --> AOP
+  Entity --> Dsl
+  Entity --> FunctionReference
+  Entity --> Query
+  Entity <-[#red,plain,thickness=4]-> NamingStrategy
+  Entity --> Constraints
+  Entity --> Exceptions
+  Entity --> Functions
+  Entity --> Key
+  Entity --> Modifiers
+  Entity --> PostAction
+  Entity <-[#red,plain,thickness=4]-> Property
+  Entity --> Context
+  Entity --> Exceptions
+  Entity --> Executor
+  Entity --> ExecutionPlan
+  Entity --> Exceptions
+  Entity <-[#red,plain,thickness=4]-> Builder
+  Builder --> AOP
+  Builder --> DI
+  Builder --> Exceptions
+  Builder --> Relation
+  Builder --> NamingStrategy
+  Builder --> Exceptions
+  Builder <-[#red,plain,thickness=4]-> Manager
+  Builder --> Property
+  Builder --> Relation
+  NamingStrategy --> Ddl
+  NamingStrategy --> Functions
+  NamingStrategy --> Key
+  NamingStrategy --> Property
+  NamingStrategy --> Value
+  DerivedEntity --> AOP
+  DerivedEntity --> Dsl
+  DerivedEntity --> Relation
+  DerivedEntity --> FunctionReference
+  DerivedEntity --> Expression
+  DerivedEntity --> Query
+  DerivedEntity --> Entity
+  DerivedEntity --> Functions
+  DerivedEntity --> Key
+  DerivedEntity --> Manager
+  DerivedEntity --> Property
+  DerivedEntity --> Relation
+  DerivedEntity --> Exceptions
+  DerivedEntity --> Executor
+  DerivedEntity --> DI
+  DerivedEntity --> AccessByGroups
+  DerivedEntity --> Context
+  DerivedEntity --> Plan
+  DerivedEntity --> TypeDefinitions
+  DerivedEntity --> Column
+  DerivedEntity --> Tuple
+  Exceptions --> Exceptions
+  Functions --> FunctionReference
+  Functions --> Executor
+  Functions --> AccessControl
+  Functions --> Exceptions
+  Functions --> Exceptions
+  Functions --> AccessByGroups
+  Functions --> Node
+  Functions --> Constant
+  Functions --> Helpers
+  Functions --> Context
+  Functions --> Plan
+  Manager --> Exceptions
+  Manager --> DI
+  Manager --> Exceptions
+  Modifiers --> Query
+  Modifiers --> Context
+  Modifiers --> Exceptions
+  Modifiers --> Plan
+  Populator --> Manager
+  Populator --> DI
+  Populator --> Exceptions
+  Populator --> Query
+  Populator --> Entity
+  Populator --> Relation
+  Populator --> Executor
+  Populator --> Ddl
+  Populator --> Result
+  Property --> Exceptions
+  Property --> Key
+  Property --> Context
+  Property --> AOP
+  Property --> AccessByGroups
+  Property --> Node
+  Property --> Column
+  Property --> Constant
+  Property --> FunctionReference
+  Property --> Operation
+  Property --> Tuple
+  Property --> Manager
+  Property --> Relation
+  Property --> Exceptions
+  Property --> Helpers
+  Property --> Plan
+  Property --> DI
+  Property --> TypeDefinitions
+  Property --> Property
+  Property --> DataBase
+  Property --> Constants
+  Property --> Sql
+  Property --> Parameters
+  Property --> Expressions
+  Property --> AQL
+  Property --> Exceptions
+  Property --> Exceptions
+  Property --> Expression
+  Property --> Query
+  Property --> Resolver
+  Property --> ResultComposer
+  Property --> Exceptions
+  Property --> Relation
+  Property --> Exceptions
+  Relation --> Manager
+  Relation --> Column
+  Relation --> Conditions
+  Relation --> Exceptions
+  Relation --> Expression
+  Relation --> Key
+  Relation --> Relation
+  Relation --> Exceptions
+  Relation --> Node
+  Relation --> Entity
+@enduml

@@ -1,0 +1,72 @@
+@startuml package-related-diagram
+
+skinparam linetype ortho
+
+  package IfCastle.AQL.Dsl as Dsl {
+    package Ddl {
+    }
+    package Node {
+    }
+    package Parser {
+    }
+    package Relation {
+    }
+    package Sql #AAEECC {
+      package Column {
+      }
+      package Conditions {
+      }
+      package Constant {
+      }
+      package FunctionReference {
+      }
+      package Parameter {
+      }
+
+      package Query #AACCCC {
+        package Expression {
+          package Operation {
+          }
+        }
+      }
+      package Tuple {
+      }
+    }
+  }
+
+  package IfCastle #EFEFEF {
+    package DesignPatterns #DDDDDD {
+      package ScopeControl #DDDDDD {
+      }
+      package ExecutionPlan #DDDDDD {
+      }
+      package Handler #DDDDDD {
+      }
+      package Iterators #DDDDDD {
+      }
+    }
+
+    package TypeDefinitions #DDDDDD {
+      package NativeSerialization #DDDDDD {
+      }
+    }
+
+    package DI #DDDDDD {
+    }
+  }
+
+  Dsl --> ScopeControl
+  Ddl --> Node
+  Ddl --> Sql
+  Node --> NativeSerialization
+  Node --> Iterators
+  Parser --> Query
+  Query --> Tuple
+  Relation --> Conditions
+  Sql --> Node
+  Conditions --> Node
+  FunctionReference --> Node
+  Parameter --> Constant
+  Operation --> Column
+  Tuple --> Column
+@enduml

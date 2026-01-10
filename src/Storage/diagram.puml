@@ -1,0 +1,22 @@
+@startuml package-related-diagram
+skinparam linetype ortho
+  package IfCastle.AQL.Storage as Storage {
+    package Exceptions {
+    }
+  }
+  package IfCastle #E6E6FA {
+    package AQL #98FB98 {
+      package Dsl #DDDDDD {
+      }
+      package Result #DDDDDD {
+      }
+    }
+    package DI #DDDDDD {
+    }
+    package Exceptions #DDDDDD {
+    }
+  }
+  Storage --> Dsl
+  Storage --> Result
+  Storage --> DI
+@enduml

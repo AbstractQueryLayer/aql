@@ -1,0 +1,12 @@
+@startuml package-related-diagram
+
+skinparam linetype ortho
+
+  package IfCastle.AQL.Transaction as Transaction {
+  }
+  package IfCastle #DDDDDD {
+    package Exceptions #DDDDDD {
+    }
+  }
+  Transaction --> Exceptions
+@enduml

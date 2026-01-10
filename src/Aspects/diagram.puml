@@ -1,0 +1,68 @@
+@startuml package-related-diagram
+  package IfCastle.AQL.Aspects as Aspects {
+    package AccessControl {
+      package AccessByGroups {
+      }
+    }
+    package ActivationStatus {
+    }
+    package ChangeHistory {
+    }
+    package Descriptions {
+    }
+    package Ownership {
+    }
+    package Publicity {
+    }
+    package Storage {
+    }
+    package Text {
+    }
+  }
+
+  package IfCastle #DDDDDD {
+    package AOP #DDDDDD {
+    }
+    package AQL #DDDDDD {
+      package Entity #DDDDDD {
+        package Builder #DDDDDD {
+        }
+        package Property #DDDDDD {
+        }
+        package Exceptions #DDDDDD {
+        }
+        package Key #DDDDDD {
+        }
+      }
+    }
+    package Exceptions #DDDDDD {
+    }
+  }
+  AccessByGroups --> AOP
+  ActivationStatus --> AOP
+  ActivationStatus --> Builder
+  ActivationStatus --> Entity
+  ActivationStatus --> Exceptions
+  ActivationStatus --> Property
+  Descriptions --> AOP
+  Descriptions --> Builder
+  Descriptions --> Entity
+  Descriptions --> Exceptions
+  Descriptions --> Property
+  Descriptions --> Exceptions
+  Publicity --> AOP
+  Publicity --> Builder
+  Publicity --> Entity
+  Publicity --> Property
+  Publicity --> Exceptions
+  Storage --> AOP
+  Storage --> Builder
+  Storage --> Entity
+  Storage --> Exceptions
+  Storage --> Key
+  Storage --> Property
+  Storage --> Exceptions
+  Text --> AOP
+  Text --> Builder
+  Text --> Entity
+@enduml

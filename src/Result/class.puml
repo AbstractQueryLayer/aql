@@ -1,0 +1,21 @@
+@startuml class-diagram
+  skinparam linetype ortho
+  interface "InsertUpdateResultInterface" as InsertUpdateResultInterface
+  interface "InsertUpdateResultSetterInterface" as InsertUpdateResultSetterInterface
+  class "ResultAbstract" as ResultAbstract
+  class "ResultFetched" as ResultFetched
+  interface "ResultInterface" as ResultInterface
+  class "ResultNull" as ResultNull
+  interface "ResultToDtoInterface" as ResultToDtoInterface
+  interface "TupleInterface" as TupleInterface
+  InsertUpdateResultInterface <|-- ResultAbstract
+  InsertUpdateResultSetterInterface ..> InsertUpdateResultInterface
+  InsertUpdateResultSetterInterface <|-- ResultAbstract
+  ResultAbstract ..> InsertUpdateResultInterface
+  ResultAbstract ..> ResultToDtoInterface
+  ResultAbstract <|-- ResultFetched
+  ResultAbstract <|-- ResultNull
+  ResultInterface <|-- ResultAbstract
+  ResultToDtoInterface ..> ResultInterface
+  TupleInterface <|-- ResultAbstract
+@enduml

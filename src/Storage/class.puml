@@ -1,0 +1,35 @@
+@startuml class-diagram
+  skinparam linetype ortho
+  interface "AqlStorageInterface" as AqlStorageInterface
+  interface "ReaderWriterInterface" as ReaderWriterInterface
+  interface "SqlStorageInterface" as SqlStorageInterface
+  class "StorageCollection" as StorageCollection
+  class "StorageCollectionByConfig" as StorageCollectionByConfig
+  interface "StorageCollectionInterface" as StorageCollectionInterface
+  interface "StorageCollectionMutableInterface" as StorageCollectionMutableInterface
+  interface "StorageInterface" as StorageInterface
+  package Exceptions as Exceptions {
+    class "ConnectFailed" as Exceptions_ConnectFailed
+    class "DuplicateKeysException" as Exceptions_DuplicateKeysException
+    class "QueryException" as Exceptions_QueryException
+    class "RecoverableException" as Exceptions_RecoverableException
+    class "ServerHasGoneAwayException" as Exceptions_ServerHasGoneAwayException
+    class "StorageException" as Exceptions_StorageException
+    class "TransactionResumeException" as Exceptions_TransactionResumeException
+  }
+  Exceptions_RecoverableException <|-- Exceptions_ServerHasGoneAwayException
+  Exceptions_StorageException <|-- Exceptions_ConnectFailed
+  Exceptions_StorageException <|-- Exceptions_DuplicateKeysException
+  Exceptions_StorageException <|-- Exceptions_QueryException
+  Exceptions_StorageException <|-- Exceptions_RecoverableException
+  StorageCollection ..> StorageInterface
+  StorageCollectionByConfig ..> Exceptions_StorageException
+  StorageCollectionByConfig ..> StorageCollection
+  StorageCollectionByConfig ..> StorageCollectionInterface
+  StorageCollectionByConfig ..> StorageInterface
+  StorageCollectionInterface ..> StorageInterface
+  StorageCollectionInterface <|-- StorageCollectionByConfig
+  StorageCollectionMutableInterface ..> StorageInterface
+  StorageCollectionMutableInterface <|-- StorageCollection
+  StorageInterface ..> Exceptions_StorageException
+@enduml

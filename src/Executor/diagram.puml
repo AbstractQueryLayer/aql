@@ -1,0 +1,287 @@
+@startuml package-related-diagram
+skinparam linetype ortho
+  package IfCastle.AQL.Executor as Executor {
+    package Context {
+    }
+    package Ddl {
+    }
+    package Exceptions {
+    }
+    package Helpers {
+    }
+    package Plan {
+    }
+    package PostAction {
+    }
+    package Preprocessing {
+    }
+    package Resolver {
+    }
+    package ResultComposer {
+    }
+    package Scope {
+      package Exceptions {
+      }
+    }
+    package Transaction {
+    }
+    package Transformer {
+      package Sql {
+      }
+    }
+  }
+  package IfCastle #DDDDDD {
+    package AQL #DDDDDD {
+      package Dsl #DDDDDD {
+        package Sql #DDDDDD {
+          package Query #DDDDDD {
+            package Exceptions #DDDDDD {
+            }
+            package Expression #DDDDDD {
+              package Operation #DDDDDD {
+              }
+            }
+          }
+          package Column #DDDDDD {
+          }
+          package FunctionReference #DDDDDD {
+          }
+          package Helpers #DDDDDD {
+          }
+          package Conditions #DDDDDD {
+          }
+          package Tuple #DDDDDD {
+          }
+          package Constant #DDDDDD {
+          }
+          package Parameter #DDDDDD {
+          }
+        }
+        package Node #DDDDDD {
+          package Exceptions #DDDDDD {
+          }
+        }
+        package Relation #DDDDDD {
+        }
+        package Parser #DDDDDD {
+          package Exceptions #DDDDDD {
+          }
+        }
+      }
+      package Entity #DDDDDD {
+        package Manager #DDDDDD {
+        }
+        package Exceptions #DDDDDD {
+        }
+        package Functions #DDDDDD {
+        }
+        package Relation #DDDDDD {
+        }
+        package DerivedEntity #DDDDDD {
+        }
+        package Property #DDDDDD {
+        }
+      }
+      package Result #DDDDDD {
+      }
+      package Storage #DDDDDD {
+        package Exceptions #DDDDDD {
+        }
+      }
+      package Transaction #DDDDDD {
+      }
+      package Generator #DDDDDD {
+        package Ddl #DDDDDD {
+        }
+      }
+      package Aspects #DDDDDD {
+        package AccessControl #DDDDDD {
+          package AccessByGroups #DDDDDD {
+          }
+        }
+      }
+    }
+    package Exceptions #DDDDDD {
+    }
+    package DesignPatterns #DDDDDD {
+      package ScopeControl #DDDDDD {
+      }
+      package ExecutionPlan #DDDDDD {
+      }
+      package Handler #DDDDDD {
+      }
+      package Iterators #DDDDDD {
+      }
+    }
+    package DI #DDDDDD {
+    }
+    package TypeDefinitions #DDDDDD {
+      package NativeSerialization #DDDDDD {
+      }
+    }
+  }
+
+  Executor --> Dsl
+  Executor --> Query
+  Executor --> Sql
+  Executor --> Entity
+  Executor --> Manager
+  Executor --> Exceptions
+  Executor --> Plan
+  Executor --> Preprocessing
+  Executor --> Result
+  Executor --> Storage
+  Executor --> Column
+  Executor <-[#red,plain,thickness=4]-> Context
+  Executor --> FunctionReference
+  Executor --> Helpers
+  Executor --> Node
+  Executor --> Exceptions
+  Executor --> Relation
+  Executor --> Conditions
+  Executor --> Exceptions
+  Executor --> Expression
+  Executor --> Operation
+  Executor --> Tuple
+  Executor --> Exceptions
+  Executor --> Functions
+  Executor --> Relation
+  Executor --> Helpers
+  Executor --> Resolver
+  Executor --> Transformer
+  Executor --> Exceptions
+  Executor --> Exceptions
+  Executor <-[#red,plain,thickness=4]-> Sql
+  Executor --> PostAction
+  Executor --> ScopeControl
+  Executor --> DI
+  Context --> Entity
+  Context --> DerivedEntity
+  Context --> FunctionReference
+  Context --> Functions
+  Context --> Dsl
+  Context --> Node
+  Context --> Exceptions
+  Context --> Expression
+  Context --> Query
+  Context --> Manager
+  Context <-[#red,plain,thickness=4]-> Transformer
+  Context --> Plan
+  Context --> Storage
+  Context --> Transaction
+  Context --> DI
+  Context --> Exceptions
+  Context --> Column
+  Context --> Constant
+  Context --> Operation
+  Context --> Sql
+  Context --> Tuple
+  Context --> Property
+  Context --> Exceptions
+  Ddl --> Manager
+  Ddl --> Ddl
+  Ddl --> Exceptions
+  Ddl --> Storage
+  Ddl --> DI
+  Ddl --> Exceptions
+  Exceptions --> Exceptions
+  Exceptions --> Dsl
+  Exceptions --> Node
+  Helpers --> Node
+  Helpers --> Column
+  Helpers --> Entity
+  Helpers --> Manager
+  Helpers --> Exceptions
+  Helpers --> Relation
+  Helpers --> Expression
+  Helpers --> Operation
+  Helpers --> Query
+  Helpers --> Tuple
+  Helpers --> Context
+  Plan --> Tuple
+  Plan --> Property
+  Plan --> ExecutionPlan
+  Plan --> Handler
+  Plan --> DI
+  Plan --> Result
+  Plan --> Exceptions
+  Plan --> Dsl
+  Plan --> Exceptions
+  Plan --> Node
+  Plan --> Query
+  Plan --> Plan
+  Plan --> Transaction
+  PostAction --> Plan
+  PostAction --> Handler
+  PostAction --> NativeSerialization
+  Preprocessing --> Dsl
+  Preprocessing --> Result
+  Preprocessing --> DI
+  Preprocessing --> Exceptions
+  Resolver --> Expression
+  Resolver --> Tuple
+  Resolver --> Plan
+  Resolver --> Result
+  Resolver --> DI
+  Resolver --> Exceptions
+  Resolver --> Column
+  Resolver --> Parameter
+  Resolver --> Relation
+  Resolver --> Exceptions
+  Resolver --> Node
+  Resolver --> Constant
+  Resolver --> Query
+  Resolver --> Context
+  Resolver --> Conditions
+  ResultComposer --> Plan
+  ResultComposer --> Result
+  ResultComposer --> DI
+  ResultComposer --> Exceptions
+  Scope --> AccessByGroups
+  Scope --> Dsl
+  Scope --> Column
+  Scope --> FunctionReference
+  Scope --> Expression
+  Scope --> Query
+  Scope --> Tuple
+  Scope --> Entity
+  Scope --> Context
+  Scope --> Exceptions
+  Scope --> Exceptions
+  Scope --> Executor
+  Scope --> ScopeControl
+  Scope --> DI
+  Exceptions --> Exceptions
+  Transaction --> Dsl
+  Transaction --> Executor
+  Transaction --> Plan
+  Transaction --> Preprocessing
+  Transaction --> Result
+  Transaction --> Transaction
+  Transformer --> Node
+  Transformer --> Iterators
+  Transformer --> Exceptions
+  Transformer --> Exceptions
+  Transformer --> Column
+  Transformer --> Conditions
+  Transformer --> Exceptions
+  Transformer --> Expression
+  Transformer --> Operation
+  Transformer --> Query
+  Transformer --> Tuple
+  Transformer --> Relation
+  Transformer --> Exceptions
+  Sql --> Column
+  Sql --> Query
+  Sql --> Tuple
+  Sql --> Context
+  Sql --> Exceptions
+  Sql --> Dsl
+  Sql --> Node
+  Sql --> Relation
+  Sql --> FunctionReference
+  Sql --> Exceptions
+  Sql --> Expression
+  Sql --> DerivedEntity
+  Sql --> Transformer
+@enduml

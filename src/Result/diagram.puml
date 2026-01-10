@@ -1,0 +1,18 @@
+@startuml package-related-diagram
+skinparam linetype ortho
+  package IfCastle.AQL.Result as Result {
+  }
+  package IfCastle #DDDDDD {
+    package DI #DDDDDD {
+    }
+    package Exceptions #DDDDDD {
+    }
+    package TypeDefinitions #DDDDDD {
+      package Value #DDDDDD {
+      }
+    }
+  }
+  Result --> DI
+  Result --> Exceptions
+  Result --> Value
+@enduml

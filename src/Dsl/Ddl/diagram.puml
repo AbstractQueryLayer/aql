@@ -1,0 +1,26 @@
+@startuml package-related-diagram
+  package IfCastle.AQL.Dsl.Ddl as Ddl {
+  }
+  package IfCastle #DDDDDD {
+    package AQL #DDDDDD {
+      package Dsl #DDDDDD {
+        package Node #DDDDDD {
+        }
+        package Sql #DDDDDD {
+        }
+      }
+      package Executor #DDDDDD {
+        package Context #DDDDDD {
+        }
+      }
+    }
+    package TypeDefinitions #DDDDDD {
+      package NativeSerialization #DDDDDD {
+      }
+    }
+  }
+  Ddl --> Node
+  Ddl --> NativeSerialization
+  Ddl --> Context
+  Ddl --> Sql
+@enduml
