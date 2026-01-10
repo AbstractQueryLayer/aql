@@ -1,0 +1,59 @@
+@startuml package-related-diagram
+skinparam linetype ortho
+  package IfCastle.AQL.DTO as DTO {
+    package Exceptions {
+    }
+  }
+  package IfCastle #EFEFEF  {
+    package AQL #DDDDDD {
+      package Dsl #DDDDDD {
+        package Sql #DDDDDD {
+          package Column #DDDDDD {
+          }
+          package Conditions #DDDDDD {
+          }
+          package Constant #DDDDDD {
+          }
+          package Query #DDDDDD {
+            package Expression #DDDDDD {
+              package Operation #DDDDDD {
+              }
+            }
+          }
+          package Tuple #DDDDDD {
+          }
+        }
+      }
+      package Entity #DDDDDD {
+        package Manager #DDDDDD {
+        }
+      }
+      package Executor #DDDDDD {
+        package Exceptions #DDDDDD {
+        }
+      }
+    }
+    package Exceptions #DDDDDD {
+    }
+    package TypeDefinitions #DDDDDD {
+      package Exceptions #DDDDDD {
+      }
+      package NativeSerialization #DDDDDD {
+      }
+      package Value #DDDDDD {
+      }
+    }
+  }
+  DTO --> Column
+  DTO --> Conditions
+  DTO --> Constant
+  DTO --> Query
+  DTO --> Expression
+  DTO --> Operation
+  DTO --> Tuple
+  DTO --> Manager
+  DTO --> Executor
+  DTO --> TypeDefinitions
+  DTO --> NativeSerialization
+  DTO --> Value
+@enduml

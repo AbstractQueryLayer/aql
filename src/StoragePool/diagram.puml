@@ -1,0 +1,52 @@
+@startuml package-related-diagram
+  package IfCastle.AQL.StoragePool as StoragePool {
+    package ReadWritePool {
+    }
+  }
+  package IfCastle #DDDDDD {
+    package AQL #DDDDDD {
+      package Storage #DDDDDD {
+        package Exceptions #DDDDDD {
+        }
+      }
+      package Executor #DDDDDD {
+        package Context #DDDDDD {
+        }
+      }
+      package Transaction #DDDDDD {
+      }
+      package Dsl #DDDDDD {
+      }
+      package Entity #DDDDDD {
+      }
+      package Result #DDDDDD {
+      }
+    }
+    package DI #DDDDDD {
+    }
+    package Exceptions #DDDDDD {
+    }
+    package DesignPatterns #DDDDDD {
+      package Pool #DDDDDD {
+      }
+      package Factory #DDDDDD {
+      }
+    }
+  }
+  StoragePool --> Storage
+  StoragePool --> Context
+  StoragePool --> Exceptions
+  StoragePool --> DI
+  StoragePool --> Exceptions
+  StoragePool --> Transaction
+  StoragePool --> Pool
+  StoragePool --> Factory
+  ReadWritePool --> Dsl
+  ReadWritePool --> Entity
+  ReadWritePool --> Context
+  ReadWritePool --> Executor
+  ReadWritePool --> Result
+  ReadWritePool --> Exceptions
+  ReadWritePool --> Storage
+  ReadWritePool --> Transaction
+@enduml
