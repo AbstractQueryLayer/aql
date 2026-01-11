@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace IfCastle\AQL\MigrationTool\SourceOperation;
+namespace IfCastle\AQL\MigrationTool\Repository;
 
 use IfCastle\AQL\MigrationTool\Exceptions\MigrationOperationNotExecutable;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;

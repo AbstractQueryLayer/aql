@@ -10,7 +10,7 @@ use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\Storage\StorageInterface;
 
-final class AqlMigrationRepository implements MigrationRepositoryInterface
+final class MigrationRepository implements MigrationRepositoryInterface
 {
     public function __construct(
         private readonly StorageInterface $storage

@@ -9,7 +9,7 @@ use IfCastle\AQL\MigrationTool\Exceptions\MigrationPathNotFound;
 use IfCastle\AQL\MigrationTool\Migration;
 use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\Parser\MigrationFileNameParserInterface;
-use IfCastle\AQL\MigrationTool\SourceOperation\FileMigrationOperation;
+use IfCastle\AQL\MigrationTool\Repository\FileMigrationOperation;
 
 final class FileMigrationSourceRepository implements MigrationSourceRepositoryInterface
 {
