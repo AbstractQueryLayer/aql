@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Executor;
 
-use IfCastle\AQL\MigrationTool\Exceptions\InvalidExecutorType;
-use IfCastle\AQL\MigrationTool\Exceptions\InvalidMigrationFile;
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 
 final class PhpMigrationExecutor implements MigrationOperationExecutorInterface
@@ -14,7 +13,7 @@ final class PhpMigrationExecutor implements MigrationOperationExecutorInterface
     public function execute(MigrationOperationInterface $operation): void
     {
         if ($operation->getType() !== 'php') {
-            throw new InvalidExecutorType(self::class, 'php', $operation->getType());
+            throw new MigrationException("PhpMigrationExecutor can only execute PHP migrations, got: {$operation->getType()}");
         }
 
         $code = $operation->getCode();
@@ -25,7 +24,7 @@ final class PhpMigrationExecutor implements MigrationOperationExecutorInterface
     public function rollback(MigrationOperationInterface $operation): void
     {
         if ($operation->getType() !== 'php') {
-            throw new InvalidExecutorType(self::class, 'php', $operation->getType());
+            throw new MigrationException("PhpMigrationExecutor can only execute PHP migrations, got: {$operation->getType()}");
         }
 
         $code = $operation->getRollbackCode();
@@ -49,7 +48,7 @@ final class PhpMigrationExecutor implements MigrationOperationExecutorInterface
         $tempFile = tempnam(sys_get_temp_dir(), 'migration_');
 
         if ($tempFile === false) {
-            throw new InvalidMigrationFile($filePath, 'Failed to create temporary file for execution');
+            throw new MigrationException("Failed to create temporary file for PHP migration: {$filePath}");
         }
 
         try {
@@ -57,11 +56,11 @@ final class PhpMigrationExecutor implements MigrationOperationExecutorInterface
             $instance = require $tempFile;
 
             if (!is_object($instance)) {
-                throw new InvalidMigrationFile($filePath, 'PHP migration must return an object instance');
+                throw new MigrationException("PHP migration must return an object instance: {$filePath}");
             }
 
             if (!method_exists($instance, $method)) {
-                throw new InvalidMigrationFile($filePath, "PHP migration must have {$method}() method");
+                throw new MigrationException("PHP migration must have {$method}() method: {$filePath}");
             }
 
             $instance->$method();

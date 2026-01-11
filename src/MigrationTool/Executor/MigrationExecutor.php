@@ -4,33 +4,35 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Executor;
 
-use IfCastle\AQL\MigrationTool\Exceptions\ExecutorNotFound;
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
 use IfCastle\AQL\MigrationTool\Exceptions\MigrationExecutionException;
 use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\MigrationTool\Repository\MigrationRepositoryInterface;
 
-final class MigrationExecutor implements MigrationExecutorInterface
+final readonly class MigrationExecutor implements MigrationExecutorInterface
 {
     /**
      * @param MigrationOperationExecutorInterface[] $executors
      */
     public function __construct(
-        private readonly MigrationRepositoryInterface $repository,
-        private readonly array $executors
+        private MigrationRepositoryInterface $repository,
+        private array                        $executors
     ) {}
 
     #[\Override]
     public function executeMigration(MigrationInterface $migration): void
     {
         foreach ($migration->getMigrationOperations() as $operation) {
-            $executor = $this->findExecutor($operation);
+
+            $executor = array_find(
+                $this->executors, static fn(MigrationOperationExecutorInterface $executor) => $executor->supports($operation)
+            );
 
             if ($executor === null) {
-                throw new ExecutorNotFound($operation->getType());
+                throw new MigrationException("No executor found for migration type: {$operation->getType()}");
             }
 
-            // Update status to running
             $this->repository->updateStatus(
                 $operation->getVersion(),
                 $operation->getTaskName(),
@@ -66,16 +68,5 @@ final class MigrationExecutor implements MigrationExecutorInterface
                 );
             }
         }
-    }
-
-    private function findExecutor($operation): ?MigrationOperationExecutorInterface
-    {
-        foreach ($this->executors as $executor) {
-            if ($executor->supports($operation)) {
-                return $executor;
-            }
-        }
-
-        return null;
     }
 }

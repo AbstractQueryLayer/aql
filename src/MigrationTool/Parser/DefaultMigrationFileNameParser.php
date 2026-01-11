@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Parser;
 
-use IfCastle\AQL\MigrationTool\Exceptions\InvalidFileName;
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
 
 final class DefaultMigrationFileNameParser implements MigrationFileNameParserInterface
 {
@@ -42,7 +42,7 @@ final class DefaultMigrationFileNameParser implements MigrationFileNameParserInt
             );
         }
 
-        throw new InvalidFileName($fileName);
+        throw new MigrationException("Invalid migration file name format: {$fileName}");
     }
 
     #[\Override]
