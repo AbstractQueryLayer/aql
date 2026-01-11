@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace IfCastle\AQL\MigrationTool;
+namespace IfCastle\AQL\MigrationTool\Repository;
 
+use IfCastle\AQL\Aspects\Storage\PrimaryKey;
 use IfCastle\AQL\Entity\EntityAbstract;
 use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
 use IfCastle\AQL\Entity\Property\PropertyDateTime;
@@ -11,7 +12,7 @@ use IfCastle\AQL\Entity\Property\PropertyEnum;
 use IfCastle\AQL\Entity\Property\PropertyInteger;
 use IfCastle\AQL\Entity\Property\PropertyString;
 use IfCastle\AQL\Entity\Property\PropertyText;
-use IfCastle\AQL\Aspects\Storage\PrimaryKey;
+use IfCastle\AQL\MigrationTool\MigrationStatus;
 
 class MigrationEntity extends EntityAbstract
 {

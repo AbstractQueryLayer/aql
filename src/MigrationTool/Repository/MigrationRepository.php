@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\MigrationTool\Repository;
 
 use IfCastle\AQL\MigrationTool\Exceptions\MigrationOperationNotExecutable;
-use IfCastle\AQL\MigrationTool\MigrationEntity;
+use IfCastle\AQL\MigrationTool\Repository\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\Storage\StorageInterface;
