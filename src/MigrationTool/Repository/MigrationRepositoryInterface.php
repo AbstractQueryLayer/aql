@@ -38,7 +38,8 @@ interface MigrationRepositoryInterface
         string $taskName,
         string $status,
         ?\DateTimeInterface $startedAt = null,
-        ?\DateTimeInterface $completedAt = null
+        ?\DateTimeInterface $completedAt = null,
+        ?\Throwable $error = null
     ): void;
 
     /**

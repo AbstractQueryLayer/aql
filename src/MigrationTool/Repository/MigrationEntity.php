@@ -42,6 +42,7 @@ class MigrationEntity extends EntityAbstract
             ->describeProperty(new PropertyString('checksum', maxLength: 64))
             ->describeProperty(new PropertyEnum('status', MigrationStatus::class))
             ->describeProperty(new PropertyDateTime('startedAt'))
-            ->describeProperty(new PropertyDateTime('completedAt'));
+            ->describeProperty(new PropertyDateTime('completedAt'))
+            ->describeProperty((new PropertyText('errorData'))->asNullable());
     }
 }

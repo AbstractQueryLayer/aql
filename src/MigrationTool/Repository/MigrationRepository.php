@@ -9,6 +9,7 @@ use IfCastle\AQL\MigrationTool\Repository\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\Storage\StorageInterface;
+use IfCastle\Exceptions\BaseException;
 
 final class MigrationRepository implements MigrationRepositoryInterface
 {
@@ -81,7 +82,8 @@ final class MigrationRepository implements MigrationRepositoryInterface
         string $taskName,
         string $status,
         ?\DateTimeInterface $startedAt = null,
-        ?\DateTimeInterface $completedAt = null
+        ?\DateTimeInterface $completedAt = null,
+        ?\Throwable $error = null
     ): void {
         $updateData = ['status' => $status];
 
@@ -91,6 +93,10 @@ final class MigrationRepository implements MigrationRepositoryInterface
 
         if ($completedAt !== null) {
             $updateData['completedAt'] = $completedAt;
+        }
+
+        if ($error !== null) {
+            $updateData['errorData'] = json_encode(BaseException::serializeToArray($error));
         }
 
         $this->storage

@@ -92,11 +92,14 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
                 new \DateTime()
             );
         } catch (\Throwable $e) {
-            // Update status to failed
+            // Update status to failed and save error details
             $this->repository->updateStatus(
                 $operation->getVersion(),
                 $operation->getTaskName(),
-                MigrationStatus::FAILED->value
+                MigrationStatus::FAILED->value,
+                null,
+                null,
+                $e
             );
 
             throw new MigrationExecutionException(
@@ -116,7 +119,7 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
      *
      * @param MigrationOperationInterface[] $operations
      * @throws CompositeException If any \Exception occurs during rollback
-     * @throws \Error If critical error occurs (re-thrown immediately)
+     * @throws \Error If a critical error occurs (re-thrown immediately)
      */
     private function rollbackOperations(array $operations): void
     {
@@ -142,15 +145,31 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
                     MigrationStatus::ROLLBACK->value
                 );
             } catch (\Error $error) {
-                // Critical error (e.g., out of memory, fatal error) - re-throw immediately
+                $this->repository->updateStatus(
+                    $operation->getVersion(),
+                    $operation->getTaskName(),
+                    MigrationStatus::FAILED->value,
+                    null,
+                    null,
+                    $error
+                );
+
                 throw $error;
             } catch (\Exception $exception) {
-                // Recoverable exception - collect and continue with other rollbacks
+                $this->repository->updateStatus(
+                    $operation->getVersion(),
+                    $operation->getTaskName(),
+                    MigrationStatus::FAILED->value,
+                    null,
+                    null,
+                    $exception
+                );
+
                 $rollbackExceptions[] = $exception;
             }
         }
 
-        // If any exceptions occurred during rollback, throw composite exception
+        // If any exceptions occurred during rollback, throw a composite exception
         if (!empty($rollbackExceptions)) {
             throw new CompositeException(
                 "Rollback failed for " . count($rollbackExceptions) . " operation(s)",
