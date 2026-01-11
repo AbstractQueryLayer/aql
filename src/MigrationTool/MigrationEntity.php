@@ -7,6 +7,7 @@ namespace IfCastle\AQL\MigrationTool;
 use IfCastle\AQL\Entity\EntityAbstract;
 use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
 use IfCastle\AQL\Entity\Property\PropertyDateTime;
+use IfCastle\AQL\Entity\Property\PropertyEnum;
 use IfCastle\AQL\Entity\Property\PropertyInteger;
 use IfCastle\AQL\Entity\Property\PropertyString;
 use IfCastle\AQL\Entity\Property\PropertyText;
@@ -14,12 +15,6 @@ use IfCastle\AQL\Aspects\Storage\PrimaryKey;
 
 class MigrationEntity extends EntityAbstract
 {
-    public const string STATUS_PENDING = 'pending';
-    public const string STATUS_RUNNING = 'running';
-    public const string STATUS_COMPLETED = 'completed';
-    public const string STATUS_FAILED = 'failed';
-    public const string STATUS_ROLLBACK = 'rollback';
-
     public const string TYPE_SQL = 'sql';
     public const string TYPE_PHP = 'php';
 
@@ -44,7 +39,7 @@ class MigrationEntity extends EntityAbstract
             ->describeProperty(new PropertyText('code'))
             ->describeProperty(new PropertyText('rollbackCode'))
             ->describeProperty(new PropertyString('checksum', maxLength: 64))
-            ->describeProperty(new PropertyString('status', maxLength: 20))
+            ->describeProperty(new PropertyEnum('status', MigrationStatus::class))
             ->describeProperty(new PropertyDateTime('startedAt'))
             ->describeProperty(new PropertyDateTime('completedAt'));
     }

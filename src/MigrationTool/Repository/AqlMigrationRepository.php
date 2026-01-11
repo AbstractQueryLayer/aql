@@ -6,6 +6,7 @@ namespace IfCastle\AQL\MigrationTool\Repository;
 
 use IfCastle\AQL\MigrationTool\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
+use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\Storage\StorageInterface;
 
 final class AqlMigrationRepository implements MigrationRepositoryInterface
@@ -19,7 +20,7 @@ final class AqlMigrationRepository implements MigrationRepositoryInterface
     {
         $result = $this->storage
             ->from(MigrationEntity::entity())
-            ->where('status', MigrationEntity::STATUS_COMPLETED)
+            ->where('status', MigrationStatus::COMPLETED->value)
             ->orderBy('version', 'DESC')
             ->limit(1)
             ->fetchOne();
@@ -46,7 +47,7 @@ final class AqlMigrationRepository implements MigrationRepositoryInterface
             ->from(MigrationEntity::entity())
             ->where('version', $version)
             ->where('taskName', $taskName)
-            ->where('status', MigrationEntity::STATUS_COMPLETED)
+            ->where('status', MigrationStatus::COMPLETED->value)
             ->fetchOne();
 
         return $result !== null;
@@ -67,7 +68,7 @@ final class AqlMigrationRepository implements MigrationRepositoryInterface
                 'code' => $operation->getCode(),
                 'rollbackCode' => $operation->getRollbackCode(),
                 'checksum' => $operation->getChecksum(),
-                'status' => MigrationEntity::STATUS_PENDING,
+                'status' => MigrationStatus::PENDING->value,
                 'startedAt' => null,
                 'completedAt' => null,
             ]);
@@ -104,7 +105,7 @@ final class AqlMigrationRepository implements MigrationRepositoryInterface
     {
         $results = $this->storage
             ->from(MigrationEntity::entity())
-            ->where('status', MigrationEntity::STATUS_COMPLETED)
+            ->where('status', MigrationStatus::COMPLETED->value)
             ->orderBy('version', 'ASC')
             ->fetchAll();
 

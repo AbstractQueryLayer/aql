@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Executor;
 
-use IfCastle\AQL\MigrationTool\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationInterface;
+use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\MigrationTool\Repository\MigrationRepositoryInterface;
 
 final class MigrationExecutor implements MigrationExecutorInterface
@@ -34,7 +34,7 @@ final class MigrationExecutor implements MigrationExecutorInterface
             $this->repository->updateStatus(
                 $operation->getVersion(),
                 $operation->getTaskName(),
-                MigrationEntity::STATUS_RUNNING,
+                MigrationStatus::RUNNING->value,
                 new \DateTime()
             );
 
@@ -46,7 +46,7 @@ final class MigrationExecutor implements MigrationExecutorInterface
                 $this->repository->updateStatus(
                     $operation->getVersion(),
                     $operation->getTaskName(),
-                    MigrationEntity::STATUS_COMPLETED,
+                    MigrationStatus::COMPLETED->value,
                     null,
                     new \DateTime()
                 );
@@ -55,7 +55,7 @@ final class MigrationExecutor implements MigrationExecutorInterface
                 $this->repository->updateStatus(
                     $operation->getVersion(),
                     $operation->getTaskName(),
-                    MigrationEntity::STATUS_FAILED
+                    MigrationStatus::FAILED->value
                 );
 
                 throw new \RuntimeException(
