@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Executor;
 
+use IfCastle\AQL\MigrationTool\Exceptions\InvalidExecutorType;
+use IfCastle\AQL\MigrationTool\Exceptions\RollbackCodeMissing;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\Storage\StorageInterface;
 
@@ -17,7 +19,7 @@ final class SqlMigrationExecutor implements MigrationOperationExecutorInterface
     public function execute(MigrationOperationInterface $operation): void
     {
         if ($operation->getType() !== 'sql') {
-            throw new \InvalidArgumentException('SqlMigrationExecutor can only execute SQL migrations');
+            throw new InvalidExecutorType(self::class, 'sql', $operation->getType());
         }
 
         $this->storage->execute($operation->getCode());
@@ -27,13 +29,13 @@ final class SqlMigrationExecutor implements MigrationOperationExecutorInterface
     public function rollback(MigrationOperationInterface $operation): void
     {
         if ($operation->getType() !== 'sql') {
-            throw new \InvalidArgumentException('SqlMigrationExecutor can only rollback SQL migrations');
+            throw new InvalidExecutorType(self::class, 'sql', $operation->getType());
         }
 
         $rollbackCode = $operation->getRollbackCode();
 
         if (empty($rollbackCode)) {
-            throw new \RuntimeException('Rollback code is empty for migration: ' . $operation->getTaskName());
+            throw new RollbackCodeMissing($operation->getTaskName(), $operation->getVersion());
         }
 
         $this->storage->execute($rollbackCode);

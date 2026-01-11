@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Repository;
 
+use IfCastle\AQL\MigrationTool\Exceptions\InvalidMigrationFile;
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationPathNotFound;
 use IfCastle\AQL\MigrationTool\Migration;
 use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\Parser\MigrationFileNameParserInterface;
@@ -16,7 +18,7 @@ final class FileMigrationSourceRepository implements MigrationSourceRepositoryIn
         private readonly MigrationFileNameParserInterface $fileNameParser
     ) {
         if (!is_dir($this->basePath)) {
-            throw new \InvalidArgumentException("Migration base path does not exist: {$this->basePath}");
+            throw new MigrationPathNotFound($this->basePath);
         }
     }
 
@@ -114,7 +116,7 @@ final class FileMigrationSourceRepository implements MigrationSourceRepositoryIn
                 $code = file_get_contents($filePath);
 
                 if ($code === false) {
-                    throw new \RuntimeException("Failed to read migration file: {$filePath}");
+                    throw new InvalidMigrationFile($filePath, 'Failed to read file contents');
                 }
 
                 $operations[] = new FileMigrationOperation(

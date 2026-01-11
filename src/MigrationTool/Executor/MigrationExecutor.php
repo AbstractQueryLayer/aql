@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Executor;
 
+use IfCastle\AQL\MigrationTool\Exceptions\ExecutorNotFound;
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationExecutionException;
 use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\MigrationTool\Repository\MigrationRepositoryInterface;
@@ -25,9 +27,7 @@ final class MigrationExecutor implements MigrationExecutorInterface
             $executor = $this->findExecutor($operation);
 
             if ($executor === null) {
-                throw new \RuntimeException(
-                    "No executor found for migration type: {$operation->getType()}"
-                );
+                throw new ExecutorNotFound($operation->getType());
             }
 
             // Update status to running
@@ -58,9 +58,10 @@ final class MigrationExecutor implements MigrationExecutorInterface
                     MigrationStatus::FAILED->value
                 );
 
-                throw new \RuntimeException(
-                    "Migration failed: {$operation->getTaskName()} v{$operation->getVersion()}: {$e->getMessage()}",
-                    0,
+                throw new MigrationExecutionException(
+                    $operation->getTaskName(),
+                    $operation->getVersion(),
+                    $e->getMessage(),
                     $e
                 );
             }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\SourceOperation;
 
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationOperationNotExecutable;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 
 final class FileMigrationOperation implements MigrationOperationInterface
@@ -102,13 +103,13 @@ final class FileMigrationOperation implements MigrationOperationInterface
     #[\Override]
     public function executeMigrationOperation(): void
     {
-        throw new \RuntimeException('File-based migration operation cannot be executed directly. Use MigrationExecutor.');
+        throw new MigrationOperationNotExecutable('File-based migration operation cannot be executed directly. Use MigrationExecutor.');
     }
 
     #[\Override]
     public function executeRollback(): void
     {
-        throw new \RuntimeException('File-based migration operation cannot be rolled back directly. Use MigrationExecutor.');
+        throw new MigrationOperationNotExecutable('File-based migration operation cannot be rolled back directly. Use MigrationExecutor.');
     }
 
     private function calculateChecksum(): string

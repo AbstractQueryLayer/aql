@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Repository;
 
+use IfCastle\AQL\MigrationTool\Exceptions\MigrationOperationNotExecutable;
 use IfCastle\AQL\MigrationTool\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
@@ -164,12 +165,12 @@ final class AqlMigrationRepository implements MigrationRepositoryInterface
 
             public function executeMigrationOperation(): void
             {
-                throw new \RuntimeException('Cannot execute operation loaded from database. Use MigrationExecutor.');
+                throw new MigrationOperationNotExecutable('Cannot execute operation loaded from database. Use MigrationExecutor.');
             }
 
             public function executeRollback(): void
             {
-                throw new \RuntimeException('Cannot rollback operation loaded from database. Use MigrationExecutor.');
+                throw new MigrationOperationNotExecutable('Cannot rollback operation loaded from database. Use MigrationExecutor.');
             }
         };
     }
