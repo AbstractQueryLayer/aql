@@ -4,76 +4,80 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Repository;
 
+use IfCastle\AQL\Dsl\Sql\Query\Select;
+use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
-use IfCastle\AQL\MigrationTool\Repository\MigrationEntity;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
-use IfCastle\AQL\Storage\StorageInterface;
 use IfCastle\Exceptions\BaseException;
 
 final class MigrationRepository implements MigrationRepositoryInterface
 {
     public function __construct(
-        private readonly StorageInterface $storage
+        private readonly AqlExecutorInterface $aqlExecutor
     ) {}
 
     #[\Override]
     public function getLastExecuted(): ?MigrationOperationInterface
     {
-        $result = $this->storage
-            ->from(MigrationEntity::entity())
-            ->where('status', MigrationStatus::COMPLETED->value)
-            ->orderBy('version', 'DESC')
-            ->limit(1)
-            ->fetchOne();
+        $dto = MigrationDto::fetchOne(
+            $this->aqlExecutor,
+            Select::from(MigrationEntity::entity())
+                ->where('status', MigrationStatus::COMPLETED->value)
+                ->orderBy('version', 'DESC')
+                ->limit(1)
+        );
 
-        return $result ? $this->hydrateOperation($result) : null;
+        return $dto ? $this->dtoToOperation($dto) : null;
     }
 
     #[\Override]
     public function getByTaskName(string $taskName): array
     {
-        $results = $this->storage
-            ->from(MigrationEntity::entity())
-            ->where('taskName', $taskName)
-            ->orderBy('version', 'ASC')
-            ->fetchAll();
+        $dtos = MigrationDto::fetch(
+            $this->aqlExecutor,
+            Select::from(MigrationEntity::entity())
+                ->where('taskName', $taskName)
+                ->orderBy('version', 'ASC')
+        );
 
-        return array_map(fn($row) => $this->hydrateOperation($row), $results);
+        return array_map(fn($dto) => $this->dtoToOperation($dto), $dtos);
     }
 
     #[\Override]
     public function isExecuted(int $version, string $taskName): bool
     {
-        $result = $this->storage
-            ->from(MigrationEntity::entity())
-            ->where('version', $version)
-            ->where('taskName', $taskName)
-            ->where('status', MigrationStatus::COMPLETED->value)
-            ->fetchOne();
+        $dto = MigrationDto::fetchOne(
+            $this->aqlExecutor,
+            Select::from(MigrationEntity::entity())
+                ->where('version', $version)
+                ->where('taskName', $taskName)
+                ->where('status', MigrationStatus::COMPLETED->value)
+        );
 
-        return $result !== null;
+        return $dto !== null;
     }
 
     #[\Override]
     public function save(MigrationOperationInterface $operation): void
     {
-        $this->storage
-            ->into(MigrationEntity::entity())
-            ->insert([
-                'version' => $operation->getVersion(),
-                'taskName' => $operation->getTaskName(),
-                'description' => $operation->getDescription(),
-                'migrationDate' => $operation->getMigrationDate(),
-                'type' => $operation->getType(),
-                'filePath' => $operation->getFilePath(),
-                'code' => $operation->getCode(),
-                'rollbackCode' => $operation->getRollbackCode(),
-                'checksum' => $operation->getChecksum(),
-                'status' => MigrationStatus::PENDING->value,
-                'startedAt' => null,
-                'completedAt' => null,
-            ]);
+        $dto = new MigrationDto(
+            version: $operation->getVersion(),
+            taskName: $operation->getTaskName(),
+            description: $operation->getDescription(),
+            migrationDate: $operation->getMigrationDate(),
+            type: $operation->getType(),
+            filePath: $operation->getFilePath(),
+            code: $operation->getCode(),
+            rollbackCode: $operation->getRollbackCode(),
+            checksum: $operation->getChecksum(),
+            status: MigrationStatus::PENDING->value,
+            startedAt: null,
+            completedAt: null,
+            errorData: null
+        );
+
+        $dto->insert($this->aqlExecutor);
     }
 
     #[\Override]
@@ -85,88 +89,101 @@ final class MigrationRepository implements MigrationRepositoryInterface
         ?\DateTimeInterface $completedAt = null,
         ?\Throwable $error = null
     ): void {
-        $updateData = ['status' => $status];
+        // Fetch existing DTO
+        $dto = MigrationDto::fetchOne(
+            $this->aqlExecutor,
+            Select::from(MigrationEntity::entity())
+                ->where('version', $version)
+                ->where('taskName', $taskName)
+        );
+
+        if ($dto === null) {
+            throw new MigrationException("Migration operation not found: version={$version}, taskName={$taskName}");
+        }
+
+        // Update fields
+        $dto->status = $status;
 
         if ($startedAt !== null) {
-            $updateData['startedAt'] = $startedAt;
+            $dto->startedAt = $startedAt instanceof \DateTimeImmutable
+                ? $startedAt
+                : \DateTimeImmutable::createFromInterface($startedAt);
         }
 
         if ($completedAt !== null) {
-            $updateData['completedAt'] = $completedAt;
+            $dto->completedAt = $completedAt instanceof \DateTimeImmutable
+                ? $completedAt
+                : \DateTimeImmutable::createFromInterface($completedAt);
         }
 
         if ($error !== null) {
-            $updateData['errorData'] = json_encode(BaseException::serializeToArray($error));
+            $dto->errorData = json_encode(BaseException::serializeToArray($error));
         }
 
-        $this->storage
-            ->update(MigrationEntity::entity())
-            ->set($updateData)
-            ->where('version', $version)
-            ->where('taskName', $taskName)
-            ->execute();
+        $dto->update($this->aqlExecutor);
     }
 
     #[\Override]
     public function getAllExecuted(): array
     {
-        $results = $this->storage
-            ->from(MigrationEntity::entity())
-            ->where('status', MigrationStatus::COMPLETED->value)
-            ->orderBy('version', 'ASC')
-            ->fetchAll();
+        $dtos = MigrationDto::fetch(
+            $this->aqlExecutor,
+            Select::from(MigrationEntity::entity())
+                ->where('status', MigrationStatus::COMPLETED->value)
+                ->orderBy('version', 'ASC')
+        );
 
-        return array_map(fn($row) => $this->hydrateOperation($row), $results);
+        return array_map(fn($dto) => $this->dtoToOperation($dto), $dtos);
     }
 
-    private function hydrateOperation(array $row): MigrationOperationInterface
+    private function dtoToOperation(MigrationDto $dto): MigrationOperationInterface
     {
-        return new class($row) implements MigrationOperationInterface {
-            public function __construct(private readonly array $data) {}
+        return new class($dto) implements MigrationOperationInterface {
+            public function __construct(private readonly MigrationDto $dto) {}
 
             public function getVersion(): int
             {
-                return (int)$this->data['version'];
+                return $this->dto->version;
             }
 
             public function getTaskName(): string
             {
-                return $this->data['taskName'];
+                return $this->dto->taskName;
             }
 
             public function getDescription(): string
             {
-                return $this->data['description'];
+                return $this->dto->description;
             }
 
             public function getMigrationDate(): string
             {
-                return $this->data['migrationDate'];
+                return $this->dto->migrationDate;
             }
 
             public function getType(): string
             {
-                return $this->data['type'];
+                return $this->dto->type;
             }
 
             public function getFilePath(): string
             {
-                return $this->data['filePath'];
+                return $this->dto->filePath;
             }
 
             public function getCode(): string
             {
-                return $this->data['code'];
+                return $this->dto->code;
             }
 
             public function getRollbackCode(): string
             {
-                return $this->data['rollbackCode'] ?? '';
+                return $this->dto->rollbackCode;
             }
 
             public function getChecksum(): string
             {
-                return $this->data['checksum'];
+                return $this->dto->checksum;
             }
 
             public function executeMigrationOperation(): void
