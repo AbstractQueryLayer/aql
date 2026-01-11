@@ -54,10 +54,10 @@ jobs:
         package:
           - { name: 'Aspects', repo: 'aql-aspects' }
           - { name: 'Dsl', repo: 'aql-dsl' }
-          - { name: 'Dto', repo: 'aql-dto' }
+          - { name: 'DTO', repo: 'aql-dto' }
           - { name: 'Entity', repo: 'aql-entity' }
           - { name: 'Executor', repo: 'aql-executor' }
-          - { name: 'Filesystem', repo: 'aql-filesystem' }
+          - { name: 'FileSystem', repo: 'aql-filesystem' }
           - { name: 'Generator', repo: 'aql-generator' }
           - { name: 'Mysql', repo: 'aql-mysql' }
           - { name: 'PdoDriver', repo: 'aql-pdodriver' }
@@ -66,7 +66,7 @@ jobs:
           - { name: 'Redis', repo: 'aql-redis' }
           - { name: 'Result', repo: 'aql-result' }
           - { name: 'SqlDriver', repo: 'aql-sqldriver' }
-          - { name: 'Sqlite', repo: 'aql-sqlite' }
+          - { name: 'SQLite', repo: 'aql-sqlite' }
           - { name: 'Storage', repo: 'aql-storage' }
           - { name: 'StoragePool', repo: 'aql-storagepool' }
           - { name: 'Telemetry', repo: 'aql-telemetry' }
