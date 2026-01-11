@@ -10,6 +10,7 @@ use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\AQL\MigrationTool\Repository\MigrationRepositoryInterface;
+use IfCastle\Exceptions\CompositeException;
 
 final readonly class MigrationExecutor implements MigrationExecutorInterface
 {
@@ -25,6 +26,7 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
     public function executeMigration(MigrationInterface $migration): void
     {
         $executedOperations = [];
+        $originalException = null;
 
         try {
             foreach ($migration->getMigrationOperations() as $operation) {
@@ -32,9 +34,22 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
                 $executedOperations[] = $operation;
             }
         } catch (\Throwable $e) {
-            // Rollback all previously executed operations in reverse order
-            $this->rollbackOperations(array_reverse($executedOperations));
-            throw $e;
+            $originalException = $e;
+
+            // Attempt to rollback all previously executed operations in reverse order
+            try {
+                $this->rollbackOperations(array_reverse($executedOperations));
+            } catch (\Throwable $rollbackException) {
+                // Rollback failed - throw composite exception with both errors
+                throw new CompositeException(
+                    "Migration failed and rollback encountered errors",
+                    $originalException,
+                    $rollbackException
+                );
+            }
+
+            // Rollback succeeded - throw original exception
+            throw $originalException;
         }
     }
 
@@ -96,10 +111,17 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
     /**
      * Rollback operations in reverse order.
      *
+     * Collects all exceptions during rollback and throws CompositeException if any occur.
+     * Critical errors (\Error and subclasses) are re-thrown immediately.
+     *
      * @param MigrationOperationInterface[] $operations
+     * @throws CompositeException If any \Exception occurs during rollback
+     * @throws \Error If critical error occurs (re-thrown immediately)
      */
     private function rollbackOperations(array $operations): void
     {
+        $rollbackExceptions = [];
+
         foreach ($operations as $operation) {
             $executor = array_find(
                 $this->executors,
@@ -119,10 +141,21 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
                     $operation->getTaskName(),
                     MigrationStatus::ROLLBACK->value
                 );
-            } catch (\Throwable $rollbackException) {
-                // Log rollback failure but continue with other rollbacks
-                // In production, this should be logged properly
+            } catch (\Error $error) {
+                // Critical error (e.g., out of memory, fatal error) - re-throw immediately
+                throw $error;
+            } catch (\Exception $exception) {
+                // Recoverable exception - collect and continue with other rollbacks
+                $rollbackExceptions[] = $exception;
             }
+        }
+
+        // If any exceptions occurred during rollback, throw composite exception
+        if (!empty($rollbackExceptions)) {
+            throw new CompositeException(
+                "Rollback failed for " . count($rollbackExceptions) . " operation(s)",
+                ...$rollbackExceptions
+            );
         }
     }
 }
