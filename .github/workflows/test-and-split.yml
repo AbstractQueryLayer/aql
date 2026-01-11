@@ -57,19 +57,18 @@ jobs:
           - { name: 'Dto', repo: 'aql-dto' }
           - { name: 'Entity', repo: 'aql-entity' }
           - { name: 'Executor', repo: 'aql-executor' }
-          - { name: 'Ext', repo: 'aql-ext' }
           - { name: 'Filesystem', repo: 'aql-filesystem' }
           - { name: 'Generator', repo: 'aql-generator' }
           - { name: 'Mysql', repo: 'aql-mysql' }
-          - { name: 'Pdodriver', repo: 'aql-pdodriver' }
-          - { name: 'Postaction', repo: 'aql-postaction' }
-          - { name: 'Postgresql', repo: 'aql-postgresql' }
+          - { name: 'PdoDriver', repo: 'aql-pdodriver' }
+          - { name: 'PostAction', repo: 'aql-postaction' }
+          - { name: 'PostgreSql', repo: 'aql-postgresql' }
           - { name: 'Redis', repo: 'aql-redis' }
           - { name: 'Result', repo: 'aql-result' }
-          - { name: 'Sqldriver', repo: 'aql-sqldriver' }
+          - { name: 'SqlDriver', repo: 'aql-sqldriver' }
           - { name: 'Sqlite', repo: 'aql-sqlite' }
           - { name: 'Storage', repo: 'aql-storage' }
-          - { name: 'Storagepool', repo: 'aql-storagepool' }
+          - { name: 'StoragePool', repo: 'aql-storagepool' }
           - { name: 'Telemetry', repo: 'aql-telemetry' }
           - { name: 'TestUtils', repo: 'aql-test-utils' }
           - { name: 'Transaction', repo: 'aql-transaction' }
