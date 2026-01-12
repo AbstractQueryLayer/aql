@@ -11,3 +11,4 @@ composer require ifcastle/aql-telemetry
 ## License
 
 MIT License. See LICENSE file for details.
+

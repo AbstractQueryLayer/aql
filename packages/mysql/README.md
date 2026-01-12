@@ -11,3 +11,4 @@ composer require ifcastle/aql-mysql
 ## License
 
 MIT License. See LICENSE file for details.
+

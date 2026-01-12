@@ -11,3 +11,4 @@ composer require ifcastle/aql-result
 ## License
 
 MIT License. See LICENSE file for details.
+

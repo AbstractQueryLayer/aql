@@ -15,3 +15,4 @@ composer require ifcastle/aql-executor
 ## License
 
 MIT License. See LICENSE file for details.
+

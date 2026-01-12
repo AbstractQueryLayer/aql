@@ -15,3 +15,4 @@ composer require ifcastle/aql-dsl
 ## License
 
 MIT License. See LICENSE file for details.
+

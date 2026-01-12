@@ -15,3 +15,4 @@ composer require ifcastle/aql-entity
 ## License
 
 MIT License. See LICENSE file for details.
+

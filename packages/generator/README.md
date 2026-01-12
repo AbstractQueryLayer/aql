@@ -11,3 +11,4 @@ composer require ifcastle/aql-generator
 ## License
 
 MIT License. See LICENSE file for details.
+
