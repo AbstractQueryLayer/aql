@@ -1,6 +1,6 @@
 {
-    "name": "ifcastle/aql-storagepool",
-    "description": "Storage pooling and connection management for AQL",
+    "name": "ifcastle/aql-dto",
+    "description": "Data transfer object for AQL.",
     "keywords": [
         "aql",
         "query",
@@ -20,19 +20,24 @@
     },
     "autoload": {
         "psr-4": {
-            "IfCastle\\AQL\\StoragePool\\": [
+            "IfCastle\\AQL\\DTO\\": [
                 "src/"
             ]
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "IfCastle\\AQL\\StoragePool\\": "tests/"
+            "IfCastle\\AQL\\DTO\\": "tests/"
         }
     },
     "require-dev": {
         "phpunit/phpunit": "^11.2",
         "rector/rector": "^1.2"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.8.x-dev"
+        }
     },
     "scripts": {
         "test": "vendor/bin/phpunit ./tests"

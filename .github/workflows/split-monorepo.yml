@@ -1,0 +1,84 @@
+name: Split Monorepo
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+concurrency:
+  group: split-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    name: Split ${{ matrix.package }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - 'aspects'
+          - 'dto'
+          - 'dsl'
+          - 'entity'
+          - 'executor'
+          - 'filesystem'
+          - 'generator'
+          - 'mysql'
+          - 'pdodriver'
+          - 'postgresql'
+          - 'redis'
+          - 'result'
+          - 'sqldriver'
+          - 'sqlite'
+          - 'storage'
+          - 'storagepool'
+          - 'telemetry'
+          - 'transaction'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install git-filter-repo
+        run: |
+          wget -q https://raw.githubusercontent.com/newren/git-filter-repo/main/git-filter-repo
+          chmod +x git-filter-repo
+          sudo mv git-filter-repo /usr/local/bin/
+
+      - name: Split ${{ matrix.package }}
+        run: |
+          PACKAGE_NAME="${{ matrix.package }}"
+          REPO_URL="https://${{ secrets.SPLIT_TOKEN }}@github.com/AbstractQueryLayer/${PACKAGE_NAME}.git"
+          TARGET_BRANCH="${{ github.ref_name }}"
+
+          echo "Splitting package: $PACKAGE_NAME"
+          echo "Target branch: $TARGET_BRANCH"
+
+          # Clone to temporary directory
+          git clone --no-checkout . temp-repo
+          cd temp-repo
+
+          # Checkout the target branch
+          git checkout "$TARGET_BRANCH"
+
+          # Filter repository to extract only this package and move to root
+          git-filter-repo \
+            --path "packages/$PACKAGE_NAME/" \
+            --path-rename "packages/$PACKAGE_NAME/":"" \
+            --force
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Set remote and push
+          git remote add split-origin "$REPO_URL"
+
+          echo "Pushing to $REPO_URL"
+          git push split-origin "HEAD:$TARGET_BRANCH" --force
