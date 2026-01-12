@@ -1,0 +1,46 @@
+{
+  "name": "ifcastle/aql-service",
+  "description": "AQL Service layer",
+  "keywords": [
+    "aql",
+    "query",
+    "language",
+    "service"
+  ],
+  "type": "ifcastle-aql-package",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Edmond Dantes",
+      "email": "edmondifthen@proton.me"
+    }
+  ],
+  "require": {
+    "php": ">=8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "IfCastle\\AQL\\Service\\": [
+        "src/"
+      ]
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "IfCastle\\AQL\\Service\\": "tests/"
+    }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.2",
+    "rector/rector": "^1.2",
+    "ifcastle/codestyle": "^0.2.0"
+  },
+  "scripts": {
+    "test": "vendor/bin/phpunit ./tests"
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "0.8.x-dev"
+    }
+  }
+}

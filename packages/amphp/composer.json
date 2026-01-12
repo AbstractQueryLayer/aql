@@ -1,11 +1,11 @@
 {
-  "name": "ifcastle/aql-postaction",
-  "description": "Post-action handlers for AQL",
+  "name": "ifcastle/aql-amphp",
+  "description": "AMPHP integration for AQL",
   "keywords": [
     "aql",
     "query",
     "language",
-    "storage"
+    "amphp"
   ],
   "type": "ifcastle-aql-package",
   "license": "MIT",
@@ -20,14 +20,14 @@
   },
   "autoload": {
     "psr-4": {
-      "IfCastle\\AQL\\PostAction\\": [
+      "IfCastle\\AQL\\Amphp\\": [
         "src/"
       ]
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "IfCastle\\AQL\\PostAction\\": "tests/"
+      "IfCastle\\AQL\\Amphp\\": "tests/"
     }
   },
   "require-dev": {
@@ -36,10 +36,11 @@
     "ifcastle/codestyle": "^0.2.0"
   },
   "scripts": {
-    "test": "vendor/bin/phpunit ./tests",
-    "cs-fix": "php-cs-fixer fix",
-    "cs-check": "php-cs-fixer fix --dry-run --diff",
-    "rector": "rector process",
-    "rector-dry": "rector process --dry-run"
+    "test": "vendor/bin/phpunit ./tests"
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "0.8.x-dev"
+    }
   }
 }

@@ -20,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         package:
+          - 'amphp'
           - 'aspects'
           - 'dto'
           - 'dsl'
@@ -27,11 +28,14 @@ jobs:
           - 'executor'
           - 'filesystem'
           - 'generator'
+          - 'migration-tool'
           - 'mysql'
           - 'pdodriver'
+          - 'postaction'
           - 'postgresql'
           - 'redis'
           - 'result'
+          - 'service'
           - 'sqldriver'
           - 'sqlite'
           - 'storage'
