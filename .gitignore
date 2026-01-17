@@ -5,3 +5,7 @@
 /.idea/
 /.vscode/
 *.log
+
+# Cache
+.phpstan.cache/
+.phpunit.cache/

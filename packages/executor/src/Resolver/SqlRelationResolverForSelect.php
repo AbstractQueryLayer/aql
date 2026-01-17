@@ -147,11 +147,15 @@ class SqlRelationResolverForSelect implements ResultReaderInterface, DisposableI
 
         } else {
 
-            $column                 = $this->defineTupleAliases()[0];
+            $aliases                = $this->defineTupleAliases();
 
-            foreach ($result as $row) {
-                if (\array_key_exists($column, $row)) {
-                    $values[]       = $row[$column];
+            if ($aliases !== []) {
+                $column             = $aliases[0];
+
+                foreach ($result as $row) {
+                    if (\array_key_exists($column, $row)) {
+                        $values[]   = $row[$column];
+                    }
                 }
             }
         }
@@ -161,6 +165,6 @@ class SqlRelationResolverForSelect implements ResultReaderInterface, DisposableI
 
     protected function defineTupleAliases(): array
     {
-        return \array_map(static fn(TupleColumnInterface $tupleColumn) => $tupleColumn->getAliasOrColumnName(), $this->tupleColumns);
+        return \array_values(\array_map(static fn(TupleColumnInterface $tupleColumn) => $tupleColumn->getAliasOrColumnName(), $this->tupleColumns));
     }
 }

@@ -91,7 +91,12 @@ final class NodeList extends NodeAbstract implements ChildNodeMutableInterface, 
             throw new \InvalidArgumentException('Value must be an instance of NodeInterface');
         }
 
-        $this->childNodes[$offset] = $value->setParentNode($this);
+        if ($offset === null) {
+            $this->childNodes[]    = $value->setParentNode($this);
+        } else {
+            $this->childNodes[$offset] = $value->setParentNode($this);
+        }
+
         $this->isTransformed       = false;
     }
 
