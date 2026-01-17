@@ -298,6 +298,11 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
 
             $hydratorClass          = $map->hydratorClass;
 
+            if (($data[$map->property] ?? null) === null && $map->definition?->isNullable()) {
+                $parameters[]       = null;
+                continue;
+            }
+
             if ($hydratorClass instanceof HydratorInterface) {
                 $parameters[]       = $hydratorClass::hydrate($data[$map->property] ?? []);
             } elseif ($map->definition instanceof TypeBool) {
@@ -323,6 +328,10 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
         foreach ($dtoMap->properties as $property => $map) {
 
             $hydratorClass          = $map->hydratorClass;
+
+            if(($data[$map->property] ?? null) === null && $map->definition?->isNullable()) {
+                continue;
+            }
 
             if ($hydratorClass instanceof HydratorInterface) {
                 $this->$property    = $hydratorClass::hydrate($data[$map->property] ?? []);

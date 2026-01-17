@@ -21,7 +21,7 @@ final class SqlMigrationExecutor implements MigrationOperationExecutorInterface
             throw new MigrationException("SqlMigrationExecutor can only execute SQL migrations, got: {$operation->getType()}");
         }
 
-        $this->storage->execute($operation->getCode());
+        $this->storage->executeSql($operation->getCode());
     }
 
     #[\Override]
@@ -37,7 +37,7 @@ final class SqlMigrationExecutor implements MigrationOperationExecutorInterface
             throw new MigrationException("Rollback code is missing for migration: {$operation->getTaskName()} v{$operation->getVersion()}");
         }
 
-        $this->storage->execute($rollbackCode);
+        $this->storage->executeSql($rollbackCode);
     }
 
     #[\Override]

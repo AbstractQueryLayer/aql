@@ -22,7 +22,9 @@ class PropertyToColumn extends PropertyToColumnAbstract
             PropertyInterface::T_STRING                                                          => ['VARCHAR', $this->property->getMaxLength() ?? 255, null],
             PropertyInterface::T_ENUM                                                            => ['VARCHAR', null, null],
             PropertyInterface::T_INT                                                             => ['INTEGER', $this->property->getMaxLength(), null],
-            PropertyInterface::T_BIG_INT                                                         => ['BIGINT', $this->property->getMaxLength(), null],
+            PropertyInterface::T_BIG_INT                                                         => $this->property->isAutoIncrement()
+                ? ['INTEGER', null, null]
+                : ['BIGINT', $this->property->getMaxLength(), null],
             PropertyInterface::T_FLOAT                                                           => ['FLOAT', $this->property->getMaxLength(), null],
             PropertyInterface::T_UUID                                                            => ['CHAR', 36, null],
             PropertyInterface::T_ULID                                                            => ['CHAR', 26, null],

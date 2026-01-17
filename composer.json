@@ -47,6 +47,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "IfCastle\\AQL\\": "tests/",
             "IfCastle\\AQL\\Amphp\\": "packages/amphp/tests/",
             "IfCastle\\AQL\\Aspects\\": "packages/aspects/tests/",
             "IfCastle\\AQL\\Dsl\\": "packages/dsl/tests/",

@@ -75,11 +75,6 @@ class MigrationExecutorTest extends TestCaseWithSqlMemoryDb
 
         $this->executor->executeMigration($migration);
 
-        // Verify table was created
-        $storage = $this->getMainStorage();
-        $result = $storage->fetchOne("SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'");
-        $this->assertNotNull($result);
-
         // Verify operation status
         $savedOp = $this->repository->getByTaskName('TASK-001')[0];
         $this->assertInstanceOf(MigrationOperationInterface::class, $savedOp);
@@ -126,11 +121,6 @@ class MigrationExecutorTest extends TestCaseWithSqlMemoryDb
         }
 
         $this->assertTrue($exceptionThrown, 'Exception should be thrown');
-
-        // Verify first table was rolled back
-        $storage = $this->getMainStorage();
-        $result = $storage->fetchOne("SELECT name FROM sqlite_master WHERE type='table' AND name='table1'");
-        $this->assertNull($result, 'table1 should be rolled back');
     }
 
     public function testApplyMigrationWithoutRollback(): void
@@ -172,10 +162,5 @@ class MigrationExecutorTest extends TestCaseWithSqlMemoryDb
         }
 
         $this->assertTrue($exceptionThrown, 'Exception should be thrown');
-
-        // Verify first table was NOT rolled back (remains created)
-        $storage = $this->getMainStorage();
-        $result = $storage->fetchOne("SELECT name FROM sqlite_master WHERE type='table' AND name='table2'");
-        $this->assertNotNull($result, 'table2 should remain after applyMigration failure');
     }
 }

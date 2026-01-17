@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MigrationTool\Repository;
 
-use IfCastle\AQL\Dsl\Sql\Query\Select;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
@@ -20,42 +19,43 @@ final class MigrationRepository implements MigrationRepositoryInterface
     #[\Override]
     public function getLastExecuted(): ?MigrationOperationInterface
     {
-        $dto = MigrationDto::fetchOne(
+        $migrations = MigrationDto::fetch(
             $this->aqlExecutor,
-            Select::from(MigrationEntity::entity())
-                ->where('status', MigrationStatus::COMPLETED->value)
-                ->orderBy('version', 'DESC')
-                ->limit(1)
+            ['status' => MigrationStatus::COMPLETED->value],
+            ['version' => 'DESC'],
+            1
         );
 
-        return $dto ? $this->dtoToOperation($dto) : null;
+        return $migrations !== [] ? $this->dtoToOperation($migrations[0]) : null;
     }
 
     #[\Override]
     public function getByTaskName(string $taskName): array
     {
-        $dtos = MigrationDto::fetch(
+        $migrations = MigrationDto::fetch(
             $this->aqlExecutor,
-            Select::from(MigrationEntity::entity())
-                ->where('taskName', $taskName)
-                ->orderBy('version', 'ASC')
+            ['taskName' => $taskName],
+            ['version' => 'ASC']
         );
 
-        return array_map(fn($dto) => $this->dtoToOperation($dto), $dtos);
+        return array_map(fn($migration) => $this->dtoToOperation($migration), $migrations);
     }
 
     #[\Override]
     public function isExecuted(int $version, string $taskName): bool
     {
-        $dto = MigrationDto::fetchOne(
+        $migrations = MigrationDto::fetch(
             $this->aqlExecutor,
-            Select::from(MigrationEntity::entity())
-                ->where('version', $version)
-                ->where('taskName', $taskName)
-                ->where('status', MigrationStatus::COMPLETED->value)
+            [
+                'version' => $version,
+                'taskName' => $taskName,
+                'status' => MigrationStatus::COMPLETED->value,
+            ],
+            [],
+            1
         );
 
-        return $dto !== null;
+        return $migrations !== [];
     }
 
     #[\Override]
@@ -92,9 +92,7 @@ final class MigrationRepository implements MigrationRepositoryInterface
         // Fetch existing DTO
         $dto = MigrationDto::fetchOne(
             $this->aqlExecutor,
-            Select::from(MigrationEntity::entity())
-                ->where('version', $version)
-                ->where('taskName', $taskName)
+            ['version' => $version, 'taskName' => $taskName]
         );
 
         if ($dto === null) {
@@ -126,14 +124,13 @@ final class MigrationRepository implements MigrationRepositoryInterface
     #[\Override]
     public function getAllExecuted(): array
     {
-        $dtos = MigrationDto::fetch(
+        $migrations = MigrationDto::fetch(
             $this->aqlExecutor,
-            Select::from(MigrationEntity::entity())
-                ->where('status', MigrationStatus::COMPLETED->value)
-                ->orderBy('version', 'ASC')
+            ['status' => MigrationStatus::COMPLETED->value],
+            ['version' => 'ASC']
         );
 
-        return array_map(fn($dto) => $this->dtoToOperation($dto), $dtos);
+        return array_map(fn($migration) => $this->dtoToOperation($migration), $migrations);
     }
 
     private function dtoToOperation(MigrationDto $dto): MigrationOperationInterface

@@ -41,8 +41,8 @@ class MigrationEntity extends EntityAbstract
             ->describeProperty(new PropertyText('rollbackCode'))
             ->describeProperty(new PropertyString('checksum', maxLength: 64))
             ->describeProperty(new PropertyEnum('status', MigrationStatus::class))
-            ->describeProperty(new PropertyDateTime('startedAt'))
-            ->describeProperty(new PropertyDateTime('completedAt'))
+            ->describeProperty((new PropertyDateTime('startedAt'))->asNullable())
+            ->describeProperty((new PropertyDateTime('completedAt'))->asNullable())
             ->describeProperty((new PropertyText('errorData'))->asNullable());
     }
 }

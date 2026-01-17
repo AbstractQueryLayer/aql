@@ -27,6 +27,10 @@ trait ConstantTrait
             return $this->quote($value);
         }
 
+        if ($value instanceof \DateTimeInterface) {
+            return $this->quote($value->format('Y-m-d H:i:s'));
+        }
+
         throw new TransformationException([
             'template'          => 'Cannot normalize value of type {type} for {node}',
             'type'              => \get_debug_type($value),

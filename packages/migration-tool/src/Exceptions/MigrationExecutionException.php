@@ -14,6 +14,6 @@ class MigrationExecutionException extends MigrationException
             'taskName' => $taskName,
             'version' => $version,
             'reason' => $reason,
-        ], $previous);
+        ], 0, $previous);
     }
 }
