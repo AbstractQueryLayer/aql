@@ -1,0 +1,54 @@
+parameters:
+	level: 6
+	tmpDir: .phpstan.cache
+	paths:
+		- packages/amphp/src
+		- packages/aspects/src
+		- packages/dsl/src
+		- packages/dto/src
+		- packages/entity/src
+		- packages/executor/src
+		- packages/filesystem/src
+		- packages/generator/src
+		- packages/migration-tool/src
+		- packages/mysql/src
+		- packages/pdodriver/src
+		- packages/postaction/src
+		- packages/postgresql/src
+		- packages/redis/src
+		- packages/result/src
+		- packages/service/src
+		- packages/sqldriver/src
+		- packages/sqlite/src
+		- packages/storage/src
+		- packages/storagepool/src
+		- packages/telemetry/src
+		- packages/transaction/src
+	tips:
+		treatPhpDocTypesAsCertain: false
+	ignoreErrors:
+		- identifier: instanceof.alwaysTrue
+		- identifier: identical.alwaysFalse
+		- identifier: nullsafe.neverNull
+		- identifier: argument.type
+		- identifier: deadCode.unreachable
+		- identifier: catch.neverThrown
+		- identifier: new.static
+		- identifier: trait.unused
+		- identifier: nullCoalesce.expr
+		- identifier: identical.alwaysTrue
+		- identifier: notIdentical.alwaysTrue
+		- identifier: notIdentical.alwaysFalse
+		- identifier: finally.exitPoint
+		- identifier: property.unusedType
+		- identifier: property.unused
+		- identifier: property.onlyWritten
+		- identifier: property.uninitializedReadonly
+		- identifier: match.alwaysTrue
+		- identifier: function.impossibleType
+		- identifier: argument.templateType
+		- identifier: assign.propertyType
+		- identifier: generics.notSubtype
+		- identifier: cast.string
+		- identifier: offsetAccess.invalidOffset
+		- identifier: unset.offset

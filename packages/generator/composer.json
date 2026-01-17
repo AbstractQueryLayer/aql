@@ -17,8 +17,8 @@
   ],
   "require": {
     "php": ">=8.4",
-    "ifcastle/aql-dsl": "^0.1.0",
-    "ifcastle/aql-storage": "^0.1.0",
+    "ifcastle/aql-dsl": "*",
+    "ifcastle/aql-storage": "*",
     "ifcastle/di": "^0.6.0"
   },
   "autoload": {

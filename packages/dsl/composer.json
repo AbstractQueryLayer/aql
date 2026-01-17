@@ -38,7 +38,7 @@
     "phpunit/phpunit": "^11.2",
     "rector/rector": "^1.2",
     "ifcastle/codestyle": "^0.2.0",
-    "ifcastle/aql-test-utils": "^0.1.0"
+    "ifcastle/aql-test-utils": "*"
   },
   "scripts": {
     "test": "vendor/bin/phpunit ./tests",

@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 $config = new IfCastle\CodeStyle\Config;
 $config->getFinder()
-    ->in(__DIR__ . "/src")
-    ->in(__DIR__ . "/tests");
+    ->in(__DIR__ . "/packages");
 
 $config->setCacheFile(__DIR__ . '/.php-cs-fixer.cache');
 
