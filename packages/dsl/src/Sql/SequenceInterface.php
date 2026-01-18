@@ -10,7 +10,6 @@ interface SequenceInterface
      * Query1;
      * Query2;
      * Query3;.
-     * @var string
      */
     public const string NODE_SEQUENCE = 'SEQUENCE';
 

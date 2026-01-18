@@ -16,12 +16,12 @@ class FunctionReference extends NodeAbstract implements FunctionReferenceInterfa
 
     public static function virtual(string $functionName, NodeInterface ...$parameters): static
     {
-        return (new self($functionName, ...$parameters))->asVirtual();
+        return new self($functionName, ...$parameters)->asVirtual();
     }
 
     public static function global(string $functionName, NodeInterface ...$parameters): static
     {
-        return (new self($functionName, ...$parameters))->asVirtual()->asGlobal();
+        return new self($functionName, ...$parameters)->asVirtual()->asGlobal();
     }
 
     protected ?string $entityName   = null;

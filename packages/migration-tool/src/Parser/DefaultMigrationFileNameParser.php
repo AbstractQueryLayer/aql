@@ -13,6 +13,7 @@ final class DefaultMigrationFileNameParser implements MigrationFileNameParserInt
      * Pattern for PHP files: 0001-TASK-123-description.php
      */
     private const string SQL_PATTERN = '/^(\d+)-([A-Z]+-\d+)-(.+)_(up|down)\.(sql)$/';
+
     private const string PHP_PATTERN = '/^(\d+)-([A-Z]+-\d+)-(.+)\.(php)$/';
 
     #[\Override]

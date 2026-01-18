@@ -11,22 +11,16 @@ interface ResultProcessingPlanInterface
 {
     /**
      * At this stage of processing, you can read the result of individual SQL queries as they are without additional processing.
-     *
-     * @var string
      */
     final public const string RAW_READER = '=rr';
 
     /**
      * At this stage of processing, you can change the result columns for each query.
-     *
-     * @var string
      */
     final public const string ROW_MODIFIER = '=m';
 
     /**
      * At this stage of processing, you can read the result of individual queries after the columns have been processed.
-     *
-     * @var string
      */
     final public const string RESULT_READER = '=r';
 

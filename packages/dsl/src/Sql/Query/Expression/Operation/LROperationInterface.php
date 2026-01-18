@@ -19,99 +19,42 @@ use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
  */
 interface LROperationInterface extends OperationInterface
 {
-    /**
-     * @var string
-     */
     public const string EQU         = '=';
 
-    /**
-     * @var string
-     */
     public const string ASSIGN      = ':=';
 
-    /**
-     * @var string
-     */
     public const string NOT_EQU     = '!=';
 
-    /**
-     * @var string
-     */
     public const string GREATER     = '>';
 
-    /**
-     * @var string
-     */
     public const string LESS        = '<';
 
-    /**
-     * @var string
-     */
     public const string GREATER_EQU = '>=';
 
-    /**
-     * @var string
-     */
     public const string LESS_EQU    = '<=';
 
-    /**
-     * @var string
-     */
     public const string DIVIDE      = '/';
 
-    /**
-     * @var string
-     */
     public const string MULTIPLY    = '*';
 
-    /**
-     * @var string
-     */
     public const string ADD         = '+';
 
-    /**
-     * @var string
-     */
     public const string MINUS       = '-';
 
-    /**
-     * @var string
-     */
     public const string IN          = 'IN';
 
-    /**
-     * @var string
-     */
     public const string NOT_IN      = 'NOT IN';
 
-    /**
-     * @var string
-     */
     public const string LIKE        = 'LIKE';
 
-    /**
-     * @var string
-     */
     public const string NOT_LIKE    = 'NOT LIKE';
 
-    /**
-     * @var string
-     */
     public const string IS          = 'IS';
 
-    /**
-     * @var string
-     */
     public const string IS_NOT      = 'IS NOT';
 
-    /**
-     * @var string
-     */
     public const string LEFT        = 'left';
 
-    /**
-     * @var string
-     */
     public const string RIGHT       = 'right';
 
     /**

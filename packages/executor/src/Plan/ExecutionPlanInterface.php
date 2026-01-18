@@ -18,23 +18,17 @@ interface ExecutionPlanInterface extends ExecutionPlanWithMappingInterface,
 {
     /**
      * Left SQL queries. That is, these are requests that will be executed AFTER the main ones.
-     *
-     * @var string
      */
     final public const string LEFT          = 'l';
 
     /**
      * At this stage, the main or target SQL queries will be executed.
-     *
-     * @var string
      */
     final public const string TARGET        = 't';
 
     /**
      * Queries for the right side.
      * That is, these are SQL queries that must be executed before the main queries are executed.
-     *
-     * @var string
      */
     final public const string RIGHT         = 'r';
 
@@ -42,8 +36,6 @@ interface ExecutionPlanInterface extends ExecutionPlanWithMappingInterface,
 
     /**
      * A special stage of work that is ALWAYS performed, even if an error occurs.
-     *
-     * @var string
      */
     final public const string FINALLY       = 'f';
 

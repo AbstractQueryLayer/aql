@@ -72,8 +72,8 @@ class Tuple extends NodeAbstract implements TupleInterface
             return '';
         }
 
-        $results                = $results === [] ? '' : \implode(', ', $results);
-        $hiddenResults          = $hiddenResults === [] ? '' : \implode(', ', $hiddenResults);
+        $results                = \implode(', ', $results);
+        $hiddenResults          = \implode(', ', $hiddenResults);
 
         if ($hiddenResults !== '') {
             $hiddenResults      = '[[' . $hiddenResults . ']]';
@@ -162,7 +162,7 @@ class Tuple extends NodeAbstract implements TupleInterface
             throw new RequiredValueEmpty('$alias', 'string');
         }
 
-        $columns[$alias]            = (new TupleColumn($tupleColumn, $alias))->setParentNode($this);
+        $columns[$alias]            = new TupleColumn($tupleColumn, $alias)->setParentNode($this);
 
         return $this;
     }

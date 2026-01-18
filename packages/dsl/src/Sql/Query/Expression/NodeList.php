@@ -55,11 +55,13 @@ final class NodeList extends NodeAbstract implements ChildNodeMutableInterface, 
         }
     }
 
+    #[\Override]
     public function isEmpty(): bool
     {
         return $this->childNodes === [];
     }
 
+    #[\Override]
     public function isNotEmpty(): bool
     {
         return $this->childNodes !== [];
@@ -68,7 +70,7 @@ final class NodeList extends NodeAbstract implements ChildNodeMutableInterface, 
     #[\Override]
     public function offsetExists(mixed $offset): bool
     {
-        return \array_key_exists($offset, $this->childNodes);
+        return \array_key_exists((string) $offset, $this->childNodes);
     }
 
     /**
@@ -103,7 +105,7 @@ final class NodeList extends NodeAbstract implements ChildNodeMutableInterface, 
     #[\Override]
     public function offsetUnset(mixed $offset): void
     {
-        if (\array_key_exists($offset, $this->childNodes)) {
+        if (\array_key_exists((string) $offset, $this->childNodes)) {
             unset($this->childNodes[$offset]);
             $this->isTransformed = false;
         }

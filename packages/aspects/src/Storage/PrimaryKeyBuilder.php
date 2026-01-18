@@ -41,8 +41,8 @@ class PrimaryKeyBuilder extends EntityAspectBuilderAbstract
         $type                       = $type !== '' ? $type : PrimaryKey::BIG_INT;
 
         $property                   = match ($type) {
-            PrimaryKey::INT         => (new PropertyInteger($primaryKey->name))->setIsAutoIncrement(true),
-            PrimaryKey::BIG_INT     => (new PropertyBigInteger($primaryKey->name))->setIsAutoIncrement(true),
+            PrimaryKey::INT         => new PropertyInteger($primaryKey->name)->setIsAutoIncrement(true),
+            PrimaryKey::BIG_INT     => new PropertyBigInteger($primaryKey->name)->setIsAutoIncrement(true),
             PrimaryKey::UUID        => new PropertyUuid($primaryKey->name),
             PrimaryKey::ULID        => new PropertyUlid($primaryKey->name),
             default                 => throw new EntityDescriptorException([
@@ -53,6 +53,6 @@ class PrimaryKeyBuilder extends EntityAspectBuilderAbstract
 
         $property->setIsPrimaryKey(true);
 
-        $entity->describeProperty($property)->describeKey((new Key($primaryKey->name))->asPrimary());
+        $entity->describeProperty($property)->describeKey(new Key($primaryKey->name)->asPrimary());
     }
 }

@@ -170,7 +170,7 @@ final readonly class MigrationExecutor implements MigrationExecutorInterface
         }
 
         // If any exceptions occurred during rollback, throw a composite exception
-        if (!empty($rollbackExceptions)) {
+        if ($rollbackExceptions !== []) {
             throw new CompositeException(
                 "Rollback failed for " . count($rollbackExceptions) . " operation(s)",
                 ...$rollbackExceptions

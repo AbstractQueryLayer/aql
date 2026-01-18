@@ -15,25 +15,21 @@ class EntityAccess implements AspectDescriptorInterface, AspectBuilderClassAware
 
     /**
      * Means entity has public access.
-     * @var string
      */
     final public const string ACCESS_PUBLIC    = 'public';
 
     /**
      * Means only admins have access to this entity.
-     * @var string
      */
     final public const string ACCESS_ADMIN     = 'admin';
 
     /**
      * Only API code has access to entity, no DTO.
-     * @var string
      */
     final public const string ACCESS_INTERNAL  = 'internal';
 
     /**
      * API code should be only read this entity, not write.
-     * @var string
      */
     final public const string ACCESS_READONLY  = 'readonly';
 

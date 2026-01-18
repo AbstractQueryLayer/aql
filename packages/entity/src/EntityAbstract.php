@@ -49,6 +49,7 @@ abstract class EntityAbstract implements
     QueryExecutorResolverInterface
 {
     use EntityDependenciesTrait;
+
     #[\Override]
     public static function entity(): string
     {

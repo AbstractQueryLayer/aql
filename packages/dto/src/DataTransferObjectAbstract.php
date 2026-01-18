@@ -226,7 +226,7 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
 
             // Support DateTimeImmutable value
             if ($className === \DateTimeImmutable::class) {
-                return (new TypeDateTime($propertyName, false === $type->allowsNull(), $type->allowsNull()))
+                return new TypeDateTime($propertyName, false === $type->allowsNull(), $type->allowsNull())
                     ->setEncodeKey($map->encodeKey)
                     ->asImmutable();
             }
@@ -250,12 +250,12 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
         $isNullable                 = $type->allowsNull();
 
         return match ($type->getName()) {
-            'null'                  => (new TypeNull($propertyName, false === $isNullable))->setEncodeKey($map->encodeKey),
-            'int'                   => (new TypeInteger($propertyName, false === $isNullable, $isNullable))->setEncodeKey($map->encodeKey),
-            'float'                 => (new TypeFloat($propertyName, false === $isNullable, $isNullable))->setEncodeKey($map->encodeKey),
-            'string'                => (new TypeString($propertyName, false === $isNullable, $isNullable))->setEncodeKey($map->encodeKey),
-            'bool'                  => (new TypeBool($propertyName, false === $isNullable, $isNullable))->setEncodeKey($map->encodeKey),
-            'array'                 => (new TypeJson($propertyName, false === $isNullable, $isNullable))->setEncodeKey($map->encodeKey),
+            'null'                  => new TypeNull($propertyName, false === $isNullable)->setEncodeKey($map->encodeKey),
+            'int'                   => new TypeInteger($propertyName, false === $isNullable, $isNullable)->setEncodeKey($map->encodeKey),
+            'float'                 => new TypeFloat($propertyName, false === $isNullable, $isNullable)->setEncodeKey($map->encodeKey),
+            'string'                => new TypeString($propertyName, false === $isNullable, $isNullable)->setEncodeKey($map->encodeKey),
+            'bool'                  => new TypeBool($propertyName, false === $isNullable, $isNullable)->setEncodeKey($map->encodeKey),
+            'array'                 => new TypeJson($propertyName, false === $isNullable, $isNullable)->setEncodeKey($map->encodeKey),
 
             default                 => throw new MappingException([
                 'template'      => 'The property {class}.{property} has unknown type {type}.',

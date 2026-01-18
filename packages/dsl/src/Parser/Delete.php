@@ -36,14 +36,14 @@ class Delete extends AqlParserAbstract
         $using                      = $this->parseUsing($tokens->nextTokens());
 
         // 3. From and Joins expression
-        $from                       = (new From())->parseTokens($tokens);
+        $from                       = new From()->parseTokens($tokens);
 
         // 4. WHERE
-        $where                      = (new Where())->parseTokens($tokens);
+        $where                      = new Where()->parseTokens($tokens);
         // 5. Order by
-        $orderBy                    = (new OrderBy())->parseTokens($tokens);
+        $orderBy                    = new OrderBy()->parseTokens($tokens);
         // 6. Limit
-        $limit                      = (new Limit())->parseTokens($tokens);
+        $limit                      = new Limit()->parseTokens($tokens);
 
         $tokens->setStopTokens($oldStopTokens);
 

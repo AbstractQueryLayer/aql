@@ -100,7 +100,7 @@ class WhereEntityTransformer
         $subquery                   = new Subquery(
             new From(new Subject($whereEntity->getEntityName())),
             new Tuple(...$leftKey->getKeyColumns()),
-            $conditions !== null ? (new Where())->add($conditions) : null
+            $conditions !== null ? new Where()->add($conditions) : null
         );
 
         // Build IN expression and Substitute self
@@ -161,7 +161,7 @@ class WhereEntityTransformer
             $whereEntity            = WhereEntity::newNested($toEntityName);
 
             if ($prevWhereEntity !== null) {
-                $whereEntity->setConditions((new Conditions())->add($prevWhereEntity));
+                $whereEntity->setConditions(new Conditions()->add($prevWhereEntity));
             } else {
 
                 if ($entityConditions !== null) {

@@ -166,7 +166,7 @@ class PartitionBy extends DdlStatementAbstract implements PartitionByInterface
         if ($this->expression !== null) {
             $sql[] = '(' . $this->expression->getAql() . ')';
         } elseif ($this->columns !== []) {
-            $escapedColumns = \array_map(fn($col) => $this->escape($col), $this->columns);
+            $escapedColumns = \array_map($this->escape(...), $this->columns);
             $sql[] = '(' . \implode(', ', $escapedColumns) . ')';
         }
 

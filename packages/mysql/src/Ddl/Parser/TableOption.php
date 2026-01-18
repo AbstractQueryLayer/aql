@@ -98,7 +98,7 @@ class TableOption extends DdlParserAbstract
                     $tokens->nextTokens();
                 }
 
-                $value              = (new ColumnDefinition())->parseColumnsList($tokens);
+                $value              = new ColumnDefinition()->parseColumnsList($tokens);
                 break;
 
             case 'AUTOEXTEND_SIZE':

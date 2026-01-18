@@ -93,9 +93,9 @@ class AssignmentList extends NodeAbstract implements AssignmentListInterface
     #[\Override]
     public function addAssignment(string|ColumnInterface $column, NodeInterface $rightSide): static
     {
-        $this->childNodes[]         = (new Assign(
+        $this->childNodes[]         = new Assign(
             $column instanceof ColumnInterface ? $column : new Column($column), $rightSide
-        ))->setParentNode($this);
+        )->setParentNode($this);
 
         return $this->needTransform();
     }
@@ -103,7 +103,7 @@ class AssignmentList extends NodeAbstract implements AssignmentListInterface
     #[\Override]
     public function assign(string $column, float|bool|int|string|null $value): static
     {
-        $this->childNodes[]         = (new Assign(new Column($column), new Variable($value)))->setParentNode($this);
+        $this->childNodes[]         = new Assign(new Column($column), new Variable($value))->setParentNode($this);
 
         return $this->needTransform();
     }

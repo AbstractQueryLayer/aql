@@ -16,7 +16,7 @@ class Parameter extends Constant implements ParameterInterface
             return $value;
         }
 
-        return (new static(isValueList: \is_array($value)))->setParameterValue($value);
+        return new static(isValueList: \is_array($value))->setParameterValue($value);
     }
 
     protected bool $isResolved      = false;

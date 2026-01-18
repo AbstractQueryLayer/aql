@@ -18,7 +18,7 @@ class EntityToTable extends EntityToTableAbstract
     #[\Override]
     protected function propertyToColumn(PropertyInterface $property): ColumnDefinitionInterface|array
     {
-        return (new PropertyToColumn($this->entity, $this->entityFactory, $property))->generate();
+        return new PropertyToColumn($this->entity, $this->entityFactory, $property)->generate();
     }
 
     #[\Override]

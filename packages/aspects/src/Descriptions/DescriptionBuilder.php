@@ -30,8 +30,8 @@ class DescriptionBuilder extends EntityAspectBuilderAbstract
     {
         $property                   = match ($description->property) {
             Description::NAME, Description::TITLE
-            => (new PropertyString($description->property))->setTypicalName($description->property),
-            Description::DESCRIPTION => (new PropertyText($description->property))->setTypicalName($description->property),
+            => new PropertyString($description->property)->setTypicalName($description->property),
+            Description::DESCRIPTION => new PropertyText($description->property)->setTypicalName($description->property),
 
             default                 => throw new EntityDescriptorException([
                 'template'          => 'Unknown description property {property} occurred',

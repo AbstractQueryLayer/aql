@@ -50,7 +50,7 @@ class Table extends DdlParserAbstract
                     );
                 }
 
-                $comment            = \substr($token, 1, -1);
+                $comment            = \substr((string) $token, 1, -1);
             }
 
             $tokens->nextTokens();
@@ -144,11 +144,11 @@ class Table extends DdlParserAbstract
         while ($tokens->valid() && $tokens->currentTokenAsString() !== ')') {
 
             if (IndexDefinition::isIndexStart($tokens)) {
-                $indexes[]          = (new IndexDefinition())->parseTokens($tokens);
+                $indexes[]          = new IndexDefinition()->parseTokens($tokens);
             } elseif (Constraint::isConstraintStart($tokens)) {
-                $constraints[]      = (new Constraint())->parseTokens($tokens);
+                $constraints[]      = new Constraint()->parseTokens($tokens);
             } else {
-                $columns[]          = (new ColumnDefinition())->parseTokens($tokens);
+                $columns[]          = new ColumnDefinition()->parseTokens($tokens);
             }
 
             if ($tokens->currentTokenAsString() !== ',') {

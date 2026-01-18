@@ -108,7 +108,7 @@ class Select extends AqlParserAbstract
         $tokens->addStopTokens([QueryInterface::NODE_FROM]);
 
         // 1. Columns expression
-        $tuple                      = (new Tuple())->parseTokens($tokens);
+        $tuple                      = new Tuple()->parseTokens($tokens);
         // 2. From and Joins expression
         $tokens->addStopTokens([QueryInterface::NODE_WHERE,
             QueryInterface::NODE_ORDER_BY,
@@ -116,15 +116,15 @@ class Select extends AqlParserAbstract
             QueryInterface::NODE_LIMIT,
             QueryInterface::NODE_UNION]);
 
-        $from                       = (new From())->parseTokens($tokens);
+        $from                       = new From()->parseTokens($tokens);
         // 3. Where expression
-        $where                      = (new Where())->parseTokens($tokens);
+        $where                      = new Where()->parseTokens($tokens);
         // 4. Group by
-        $groupBy                    = (new GroupBy())->parseTokens($tokens);
+        $groupBy                    = new GroupBy()->parseTokens($tokens);
         // 5. Order By
-        $orderBy                    = (new OrderBy())->parseTokens($tokens);
+        $orderBy                    = new OrderBy()->parseTokens($tokens);
         // 6. Limit
-        $limit                      = (new Limit())->parseTokens($tokens);
+        $limit                      = new Limit()->parseTokens($tokens);
 
         // Build a query
 
@@ -214,7 +214,7 @@ class Select extends AqlParserAbstract
             }
 
             $tokens->increaseRecursionDepth();
-            $subquery               = (new self())->asNotPrimaryQuery()->parseTokens($tokens);
+            $subquery               = new self()->asNotPrimaryQuery()->parseTokens($tokens);
             $tokens->decreaseRecursionDepth();
 
             if (false === $subquery instanceof SelectInterface) {
@@ -230,15 +230,15 @@ class Select extends AqlParserAbstract
 
         // Try to parse GROUP BY, ORDER BY, LIMIT for UNION expression
         if ($tokens->currentTokenAsString() === 'GROUP') {
-            $mainSelect->getUnion()->setUnionGroupBy((new GroupBy())->parseTokens($tokens));
+            $mainSelect->getUnion()->setUnionGroupBy(new GroupBy()->parseTokens($tokens));
         }
 
         if ($tokens->currentTokenAsString() === 'ORDER') {
-            $mainSelect->getUnion()->setUnionOrderBy((new OrderBy())->parseTokens($tokens));
+            $mainSelect->getUnion()->setUnionOrderBy(new OrderBy()->parseTokens($tokens));
         }
 
         if ($tokens->currentTokenAsString() === 'LIMIT') {
-            $mainSelect->getUnion()->setUnionLimit((new Limit())->parseTokens($tokens));
+            $mainSelect->getUnion()->setUnionLimit(new Limit()->parseTokens($tokens));
         }
     }
 

@@ -17,7 +17,7 @@ class Column extends NodeAbstract implements ColumnInterface
      */
     public static function placeholder(string $columnName): static
     {
-        return (new self($columnName))->markAsPlaceholder();
+        return new self($columnName)->markAsPlaceholder();
     }
 
     protected ?string $fieldName    = null;

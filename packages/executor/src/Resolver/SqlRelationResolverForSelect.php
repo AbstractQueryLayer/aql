@@ -133,7 +133,7 @@ class SqlRelationResolverForSelect implements ResultReaderInterface, DisposableI
 
                 foreach ($columns as $column) {
 
-                    if (\array_key_exists($column, $row)) {
+                    if (\array_key_exists((string) $column, $row)) {
                         $isDefined  = true;
                     }
 
@@ -153,7 +153,7 @@ class SqlRelationResolverForSelect implements ResultReaderInterface, DisposableI
                 $column             = $aliases[0];
 
                 foreach ($result as $row) {
-                    if (\array_key_exists($column, $row)) {
+                    if (\array_key_exists((string) $column, $row)) {
                         $values[]   = $row[$column];
                     }
                 }

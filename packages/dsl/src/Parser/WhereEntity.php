@@ -45,7 +45,7 @@ class WhereEntity extends AqlParserAbstract
         if ($tokens->currentTokenAsString() === '(') {
 
             $tokens->increaseRecursionDepth();
-            $conditions             = (new Conditions())->parseTokens($tokens->nextTokens());
+            $conditions             = new Conditions()->parseTokens($tokens->nextTokens());
             $tokens->decreaseRecursionDepth();
 
             if ($tokens->currentTokenAsString() !== ')') {

@@ -82,7 +82,7 @@ class Subquery extends Select
 
         $tokens->nextTokens();
 
-        return (new static())->parse(/** @lang aql */ 'SELECT @id FROM ' . $token);
+        return new static()->parse(/** @lang aql */ 'SELECT @id FROM ' . $token);
     }
 
     /**

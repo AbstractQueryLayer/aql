@@ -19,9 +19,9 @@ class TupleColumn extends AqlParserAbstract
     {
         // SubQuery case
         if ($tokens->currentTokenAsString() === '(') {
-            $expression             = (new SubqueryForResult())->parseTokens($tokens);
+            $expression             = new SubqueryForResult()->parseTokens($tokens);
         } elseif ($tokens->currentTokenAsString() === '[') {
-            $expression             = (new NestedTuple())->parseTokens($tokens);
+            $expression             = new NestedTuple()->parseTokens($tokens);
         } else {
             $expression             = $this->parseOperand($tokens);
         }

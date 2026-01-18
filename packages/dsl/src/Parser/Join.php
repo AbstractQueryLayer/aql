@@ -14,9 +14,13 @@ use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 class Join extends AqlParserAbstract
 {
     public const string ALLOW_JOINS = 'JOIN';
+
     public const string ALLOW_JOIN_CONDITIONS = 'ON';
+
     public const string ALLOW_JOIN_DEPENDENT = 'Dependent Joins';
+
     public const string ALLOW_DERIVED_TABLE = 'Derived Table';
+
     public const string ALLOW_FROM_SELECT = 'FROM SELECT';
 
     /**
@@ -100,7 +104,7 @@ class Join extends AqlParserAbstract
                 );
             }
 
-            $conditions             = (new Conditions())->withBrackets()->asJoinConditions()->parseTokens($tokens);
+            $conditions             = new Conditions()->withBrackets()->asJoinConditions()->parseTokens($tokens);
         }
 
         // 6. Dependent Joins expression LIKE ODBC:
@@ -172,7 +176,7 @@ class Join extends AqlParserAbstract
 
         $tokens->throwIfOptionEmpty(self::ALLOW_FROM_SELECT);
 
-        $subquery                   = (new Subquery())->parseTokens($tokens->nextTokens());
+        $subquery                   = new Subquery()->parseTokens($tokens->nextTokens());
 
         if ($tokens->currentTokenAsString() !== ')') {
             throw new ParseException('Close bracket expected for Subquery expression', ['line' => $tokens->getCurrentLine()]);

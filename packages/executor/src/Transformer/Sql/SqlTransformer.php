@@ -92,7 +92,7 @@ class SqlTransformer
     protected function defineFactories(NodeContextInterface $context): void
     {
         $context->defineTransformerFactory(static function (NodeInterface $node, NodeContextInterface $context) {
-            (new self())->transformNodes($node, $context, true);
+            new self()->transformNodes($node, $context, true);
         });
 
         $context->defineTransformerIteratorFactory(static function (NodeInterface $node, NodeContextInterface $context, ?NodeInterface $current = null) {

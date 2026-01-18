@@ -45,7 +45,7 @@ class OrderBy extends AqlParserAbstract
             }
         }
 
-        if (empty($expressions)) {
+        if ($expressions === []) {
             throw new ParseException('Empty ORDER BY expression is not allowed');
         }
 

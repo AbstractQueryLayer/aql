@@ -62,6 +62,7 @@ class PartitionBy extends DdlParserAbstract
                 if (!\in_array($partitionType, ['RANGE', 'LIST'], true)) {
                     throw new ParseException('COLUMNS only allowed for RANGE or LIST');
                 }
+
                 $isColumns = true;
                 $tokens->nextTokens();
 
@@ -78,7 +79,7 @@ class PartitionBy extends DdlParserAbstract
 
                 $tokens->nextTokens();
             } else {
-                $functionRef = (new FunctionReference())->parseParameters($tokens, $partitionType);
+                $functionRef = new FunctionReference()->parseParameters($tokens, $partitionType);
                 $params = $functionRef->getFunctionParameters();
                 $expression = $params[0] ?? null;
             }
@@ -226,6 +227,7 @@ class PartitionBy extends DdlParserAbstract
                     if ($tokens->nextTokens()->currentTokenAsString() !== 'THAN') {
                         throw new ParseException('Expected THAN after LESS');
                     }
+
                     $valuesType = 'LESS THAN';
                     $tokens->nextTokens();
                 } elseif ($nextToken === 'IN') {

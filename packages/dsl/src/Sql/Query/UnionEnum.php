@@ -10,6 +10,7 @@ namespace IfCastle\AQL\Dsl\Sql\Query;
 enum UnionEnum: string
 {
     public const string ALL         = 'ALL';
+
     public const string DISTINCT    = 'DISTINCT';
 
     case UNION                      = 'UNION';

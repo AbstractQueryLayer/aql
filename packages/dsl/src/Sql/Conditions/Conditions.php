@@ -175,7 +175,7 @@ class Conditions extends NodeAbstract implements ConditionsInterface
     #[\Override]
     public function nullOr(NodeInterface|string $left, float|int|string|NodeInterface $right): static
     {
-        return $this->add((new Conditions(self::TYPE_OR, $this->ownerEntity))->isNull($left)->equal($left, $right));
+        return $this->add(new Conditions(self::TYPE_OR, $this->ownerEntity)->isNull($left)->equal($left, $right));
     }
 
     #[\Override]

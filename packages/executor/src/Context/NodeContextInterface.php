@@ -39,46 +39,22 @@ interface NodeContextInterface extends AliasResolverInterface,
     ContainerMutableInterface,
     ParentMutableInterface
 {
-    /**
-     * @var string
-     */
     final public const string CONTEXT_TUPLE = 'tuple';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_JOIN = 'join';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_FILTER = 'filter';
 
     final public const string CONTEXT_JOIN_CONDITIONS = 'joinConditions';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_ASSIGN = 'assign';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_GROUP_BY = 'groupBy';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_ORDER_BY = 'orderBy';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_RELATIONS = 'relations';
 
-    /**
-     * @var string
-     */
     final public const string CONTEXT_QUERY = 'query';
 
     final public const string CONTEXT_CTE = 'cte';

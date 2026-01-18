@@ -187,7 +187,7 @@ class NodeContext extends Container implements NodeContextInterface, DisposableI
     #[\Override]
     public function resetParentContainer(): void
     {
-        $this->redefineParentContainer(null);
+        $this->redefineParentContainer();
     }
 
     #[\Override]
@@ -701,7 +701,7 @@ class NodeContext extends Container implements NodeContextInterface, DisposableI
         $context                    ??= $this;
 
         if (\is_string($functionReference)) {
-            $functionReference      = (new FunctionReference($functionReference))->asGlobal();
+            $functionReference      = new FunctionReference($functionReference)->asGlobal();
         }
 
         $entity                     = $functionReference->getEntityName() === null || $functionReference->getEntityName() === '' ?
@@ -871,7 +871,7 @@ class NodeContext extends Container implements NodeContextInterface, DisposableI
         if ($storage === null) {
             throw new TransformationException([
                 'template'              => 'The derived storage can\'t be defined in context {context}. {aql}',
-                'context'               => $this::class,
+                'context'               => static::class,
                 'node'                  => $this->currentNode?->get(),
                 'aql'                   => NodeHelper::getNearestAql($this->currentNode?->get()),
             ]);

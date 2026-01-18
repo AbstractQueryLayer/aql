@@ -77,7 +77,7 @@ abstract class AqlParserAbstract implements ParserInterface
                 throw new ParseException('Subqueries are not allowed for this operand', ['line' => $line]);
             }
 
-            return (new Subquery())->parseTokens($tokens);
+            return new Subquery()->parseTokens($tokens);
         }
 
         // 3. Case1 constant "string" or 'string'
@@ -169,7 +169,7 @@ abstract class AqlParserAbstract implements ParserInterface
 
         // 4. Case Function?
         if ($token === '(') {
-            return (new FunctionReference())->parseParameters($tokens, $operand, $entityName);
+            return new FunctionReference()->parseParameters($tokens, $operand, $entityName);
         }
 
         return new Column($operand, $entityName);

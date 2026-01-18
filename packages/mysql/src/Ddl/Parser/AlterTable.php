@@ -48,7 +48,7 @@ class AlterTable extends DdlParserAbstract
                 break;
             }
 
-            $alterOptions[]         = (new AlterOption())->parseTokens($tokens);
+            $alterOptions[]         = new AlterOption()->parseTokens($tokens);
 
             if (\array_key_exists($tokens->currentTokenAsString(), $stopTokens)) {
                 break;
@@ -65,7 +65,7 @@ class AlterTable extends DdlParserAbstract
 
         // Parse PARTITION BY
         if ($tokens->currentTokenAsString() === 'PARTITION') {
-            $partitionOptions       = (new PartitionBy())->parseTokens($tokens);
+            $partitionOptions       = new PartitionBy()->parseTokens($tokens);
         }
 
         $tokens->setStopTokens($oldStopTokens);

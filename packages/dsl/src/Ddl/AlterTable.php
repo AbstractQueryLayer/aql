@@ -16,7 +16,7 @@ class AlterTable extends DdlStatementAbstract implements AlterTableInterface
         protected ?PartitionByInterface $partitionOptions = null
     ) {
         parent::__construct();
-        $this->childNodes[self::ALTER_OPTIONS] = (new NodeList(...$alterOptions))->defineDelimiter("\n");
+        $this->childNodes[self::ALTER_OPTIONS] = new NodeList(...$alterOptions)->defineDelimiter("\n");
 
         if ($partitionOptions !== null) {
             $this->childNodes[self::PARTITION_OPTIONS] = $partitionOptions;

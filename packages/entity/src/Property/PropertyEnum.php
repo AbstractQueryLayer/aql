@@ -7,6 +7,7 @@ namespace IfCastle\AQL\Entity\Property;
 class PropertyEnum extends PropertyAbstract implements PropertyEnumInterface
 {
     protected array $variants;
+
     protected ?string $enumClass = null;
 
     /**

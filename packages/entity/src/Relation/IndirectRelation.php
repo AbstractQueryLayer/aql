@@ -20,8 +20,8 @@ class IndirectRelation extends RelationAbstract implements IndirectRelationInter
 
         parent::__construct();
         $this->entitiesPath         = $entitiesPath;
-        $this->leftEntityName       = $entitiesPath[\array_key_first($entitiesPath)];
-        $this->rightEntityName      = $entitiesPath[\array_key_last($entitiesPath)];
+        $this->leftEntityName       = array_first($entitiesPath);
+        $this->rightEntityName      = array_last($entitiesPath);
         $this->type                 = self::ASSOCIATION;
     }
 

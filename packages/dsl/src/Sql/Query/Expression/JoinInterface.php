@@ -12,44 +12,20 @@ use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 
 interface JoinInterface extends NodeInterface, ChildNodeMutableInterface
 {
-    /**
-     * @var string
-     */
     public const string INNER       = 'INNER';
 
-    /**
-     * @var string
-     */
     public const string LEFT        = 'LEFT';
 
-    /**
-     * @var string
-     */
     public const string RIGHT       = 'RIGHT';
 
-    /**
-     * @var string
-     */
     public const string OUTER       = 'OUTER';
 
-    /**
-     * @var string
-     */
     public const string UNION       = 'UNION';
 
-    /**
-     * @var string
-     */
     public const string SUBQUERY    = 'SUBQUERY';
 
-    /**
-     * @var string
-     */
     public const string QUERY       = 'QUERY';
 
-    /**
-     * @var string
-     */
     public const string FROM        = 'FROM';
 
     public const string NODE_RELATION   = 'relation';

@@ -34,7 +34,6 @@ interface RelationInterface extends NodeInterface
     /**
      * ## SQL-Relation: one to one
      * Example: entity → entity_configuration.
-     * @var string
      */
     final public const string JOIN  = 'join';
 
@@ -50,7 +49,6 @@ interface RelationInterface extends NodeInterface
      * * author has many books
      * * a book has one author
      * * author not knows about books, because book reference to author.
-     * @var string
      */
     final public const string REFERENCE = 'reference';
 
@@ -61,8 +59,6 @@ interface RelationInterface extends NodeInterface
      * When one record included many other
      * Examples:
      * * one author reference to many books
-     *
-     * @var string
      */
     final public const string COLLECTION = 'collection';
 
@@ -74,7 +70,6 @@ interface RelationInterface extends NodeInterface
      * * user has many groups, a group has many users
      *
      * @see https://en.wikipedia.org/wiki/Associative_entity
-     * @var string
      */
     final public const string ASSOCIATION = 'association';
 
@@ -87,7 +82,6 @@ interface RelationInterface extends NodeInterface
      * ### Difference from PARENT CHILD:
      * OWNS/BELONGS_TO is not a sole relationship.
      * PARENT/CHILD indicates the paramount importance of ownership.
-     * @var string
      */
     final public const string OWNS = 'owns';
 
@@ -98,7 +92,6 @@ interface RelationInterface extends NodeInterface
      * ### Example:
      * Books belongs to author
      * Users belongs to group
-     * @var string
      */
     final public const string BELONGS_TO = 'belongs_to';
 
@@ -107,7 +100,6 @@ interface RelationInterface extends NodeInterface
      *
      * Relation parent -> child, like category -> article
      * When parent has many children
-     * @var string
      */
     final public const string PARENT = 'parent';
 
@@ -120,19 +112,16 @@ interface RelationInterface extends NodeInterface
      * ### Difference from PARENT CHILD:
      * OWNS/BELONGS_TO is not a sole owns.
      * PARENT/CHILD indicates the paramount importance of ownership.
-     * @var string
      */
     final public const string CHILD = 'child';
 
     /**
      * Tree.
-     * @var string
      */
     final public const string TREE = 'tree';
 
     /**
      * Nested relations.
-     * @var string
      */
     final public const string NESTED = 'nested';
 
@@ -140,13 +129,11 @@ interface RelationInterface extends NodeInterface
      * ## Relationships between entities to inherit
      * ## SQL-Relation: one to one
      * (like JOIN).
-     * @var string
      */
     final public const string INHERITANCE = 'inheritance';
 
     /**
      * ## Reverse relation for INHERITANCE.
-     * @var string
      */
     final public const string INHERITED_BY = 'inherited_by';
 
@@ -156,13 +143,11 @@ interface RelationInterface extends NodeInterface
      * Relationships between entities to inherit,
      * However, when deleting an inherited entity, the parent remains,
      * and while at creation time, the parent may already exist.
-     * @var string
      */
     final public const string SOFT_INHERITANCE = 'soft_inheritance';
 
     /**
      * Reverse relation for SOFT_INHERITANCE.
-     * @var string
      */
     final public const string SOFT_INHERITED_BY = 'soft_inherited_by';
 
@@ -174,21 +159,17 @@ interface RelationInterface extends NodeInterface
      *
      * The difference from Parent -> Child is that the extension inherits all the fields of the parent entity.
      * The difference from INHERITANCE mode is that EXTENSION describes a one-to-many relations vs one-to-one.
-     *
-     * @var string
      */
     final public const string EXTENSION = 'extension';
 
     /**
      * ## SQL-Relation: one-to-many
      * Reverse relation for EXTENSION.
-     * @var string
      */
     final public const string EXTENDED_BY = 'extended_by';
 
     /**
      * Relationship of a table to itself.
-     * @var string
      */
     final public const string SELF_REFERENCE = 'self';
 

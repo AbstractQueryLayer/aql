@@ -17,14 +17,22 @@ use IfCastle\AQL\Dsl\Node\NodeInterface;
  */
 interface PartitionByInterface extends NodeInterface
 {
-    final public const string PARTITION_TYPE = 'partitionType';  // HASH, KEY, RANGE, LIST
+    final public const string PARTITION_TYPE = 'partitionType';
+      // HASH, KEY, RANGE, LIST
     final public const string IS_LINEAR = 'isLinear';
+
     final public const string IS_COLUMNS = 'isColumns';
+
     final public const string EXPRESSION = 'expression';
+
     final public const string COLUMNS = 'columns';
+
     final public const string PARTITIONS_COUNT = 'partitionsCount';
-    final public const string ALGORITHM = 'algorithm';  // For KEY partitioning
+
+    final public const string ALGORITHM = 'algorithm';
+      // For KEY partitioning
     final public const string SUBPARTITION_BY = 'subpartitionBy';
+
     final public const string PARTITION_DEFINITIONS = 'partitionDefinitions';
 
     /**

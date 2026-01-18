@@ -10,11 +10,11 @@ use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\Parser\MigrationFileNameParserInterface;
 use IfCastle\AQL\MigrationTool\Repository\FileMigrationOperation;
 
-final class FileMigrationSourceRepository implements MigrationSourceRepositoryInterface
+final readonly class FileMigrationSourceRepository implements MigrationSourceRepositoryInterface
 {
     public function __construct(
-        private readonly string $basePath,
-        private readonly MigrationFileNameParserInterface $fileNameParser
+        private string $basePath,
+        private MigrationFileNameParserInterface $fileNameParser
     ) {
         if (!is_dir($this->basePath)) {
             throw new MigrationException("Migration base path does not exist: {$this->basePath}");
@@ -69,7 +69,7 @@ final class FileMigrationSourceRepository implements MigrationSourceRepositoryIn
     private function getFoldersFromDate(string $fromDate): array
     {
         $allFolders = $this->getAllFolders();
-        return array_filter($allFolders, static fn($folder) => $folder >= $fromDate);
+        return array_filter($allFolders, static fn(string $folder) => $folder >= $fromDate);
     }
 
     /**

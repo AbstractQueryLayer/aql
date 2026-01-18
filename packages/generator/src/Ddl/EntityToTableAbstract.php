@@ -40,7 +40,7 @@ abstract class EntityToTableAbstract implements EntityToTableInterface, AutoReso
      */
     public static function extractDocFromClass($object): string
     {
-        return static::extractDocFromComment((new \ReflectionClass($object))->getDocComment());
+        return static::extractDocFromComment(new \ReflectionClass($object)->getDocComment());
     }
 
     protected ?Table $table         = null;

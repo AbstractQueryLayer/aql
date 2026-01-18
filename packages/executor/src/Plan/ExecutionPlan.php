@@ -56,7 +56,7 @@ class ExecutionPlan extends BeforeAfterPlanWithMapping implements ExecutionPlanI
         }
 
         parent::__construct(
-            new WeakStaticClosureExecutor(static fn(self $self, $handler, $stage) => $self->handleStage($handler, $stage), $this),
+            new WeakStaticClosureExecutor(static fn(self $self, $handler, string $stage) => $self->handleStage($handler, $stage), $this),
             $actions,
             new SequentialPlanExecutorWithFinal()
         );

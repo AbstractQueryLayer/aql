@@ -53,13 +53,7 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
     {
         switch ($function->getFunctionName()) {
             case 'DATE_ADD':
-                // 'DATE + interval'
-                $function->resolveSelf();
-                break;
             case 'DATE_SUB':
-                // 'DATE - interval'
-                $function->resolveSelf();
-                break;
             case 'NOW':
             case 'COUNT':
             case 'SUM':
@@ -69,6 +63,7 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
             case 'CONCAT':
             case 'CONCAT_WS':
             case 'SUBSTRING':
+                // 'DATE + interval'
                 $function->resolveSelf();
                 break;
         }

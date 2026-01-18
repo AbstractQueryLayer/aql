@@ -19,6 +19,6 @@ class From extends Join
     public function __construct(Subject $subject, JoinInterface ...$joins)
     {
         parent::__construct('FROM', $subject);
-        $this->childNodes[self::NODE_JOINS] = (new NodeList(...$joins))->defineDelimiter("\n")->setParentNode($this);
+        $this->childNodes[self::NODE_JOINS] = new NodeList(...$joins)->defineDelimiter("\n")->setParentNode($this);
     }
 }

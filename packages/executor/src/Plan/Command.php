@@ -93,7 +93,7 @@ class Command implements CommandInterface
         }
 
         $this->beforeAfterExecutor  = new BeforeAfterExecutor(
-            new WeakStaticClosureExecutor(static fn(self $self, $handler, $stage) => $self->handleStage($handler, $stage), $this)
+            new WeakStaticClosureExecutor(static fn(self $self, $handler, string $stage) => $self->handleStage($handler, $stage), $this)
         );
 
         return $this->beforeAfterExecutor;

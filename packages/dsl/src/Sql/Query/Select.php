@@ -57,6 +57,7 @@ class Select extends QueryAbstract implements SelectInterface
     protected string $queryAction   = self::ACTION_SELECT;
 
     protected ?UnionEnum $unionType = null;
+
     protected ?string $unionOption  = null;
 
     /**
@@ -77,11 +78,11 @@ class Select extends QueryAbstract implements SelectInterface
         $this->setFrom($from);
 
         if (\is_array($columns)) {
-            $columns                = (new Tuple(...$columns))->markAsDefaultColumns();
+            $columns                = new Tuple(...$columns)->markAsDefaultColumns();
         }
 
         if ($columns === null) {
-            $columns                = (new Tuple())->markAsDefaultColumns();
+            $columns                = new Tuple()->markAsDefaultColumns();
         }
 
         if ($columns instanceof TupleInterface === false) {
@@ -145,6 +146,7 @@ class Select extends QueryAbstract implements SelectInterface
         return $query;
     }
 
+    #[\Override]
     protected function generateResultForChildNodes(): array
     {
         $results                    = [];
@@ -160,13 +162,10 @@ class Select extends QueryAbstract implements SelectInterface
             }
         }
 
-        if ($results === []) {
-            return [];
-        }
-
         return $results;
     }
 
+    #[\Override]
     protected function generateResult(): mixed
     {
         $results                    = $this->generateResultForChildNodes();
@@ -287,12 +286,12 @@ class Select extends QueryAbstract implements SelectInterface
     {
         parent::initChildNodes();
 
-        $this->childNodes[self::NODE_WHERE]     = (new Where())->setParentNode($this);
-        $this->childNodes[self::NODE_GROUP_BY]  = (new GroupBy())->setParentNode($this);
-        $this->childNodes[self::NODE_ORDER_BY]  = (new OrderBy())->setParentNode($this);
-        $this->childNodes[self::NODE_HAVING]    = (new Conditions())->setParentNode($this);
-        $this->childNodes[self::NODE_LIMIT]     = (new Limit())->setParentNode($this);
-        $this->childNodes[self::NODE_UNION]     = (new Union())->setParentNode($this);
+        $this->childNodes[self::NODE_WHERE]     = new Where()->setParentNode($this);
+        $this->childNodes[self::NODE_GROUP_BY]  = new GroupBy()->setParentNode($this);
+        $this->childNodes[self::NODE_ORDER_BY]  = new OrderBy()->setParentNode($this);
+        $this->childNodes[self::NODE_HAVING]    = new Conditions()->setParentNode($this);
+        $this->childNodes[self::NODE_LIMIT]     = new Limit()->setParentNode($this);
+        $this->childNodes[self::NODE_UNION]     = new Union()->setParentNode($this);
     }
 
     protected function getParentUnion(): UnionInterface|null

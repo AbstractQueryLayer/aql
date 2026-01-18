@@ -8,10 +8,10 @@ use IfCastle\AQL\MigrationTool\Exceptions\MigrationException;
 use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\Storage\StorageInterface;
 
-final class SqlMigrationExecutor implements MigrationOperationExecutorInterface
+final readonly class SqlMigrationExecutor implements MigrationOperationExecutorInterface
 {
     public function __construct(
-        private readonly StorageInterface $storage
+        private StorageInterface $storage
     ) {}
 
     #[\Override]

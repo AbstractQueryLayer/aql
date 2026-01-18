@@ -19,6 +19,6 @@ class Where extends Conditions
             $conditions             = $this->newConditionsNode(ConditionsInterface::TYPE_AND);
         }
 
-        return (new WhereNode())->apply($conditions->getChildNodes());
+        return new WhereNode()->apply($conditions->getChildNodes());
     }
 }

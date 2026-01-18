@@ -10,6 +10,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Exceptions\TransformationException;
 class Constant extends NodeAbstract implements ConstantInterface
 {
     use ConstantTrait;
+
     protected bool $isVariable      = false;
 
     protected string|null $placeholder = null;

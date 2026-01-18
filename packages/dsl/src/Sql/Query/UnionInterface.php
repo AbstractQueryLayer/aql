@@ -13,8 +13,11 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\OrderByInterface;
 interface UnionInterface extends NodeInterface
 {
     final public const string NODE_QUERIES = 'QUERIES';
+
     final public const string NODE_GROUP_BY = 'GROUP BY';
+
     final public const string NODE_ORDER_BY = 'ORDER BY';
+
     final public const string NODE_LIMIT = 'LIMIT';
 
     public function needParenthesis(): bool;

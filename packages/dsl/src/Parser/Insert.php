@@ -49,7 +49,7 @@ class Insert extends AqlParserAbstract
         $tokens->nextToken();
 
         if ($tokens->currentTokenAsString() === 'SET') {
-            $assigmentList          = (new AssignmentList())->parseTokens($tokens);
+            $assigmentList          = new AssignmentList()->parseTokens($tokens);
         }
 
         // 4. Columns definition (optional)
@@ -60,10 +60,10 @@ class Insert extends AqlParserAbstract
 
         // 5. INSERT ... SELECT Statement ?
         if ($tokens->currentTokenAsString() === QueryInterface::ACTION_SELECT) {
-            $select                 = (new Subquery())->parseTokens($tokens);
+            $select                 = new Subquery()->parseTokens($tokens);
         } elseif ($tokens->currentTokenAsString() === 'VALUES') {
             // EXPECTED VALUES keyword
-            $values                 = (new ValueList())->parseValues($tokens, $columns);
+            $values                 = new ValueList()->parseValues($tokens, $columns);
         }
 
         //
@@ -115,7 +115,7 @@ class Insert extends AqlParserAbstract
 
         $tokens->expectKeywords('ON DUPLICATE KEY UPDATE');
 
-        $result                     = (new DuplicateKey())->parseAssignments($tokens);
+        $result                     = new DuplicateKey()->parseAssignments($tokens);
 
         if ($result instanceof DuplicateKeyInterface) {
             return $result;

@@ -58,7 +58,7 @@ class ValueList extends AqlParserAbstract
                     break;
                 }
 
-                $values[]               = (new Constant())->parseTokens($tokens);
+                $values[]               = new Constant()->parseTokens($tokens);
 
                 if ($tokens->currentTokenAsString() !== ',' || $tokens->currentTokenAsString() === ')') {
                     break;

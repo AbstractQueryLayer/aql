@@ -48,6 +48,7 @@ class PropertyAbstract implements PropertyInterface
 {
     use AccessByGroupsTrait;
     use AspectsByGroupsTrait;
+
     /**
      * Property group.
      */

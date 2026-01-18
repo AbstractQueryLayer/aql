@@ -17,112 +17,57 @@ use IfCastle\TypeDefinitions\DefinitionMutableInterface;
 
 interface PropertyInterface extends AccessByGroupsMutableInterface, AspectsByGroupsInterface
 {
-    /**
-     * @var string
-     */
     public const string T_BOOLEAN = 'boolean';
 
-    /**
-     * @var string
-     */
     public const string T_STRING = 'string';
 
-    /**
-     * @var string
-     */
     public const string T_ENUM = 'enum';
 
-    /**
-     * @var string
-     */
     public const string T_TEXT = 'text';
 
-    /**
-     * @var string
-     */
     public const string T_INT = 'int';
 
-    /**
-     * @var string
-     */
     public const string T_BIG_INT = 'bigint';
 
-    /**
-     * @var string
-     */
     public const string T_FLOAT = 'float';
 
-    /**
-     * @var string
-     */
     public const string T_UUID = 'uuid';
 
-    /**
-     * @var string
-     */
     public const string T_ULID = 'ulid';
 
-    /**
-     * @var string
-     */
     public const string T_DATE = 'date';
 
-    /**
-     * @var string
-     */
     public const string T_YEAR = 'year';
 
-    /**
-     * @var string
-     */
     public const string T_DATETIME = 'datetime';
 
-    /**
-     * @var string
-     */
     public const string T_TIME = 'time';
 
-    /**
-     * @var string
-     */
     public const string T_TIMESTAMP = 'timestamp';
 
-    /**
-     * @var string
-     */
     public const string T_JSON = 'json';
 
-    /**
-     * @var string
-     */
     public const string T_LIST = 'list';
 
-    /**
-     * @var string
-     */
     public const string T_OBJECT = 'object';
 
     /**
      * For virtual.
-     * @var string
      */
     public const string T_TUPLE = 'tuple';
 
     /**
      * Means default properties group.
-     * @var string
      */
     public const string GROUP_DEFAULT = '';
 
     /**
      * Properties created for internal algo and code.
-     * @var string
      */
     public const string GROUP_INTERNAL = 'internal';
 
     /**
      * Means system properties groups.
-     * @var string
      */
     public const string GROUP_SYSTEM = 'sys';
 

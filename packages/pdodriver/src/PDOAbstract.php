@@ -44,7 +44,7 @@ abstract class PDOAbstract extends SqlDriverAbstract
             $this->dbh              = new \PDO($this->dsn, $this->username, $this->password, $this->options);
         } catch (\PDOException $pdoException) {
             $this->telemetry?->registerError($this, $pdoException);
-            throw (new ConnectFailed($pdoException->getMessage(), 0, $pdoException))
+            throw new ConnectFailed($pdoException->getMessage(), 0, $pdoException)
                 ->appendData($pdoException->errorInfo ?? []);
         }
 

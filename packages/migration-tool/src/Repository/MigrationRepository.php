@@ -10,10 +10,10 @@ use IfCastle\AQL\MigrationTool\MigrationOperationInterface;
 use IfCastle\AQL\MigrationTool\MigrationStatus;
 use IfCastle\Exceptions\BaseException;
 
-final class MigrationRepository implements MigrationRepositoryInterface
+final readonly class MigrationRepository implements MigrationRepositoryInterface
 {
     public function __construct(
-        private readonly AqlExecutorInterface $aqlExecutor
+        private AqlExecutorInterface $aqlExecutor
     ) {}
 
     #[\Override]
@@ -38,7 +38,7 @@ final class MigrationRepository implements MigrationRepositoryInterface
             ['version' => 'ASC']
         );
 
-        return array_map(fn($migration) => $this->dtoToOperation($migration), $migrations);
+        return array_map($this->dtoToOperation(...), $migrations);
     }
 
     #[\Override]
@@ -71,10 +71,7 @@ final class MigrationRepository implements MigrationRepositoryInterface
             code: $operation->getCode(),
             rollbackCode: $operation->getRollbackCode(),
             checksum: $operation->getChecksum(),
-            status: MigrationStatus::PENDING->value,
-            startedAt: null,
-            completedAt: null,
-            errorData: null
+            status: MigrationStatus::PENDING->value
         );
 
         $dto->insert($this->aqlExecutor);
@@ -130,13 +127,13 @@ final class MigrationRepository implements MigrationRepositoryInterface
             ['version' => 'ASC']
         );
 
-        return array_map(fn($migration) => $this->dtoToOperation($migration), $migrations);
+        return array_map($this->dtoToOperation(...), $migrations);
     }
 
     private function dtoToOperation(MigrationDto $dto): MigrationOperationInterface
     {
-        return new class($dto) implements MigrationOperationInterface {
-            public function __construct(private readonly MigrationDto $dto) {}
+        return new readonly class($dto) implements MigrationOperationInterface {
+            public function __construct(private MigrationDto $dto) {}
 
             public function getVersion(): int
             {

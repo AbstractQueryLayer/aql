@@ -47,6 +47,7 @@ class TupleConditions extends Conditions implements TupleConditionsInterface
         if ($this->rightColumns === null) {
             $this->calculateNodes();
         }
+
         if (\count($this->rightColumns) !== 1) {
             throw new TransformationException([
                 'template'      => 'Cannot substitute right expression with a single constant. '
@@ -54,6 +55,7 @@ class TupleConditions extends Conditions implements TupleConditionsInterface
                 'aql'           => $this->getAql(),
             ]);
         }
+
         $this->rightColumns[0]->setSubstitution($constantExpression);
         return $this;
     }

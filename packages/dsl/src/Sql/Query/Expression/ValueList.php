@@ -27,7 +27,7 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
      */
     public static function in(ColumnInterface|string ...$columns): static
     {
-        return (new static(...$columns))->setOperation(self::OPERATION_IN);
+        return new static(...$columns)->setOperation(self::OPERATION_IN);
     }
 
     protected string $operation     = '';
@@ -41,8 +41,8 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
         parent::__construct();
 
         $this->childNodes           = [
-            self::NODE_COLUMNS      => (new NodeList())->setParentNode($this),
-            self::NODE_VALUES       => (new NodeList())->setParentNode($this),
+            self::NODE_COLUMNS      => new NodeList()->setParentNode($this),
+            self::NODE_VALUES       => new NodeList()->setParentNode($this),
         ];
 
         foreach ($columns as $column) {
@@ -107,7 +107,7 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
             foreach ($offsets as $key => $offset) {
                 $childNodes         = $set->getChildNodes();
 
-                if (\array_key_exists($offset, $childNodes)) {
+                if (\array_key_exists((string) $offset, $childNodes)) {
                     $results[$key][] = $childNodes[$offset];
                 }
             }
@@ -134,7 +134,7 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
             foreach ($offsets as $key => $offset) {
                 $childNodes         = $set->getChildNodes();
 
-                if (\array_key_exists($offset, $childNodes)) {
+                if (\array_key_exists((string) $offset, $childNodes)) {
                     $results[$key]  = $childNodes[$offset];
                 }
 

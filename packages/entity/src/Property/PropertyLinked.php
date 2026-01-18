@@ -21,7 +21,7 @@ class PropertyLinked extends VirtualProperty
 {
     public function __construct(string $name, protected string $ownsEntityName, protected ?string $ownsPropertyName = null, protected array $insertValues = [])
     {
-        parent::__construct($name, '', []);
+        parent::__construct($name, '');
     }
 
     protected function handleTuple(PropertyContextInterface $context): bool
@@ -146,7 +146,7 @@ class PropertyLinked extends VirtualProperty
         if ($isInsert) {
             $query                  = new Insert(new Subject($ownsEntity->getName()), $this->generateAssignsForInsert());
         } else {
-            $query                      = new Update(new Subject($ownsEntity->getName()), (new Where())->add($relations->getConditions()));
+            $query                      = new Update(new Subject($ownsEntity->getName()), new Where()->add($relations->getConditions()));
             $query->getAssigns()->add(new FieldRef($property->getName()), $context->getRightConstant());
         }
 

@@ -45,7 +45,7 @@ class Join extends NodeAbstract implements JoinInterface
             self::NODE_SUBJECT      => \is_string($subject) ? new Subject($subject) : $subject,
             self::NODE_RELATION     => $relation?->setParentNode($this),
             self::NODE_CONDITIONS   => null,
-            self::NODE_JOINS        => ((new NodeList())->defineDelimiter("\n"))->setParentNode($this),
+            self::NODE_JOINS        => (new NodeList()->defineDelimiter("\n"))->setParentNode($this),
         ];
 
         $this->childNodes[self::NODE_SUBJECT]->setParentNode($this);
@@ -357,7 +357,7 @@ class Join extends NodeAbstract implements JoinInterface
         $childJoins                 = $this->generateJoins();
 
         if ($childJoins !== '') {
-            $result                 .= "\n" . \trim((string) $childJoins);
+            $result                 .= "\n" . \trim($childJoins);
         }
 
         if ($this->withoutType) {

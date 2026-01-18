@@ -31,7 +31,7 @@ class Insert extends QueryAbstract implements InsertInterface
         }
 
         $this->queryAction          = self::ACTION_INSERT;
-        $this->setFrom((new From($subject))->insertInto());
+        $this->setFrom(new From($subject)->insertInto());
 
         if ($values instanceof ValueListInterface) {
             $this->setValueList($values);

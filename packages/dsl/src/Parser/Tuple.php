@@ -25,7 +25,7 @@ class Tuple extends AqlParserAbstract
         //
         if ($tokens->currentTokenAsString() === '*') {
             $tokens->nextTokens();
-            return (new TupleNode())->markAsDefaultColumns();
+            return new TupleNode()->markAsDefaultColumns();
         }
 
         $stopTokens                 = $tokens->getStopTokens();
@@ -33,7 +33,7 @@ class Tuple extends AqlParserAbstract
         $results                    = [];
 
         while ($tokens->valid() && !\array_key_exists(\strtolower($tokens->currentTokenAsString()), $stopTokens)) {
-            $results[]              = (new TupleColumn())->parseTokens($tokens);
+            $results[]              = new TupleColumn()->parseTokens($tokens);
 
             if ($tokens->currentTokenAsString() !== ',') {
                 break;

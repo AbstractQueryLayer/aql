@@ -12,7 +12,6 @@ class With extends AqlParserAbstract
 {
     /**
      * Allow parsing the WITH CTE statement.
-     * @var string
      */
     public const string ALLOW_CTE = 'CTE';
 
@@ -58,7 +57,7 @@ class With extends AqlParserAbstract
 
             $tokens->nextTokens();
 
-            $subquery               = (new Subquery())->parseTokens($tokens);
+            $subquery               = new Subquery()->parseTokens($tokens);
             $subquery->setCteAlias($cteName);
 
             $subqueries[]           = $subquery;
@@ -79,7 +78,7 @@ class With extends AqlParserAbstract
         // We can define
         if ($tokens->valid()) {
             // The Next token can be SELECT, INSERT, UPDATE, DELETE, etc.
-            $cte->defineQuery((new AqlParser())->parseTokens($tokens));
+            $cte->defineQuery(new AqlParser()->parseTokens($tokens));
         }
 
         $tokens->decreaseRecursionDepth();

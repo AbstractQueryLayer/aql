@@ -34,6 +34,7 @@ class NodeHelper
             if ($result === true) {
                 return $current;
             }
+
             if ($result === false) {
                 return null;
             }

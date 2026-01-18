@@ -8,15 +8,11 @@ interface ResultComposingPlanInterface
 {
     /**
      * At this stage of processing, the results of different queries are combined into a single result.
-     *
-     * @var string
      */
     final public const string RESULT_COMPOSER = '=c';
 
     /**
      * At this stage of processing, you can read the final result of the entire query.
-     *
-     * @var string
      */
     final public const string POST_READER = '=pr';
 

@@ -17,6 +17,7 @@ use IfCastle\AQL\MigrationTool\MigrationStatus;
 class MigrationEntity extends EntityAbstract
 {
     public const string TYPE_SQL = 'sql';
+
     public const string TYPE_PHP = 'php';
 
     #[\Override]
@@ -41,8 +42,8 @@ class MigrationEntity extends EntityAbstract
             ->describeProperty(new PropertyText('rollbackCode'))
             ->describeProperty(new PropertyString('checksum', maxLength: 64))
             ->describeProperty(new PropertyEnum('status', MigrationStatus::class))
-            ->describeProperty((new PropertyDateTime('startedAt'))->asNullable())
-            ->describeProperty((new PropertyDateTime('completedAt'))->asNullable())
-            ->describeProperty((new PropertyText('errorData'))->asNullable());
+            ->describeProperty(new PropertyDateTime('startedAt')->asNullable())
+            ->describeProperty(new PropertyDateTime('completedAt')->asNullable())
+            ->describeProperty(new PropertyText('errorData')->asNullable());
     }
 }

@@ -34,13 +34,13 @@ class With extends QueryAbstract implements WithInterface
     #[\Override]
     public function defineSubqueries(array $subqueries): static
     {
-        $this->childNodes[self::NODE_SUBQUERIES] = (new NodeList(...$subqueries))->defineDelimiter("\n");
+        $this->childNodes[self::NODE_SUBQUERIES] = new NodeList(...$subqueries)->defineDelimiter("\n");
 
         $this->childNodes[self::NODE_SUBQUERIES]->setParentNode($this);
 
         if ($subqueries !== []) {
             $subject                = $subqueries[0]->getFrom()->getSubject()->getSubjectName();
-            $this->childNodes[self::NODE_FROM] = (new From(new Subject($subject)))->setParentNode($this);
+            $this->childNodes[self::NODE_FROM] = new From(new Subject($subject))->setParentNode($this);
         }
 
         return $this;

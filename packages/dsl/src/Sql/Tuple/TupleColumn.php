@@ -34,7 +34,7 @@ class TupleColumn extends NodeAbstract implements TupleColumnInterface
     #[\Override]
     public function getAliasOrColumnNameOrNull(): ?string
     {
-        if ($this->alias !== null && $this->alias !== '' && $this->alias !== '0') {
+        if (!in_array($this->alias, [null, '', '0'], true)) {
             return $this->alias;
         }
 
@@ -98,7 +98,7 @@ class TupleColumn extends NodeAbstract implements TupleColumnInterface
     {
         $aql                        = $this->childNodes[self::NODE_EXPRESSION]->getAql($forResolved);
 
-        if ($this->alias !== null && $this->alias !== '' && $this->alias !== '0') {
+        if (!in_array($this->alias, [null, '', '0'], true)) {
             return $aql . ' as "' . $this->alias . '"';
         }
 
@@ -110,7 +110,7 @@ class TupleColumn extends NodeAbstract implements TupleColumnInterface
     {
         $result                     = $this->childNodes[self::NODE_EXPRESSION]->getResult();
 
-        if ($this->alias !== null && $this->alias !== '' && $this->alias !== '0') {
+        if (!in_array($this->alias, [null, '', '0'], true)) {
             return $result . ' as ' . $this->escape($this->alias);
         }
 

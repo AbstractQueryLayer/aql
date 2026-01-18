@@ -21,7 +21,7 @@ class InExpression extends AqlParserAbstract
         $tokens->increaseRecursionDepth();
 
         if ($tokens->currentTokenAsString() === InExpressionNode::THE) {
-            return new InExpressionNode((new Subquery())->parseTheExpression($tokens->nextTokens()));
+            return new InExpressionNode(new Subquery()->parseTheExpression($tokens->nextTokens()));
         }
 
         if ($tokens->currentTokenAsString() !== '(') {
@@ -31,7 +31,7 @@ class InExpression extends AqlParserAbstract
         $tokens->nextTokens();
 
         if ($tokens->currentTokenAsString() === 'SELECT') {
-            $query                  = (new Subquery())->parseTokens($tokens);
+            $query                  = new Subquery()->parseTokens($tokens);
 
             if ($tokens->currentTokenAsString() !== ')') {
                 throw new ParseException("Expected operator ')' for IN (...), got '{$tokens->currentTokenAsString()}'");
@@ -50,7 +50,7 @@ class InExpression extends AqlParserAbstract
 
         while ($tokens->valid() && !\array_key_exists(\strtolower($tokens->currentTokenAsString()), $stopTokens)) {
 
-            $results[]              = (new Constant())->parseTokens($tokens);
+            $results[]              = new Constant()->parseTokens($tokens);
 
             if ($tokens->currentTokenAsString() !== ',') {
                 break;

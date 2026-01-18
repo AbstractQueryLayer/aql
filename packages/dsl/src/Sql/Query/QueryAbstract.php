@@ -578,7 +578,7 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
     public function setWhere(ConditionsInterface|array $conditions): static
     {
         if (\is_array($conditions)) {
-            $conditions             = (new Where())->apply($conditions);
+            $conditions             = new Where()->apply($conditions);
         }
 
         $this->childNodes[self::NODE_WHERE] = $conditions->setParentNode($this);
@@ -739,7 +739,7 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
     protected function initChildNodes(): void
     {
         $this->childNodes           = [
-            self::NODE_OPTIONS      => (new QueryOptions())->setParentNode($this),
+            self::NODE_OPTIONS      => new QueryOptions()->setParentNode($this),
             self::NODE_TUPLE        => null,
             self::NODE_USING        => null,
             self::NODE_FROM         => null,

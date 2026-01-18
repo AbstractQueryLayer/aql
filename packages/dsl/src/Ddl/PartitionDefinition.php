@@ -92,7 +92,7 @@ class PartitionDefinition extends DdlStatementAbstract implements PartitionDefin
 
         // Add partition options if any (ENGINE, COMMENT, DATA DIRECTORY, etc.)
         foreach ($this->options as $key => $value) {
-            $sql[] = \strtoupper($key) . ' = ' . (\is_string($value) ? $this->quote($value) : $value);
+            $sql[] = \strtoupper((string) $key) . ' = ' . (\is_string($value) ? $this->quote($value) : $value);
         }
 
         return \implode(' ', $sql);

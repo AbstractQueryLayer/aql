@@ -52,11 +52,11 @@ class ComplexProperty extends PropertyAbstract
         }
 
         $fromEntity->describeProperty(
-            (new self(
+            new self(
                 $propertyName ?? $namingStrategy->generatePropertyName([$toEntity->getEntityName(), ...$toKey->getKeyColumns()], $toEntity),
                 $toEntity->getEntityName(),
                 ...$properties
-            ))->setRelationType($relationType)
+            )->setRelationType($relationType)
         );
     }
 

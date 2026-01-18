@@ -119,7 +119,7 @@ class QueryCommand extends Command implements QueryCommandInterface
         }
 
         $this->resultPlan           = new ResultProcessingPlan(
-            new WeakStaticClosureExecutor(static fn(self $self, $handler, $stage) => $self->handleStage($handler, $stage), $this)
+            new WeakStaticClosureExecutor(static fn(self $self, $handler, string $stage) => $self->handleStage($handler, $stage), $this)
         );
 
         return $this->resultPlan;

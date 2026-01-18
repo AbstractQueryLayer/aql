@@ -20,7 +20,7 @@ class AlterOption extends DdlParserAbstract
     #[\Override]
     public function parseTokens(TokensIteratorInterface $tokens): AlterOptionInterface
     {
-        $tableOptions               = (new TableOption())->parseOptions($tokens);
+        $tableOptions               = new TableOption()->parseOptions($tokens);
 
         [$type, $action, $line]     = $tokens->currentToken();
 
@@ -164,7 +164,7 @@ class AlterOption extends DdlParserAbstract
                 switch ($what) {
                     case 'COLUMN':
                     case 'INDEX':
-                        $definition         = (new Rename())->parseTokens($tokens);
+                        $definition         = new Rename()->parseTokens($tokens);
                         break;
                     case 'TABLE':
                         if ($definition === null) {
@@ -214,7 +214,7 @@ class AlterOption extends DdlParserAbstract
                 ]);
         }
 
-        return (new AlterOptionNode($what, $action, $definition))->setTableOptions($tableOptions);
+        return new AlterOptionNode($what, $action, $definition)->setTableOptions($tableOptions);
     }
 
     protected function columnDefinition(TokensIteratorInterface $tokens): ColumnDefinitionInterface
@@ -223,7 +223,7 @@ class AlterOption extends DdlParserAbstract
 
         $stopTokens                 = $tokens->getStopTokens();
 
-        $column                     = (new ColumnDefinition())->parseTokens($tokens->addStopTokens($firstOrAfter));
+        $column                     = new ColumnDefinition()->parseTokens($tokens->addStopTokens($firstOrAfter));
 
         $tokens->setStopTokens($stopTokens);
 
@@ -285,7 +285,7 @@ class AlterOption extends DdlParserAbstract
 
     protected function indexDefinition(TokensIteratorInterface $tokens): IndexDefinitionInterface
     {
-        return (new IndexDefinition())->parseTokens($tokens);
+        return new IndexDefinition()->parseTokens($tokens);
     }
 
     protected function columnOrIndexName(TokensIteratorInterface $tokens): string

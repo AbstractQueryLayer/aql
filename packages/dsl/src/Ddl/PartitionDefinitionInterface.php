@@ -17,8 +17,11 @@ use IfCastle\AQL\Dsl\Node\NodeInterface;
 interface PartitionDefinitionInterface extends NodeInterface
 {
     final public const string PARTITION_NAME = 'partitionName';
-    final public const string VALUES_TYPE = 'valuesType'; // 'LESS THAN' or 'IN'
+
+    final public const string VALUES_TYPE = 'valuesType';
+     // 'LESS THAN' or 'IN'
     final public const string VALUES = 'values';
+
     final public const string OPTIONS = 'options';
 
     public function getPartitionName(): string;

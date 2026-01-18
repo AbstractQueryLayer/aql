@@ -26,10 +26,10 @@ class Union extends NodeAbstract implements UnionInterface
 
     protected function initChildNodes(): void
     {
-        $this->childNodes[self::NODE_QUERIES]     = (new NodeList())->setParentNode($this);
-        $this->childNodes[self::NODE_GROUP_BY]    = (new GroupBy())->setParentNode($this);
-        $this->childNodes[self::NODE_ORDER_BY]    = (new OrderBy())->setParentNode($this);
-        $this->childNodes[self::NODE_LIMIT]       = (new Limit())->setParentNode($this);
+        $this->childNodes[self::NODE_QUERIES]     = new NodeList()->setParentNode($this);
+        $this->childNodes[self::NODE_GROUP_BY]    = new GroupBy()->setParentNode($this);
+        $this->childNodes[self::NODE_ORDER_BY]    = new OrderBy()->setParentNode($this);
+        $this->childNodes[self::NODE_LIMIT]       = new Limit()->setParentNode($this);
     }
 
     #[\Override]
@@ -47,9 +47,13 @@ class Union extends NodeAbstract implements UnionInterface
     #[\Override]
     public function needParenthesis(): bool
     {
-        return $this->getGroupBy()->isNotEmpty()
-               || $this->getOrderBy()->isNotEmpty()
-               || $this->getLimit()->isNotEmpty();
+        if ($this->getGroupBy()->isNotEmpty()) {
+            return true;
+        }
+        if ($this->getOrderBy()->isNotEmpty()) {
+            return true;
+        }
+        return $this->getLimit()->isNotEmpty();
     }
 
     #[\Override]
@@ -78,6 +82,7 @@ class Union extends NodeAbstract implements UnionInterface
         return \implode("\n", $results);
     }
 
+    #[\Override]
     protected function generateResult(): string
     {
         $results                    = [];

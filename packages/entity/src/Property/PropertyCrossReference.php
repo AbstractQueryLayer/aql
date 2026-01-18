@@ -102,8 +102,8 @@ class PropertyCrossReference extends VirtualProperty
 
         ComposeByColumnAndKey::compose(
             $context->getTupleColumn()->getAliasOrColumnName(),
-            \array_map(static fn($column) => $column->getAliasOrColumnName(), $fromEntityKeyColumns),
-            \array_map(static fn($column) => $column->getAliasOrColumnName(), $toEntityKeyColumns),
+            \array_map(static fn(\IfCastle\AQL\Dsl\Sql\Tuple\TupleColumnInterface $column) => $column->getAliasOrColumnName(), $fromEntityKeyColumns),
+            \array_map(static fn(\IfCastle\AQL\Dsl\Sql\Tuple\TupleColumnInterface $column) => $column->getAliasOrColumnName(), $toEntityKeyColumns),
             $sqlCommand->getResultProcessingPlan(),
             $context->getQueryExecutor()->getExecutionPlan(),
         );

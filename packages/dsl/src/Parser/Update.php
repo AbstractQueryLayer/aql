@@ -30,17 +30,17 @@ class Update extends AqlParserAbstract
         ]);
 
         // 2. From and Joins expression
-        $from                       = (new From())->parseTableReference($tokens->nextTokens());
+        $from                       = new From()->parseTableReference($tokens->nextTokens());
         $from->onlySubject()->withoutType();
 
         // 3. SET expression
-        $assigns                    = (new AssignmentList())->parseTokens($tokens);
+        $assigns                    = new AssignmentList()->parseTokens($tokens);
         // 4. WHERE
-        $where                      = (new Where())->parseTokens($tokens);
+        $where                      = new Where()->parseTokens($tokens);
         // 5. Order by
-        $orderBy                    = (new OrderBy())->parseTokens($tokens);
+        $orderBy                    = new OrderBy()->parseTokens($tokens);
         // 6. Limit
-        $limit                      = (new Limit())->parseTokens($tokens);
+        $limit                      = new Limit()->parseTokens($tokens);
 
         $tokens->setStopTokens($oldStopTokens);
 

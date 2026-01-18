@@ -23,106 +23,46 @@ use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
 
 interface QueryInterface extends NodeInterface, BasicQueryInterface
 {
-    /**
-     * @var string
-     */
     public const string NODE_OPTIONS    = 'OPTIONS';
 
-    /**
-     * @var string
-     */
     public const string NODE_TUPLE      = 'TUPLE';
 
-    /**
-     * @var string
-     */
     public const string NODE_ASSIGMENT_LIST = 'SET';
 
-    /**
-     * @var string
-     */
     public const string NODE_VALUE_LIST = 'VALUES';
 
-    /**
-     * @var string
-     */
     public const string NODE_FROM       = 'FROM';
 
-    /**
-     * @var string
-     */
     public const string NODE_FROM_SELECT = 'FROM_SELECT';
 
-    /**
-     * @var string
-     */
     public const string NODE_USING      = 'USING';
 
-    /**
-     * @var string
-     */
     public const string NODE_WHERE      = 'WHERE';
 
-    /**
-     * @var string
-     */
     public const string NODE_ORDER_BY   = 'ORDER BY';
 
-    /**
-     * @var string
-     */
     public const string NODE_GROUP_BY   = 'GROUP BY';
 
-    /**
-     * @var string
-     */
     public const string NODE_DUPLICATE_KEY = 'ON DUPLICATE KEY';
 
-    /**
-     * @var string
-     */
     public const string NODE_HAVING         = 'HAVING';
 
-    /**
-     * @var string
-     */
     public const string NODE_LIMIT          = 'LIMIT';
 
     public const string NODE_UNION          = 'UNION';
 
-    /**
-     * @var string
-     */
     public const string ACTION_SELECT       = 'SELECT';
 
-    /**
-     * @var string
-     */
     public const string ACTION_COUNT        = 'COUNT';
 
-    /**
-     * @var string
-     */
     public const string ACTION_INSERT       = 'INSERT';
 
-    /**
-     * @var string
-     */
     public const string ACTION_REPLACE      = 'REPLACE';
 
-    /**
-     * @var string
-     */
     public const string ACTION_COPY         = 'COPY';
 
-    /**
-     * @var string
-     */
     public const string ACTION_UPDATE       = 'UPDATE';
 
-    /**
-     * @var string
-     */
     public const string ACTION_DELETE       = 'DELETE';
 
     public const string ACTION_WITH         = 'WITH';

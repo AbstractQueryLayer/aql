@@ -10,7 +10,7 @@ use IfCastle\DesignPatterns\Pool\ReturnFactoryInterface;
 final class StorageReturnFactory implements ReturnFactoryInterface
 {
     #[\Override]
-    public function createDecorator(object $originalObject, PoolInterface $pool): object
+    public function createDecorator(object $originalObject, PoolInterface $pool): \IfCastle\AQL\StoragePool\StorageDecorator
     {
         return new StorageDecorator($originalObject, $pool);
     }

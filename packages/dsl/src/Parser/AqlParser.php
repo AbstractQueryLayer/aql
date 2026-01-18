@@ -52,11 +52,11 @@ class AqlParser extends AqlParserAbstract
     public function parseTokens(TokensIteratorInterface $tokens): QueryInterface
     {
         return match ($tokens->currentTokenAsString()) {
-            QueryInterface::ACTION_WITH                                   => (new With())->parseTokens($tokens),
-            QueryInterface::ACTION_SELECT, QueryInterface::ACTION_COUNT   => (new Select())->parseTokens($tokens),
-            QueryInterface::ACTION_INSERT                                 => (new Insert())->parseTokens($tokens),
-            QueryInterface::ACTION_UPDATE, QueryInterface::ACTION_REPLACE => (new Update())->parseTokens($tokens),
-            QueryInterface::ACTION_DELETE                                 => (new Delete())->parseTokens($tokens),
+            QueryInterface::ACTION_WITH                                   => new With()->parseTokens($tokens),
+            QueryInterface::ACTION_SELECT, QueryInterface::ACTION_COUNT   => new Select()->parseTokens($tokens),
+            QueryInterface::ACTION_INSERT                                 => new Insert()->parseTokens($tokens),
+            QueryInterface::ACTION_UPDATE, QueryInterface::ACTION_REPLACE => new Update()->parseTokens($tokens),
+            QueryInterface::ACTION_DELETE                                 => new Delete()->parseTokens($tokens),
 
             default                                                       => throw new ParseException(
                 'Unknown query Action', ['action' => $tokens->currentTokenAsString()],

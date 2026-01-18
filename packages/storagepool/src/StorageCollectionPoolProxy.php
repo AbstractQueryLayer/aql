@@ -75,8 +75,8 @@ final class StorageCollectionPoolProxy implements StorageCollectionInterface, St
 
         $storageName                = $storage->getStorageName();
 
-        if (false === \array_key_exists($storageName, $this->borrowedStorages)
-        && false === \array_key_exists($storageName, $this->borrowedOriginalStorages)) {
+        if (false === \array_key_exists((string) $storageName, $this->borrowedStorages)
+        && false === \array_key_exists((string) $storageName, $this->borrowedOriginalStorages)) {
             return true;
         }
 
@@ -110,6 +110,7 @@ final class StorageCollectionPoolProxy implements StorageCollectionInterface, St
         if ($currentTransaction === null) {
             return true;
         }
+
         return \in_array($currentTransaction->getStatus(), [TransactionStatusEnum::COMMITTED, TransactionStatusEnum::ROLLED_BACK, true]);
     }
 

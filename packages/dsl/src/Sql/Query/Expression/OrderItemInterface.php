@@ -8,14 +8,8 @@ use IfCastle\AQL\Dsl\Node\NodeInterface;
 
 interface OrderItemInterface extends NodeInterface
 {
-    /**
-     * @var string
-     */
     public const string DESC        = 'DESC';
 
-    /**
-     * @var string
-     */
     public const string ASC         = 'ASC';
 
     public function getDirection(): string;

@@ -27,7 +27,7 @@ class PublicityBuilder extends EntityAspectBuilderAbstract
     protected function describePublicity(Publicity $description, EntityDescriptorInterface & EntityInterface $entity): void
     {
         $entity->describeProperty(
-            (new PropertyBoolean($description->property))->setTypicalName(Publicity::TYPICAL_IS_PUBLISHED)
+            new PropertyBoolean($description->property)->setTypicalName(Publicity::TYPICAL_IS_PUBLISHED)
         );
     }
 }

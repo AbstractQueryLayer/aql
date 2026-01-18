@@ -64,7 +64,7 @@ class NodeOptions extends NodeAbstract
         $this->options              = \array_unique($this->options);
 
         return \implode($this->delimiter, \array_map(
-            fn(string $option): string => \strtoupper($option),
+            \strtoupper(...),
             $this->options,
         ));
     }
@@ -79,7 +79,7 @@ class NodeOptions extends NodeAbstract
         $this->options              = \array_unique($this->options);
 
         return \implode($this->delimiter, \array_map(
-            fn(string $option): string => \strtoupper($option),
+            \strtoupper(...),
             $this->options,
         ));
     }

@@ -47,7 +47,7 @@ class GroupBy extends AqlParserAbstract
             }
         }
 
-        if (empty($expressions)) {
+        if ($expressions === []) {
             throw new ParseException('Empty GROUP BY expression is not allowed');
         }
 

@@ -23,8 +23,8 @@ class TimestampsBuilder extends EntityAspectBuilderAbstract
             $words                          = \explode('_', (string) $option);
 
             $property = match ($option) {
-                Timestamps::CREATED => (new PropertyTimestamp($namingStrategy->generatePropertyName($words)))->makeAsCreatedAt(),
-                Timestamps::UPDATED => (new PropertyTimestamp($namingStrategy->generatePropertyName($words)))->makeAsUpdatedAt(),
+                Timestamps::CREATED => new PropertyTimestamp($namingStrategy->generatePropertyName($words))->makeAsCreatedAt(),
+                Timestamps::UPDATED => new PropertyTimestamp($namingStrategy->generatePropertyName($words))->makeAsUpdatedAt(),
                 Timestamps::PUBLISHED, Timestamps::DELETED => new PropertyTimestamp($namingStrategy->generatePropertyName($words), true),
                 default => throw new UnexpectedValue('AspectOption', $option, 'expected CREATED, UPDATED'),
             };

@@ -78,7 +78,7 @@ final class ConditionsHelper
                 ]);
             }
 
-            if (false === \array_key_exists($left->getSubjectAlias(), $result)) {
+            if (false === \array_key_exists((string) $left->getSubjectAlias(), $result)) {
                 $result[$left->getSubjectAlias()] = [];
             }
 

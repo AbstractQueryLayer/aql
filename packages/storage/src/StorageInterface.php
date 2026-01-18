@@ -13,14 +13,8 @@ use IfCastle\AQL\Storage\Exceptions\StorageException;
  */
 interface StorageInterface
 {
-    /**
-     * @var string
-     */
     public const string MAX_ATTEMPTS    = 'max_attempts';
 
-    /**
-     * @var string
-     */
     public const string OPTIONS         = 'options';
 
 

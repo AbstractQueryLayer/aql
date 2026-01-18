@@ -11,9 +11,6 @@ use IfCastle\AQL\Storage\Exceptions\StorageException;
 
 interface SqlStorageInterface extends StorageInterface
 {
-    /**
-     * @var string
-     */
     public const string INITIAL_QUERIES     = 'initial_queries';
 
     /**

@@ -37,7 +37,7 @@ class AssignmentList extends AqlParserAbstract
                 break;
             }
 
-            $expressions[]          = (new Assign())->parseTokens($tokens);
+            $expressions[]          = new Assign()->parseTokens($tokens);
 
             if ($tokens->currentTokenAsString() !== ',') {
                 break;

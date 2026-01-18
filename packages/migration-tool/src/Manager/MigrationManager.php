@@ -9,12 +9,12 @@ use IfCastle\AQL\MigrationTool\MigrationInterface;
 use IfCastle\AQL\MigrationTool\Repository\MigrationRepositoryInterface;
 use IfCastle\AQL\MigrationTool\Repository\MigrationSourceRepositoryInterface;
 
-final class MigrationManager implements MigrationManagerInterface
+final readonly class MigrationManager implements MigrationManagerInterface
 {
     public function __construct(
-        private readonly MigrationSourceRepositoryInterface $sourceRepository,
-        private readonly MigrationRepositoryInterface $repository,
-        private readonly MigrationExecutorInterface $executor
+        private MigrationSourceRepositoryInterface $sourceRepository,
+        private MigrationRepositoryInterface $repository,
+        private MigrationExecutorInterface $executor
     ) {}
 
     #[\Override]

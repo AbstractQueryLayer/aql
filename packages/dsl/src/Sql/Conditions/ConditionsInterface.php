@@ -11,14 +11,8 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\OperationInterface;
 
 interface ConditionsInterface extends NodeInterface, ChildNodeMutableInterface
 {
-    /**
-     * @var string
-     */
     public const string TYPE_AND    = 'AND';
 
-    /**
-     * @var string
-     */
     public const string TYPE_OR     = 'OR';
 
     public function isConditionsExist(): bool;

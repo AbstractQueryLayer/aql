@@ -72,7 +72,7 @@ class From extends Join
                 $mainSubject        = new SubjectNode(\ucfirst((string) $token));
                 [,$token]           = $tokens->nextToken();
             } elseif ($this->isJoinFirstKeyword($token)) {
-                $joins[]            = (new Join())->parseTokens($tokens);
+                $joins[]            = new Join()->parseTokens($tokens);
                 [,$token]           = $tokens->currentToken();
             } else {
                 $joins[]            = new JoinNode('', new SubjectNode(\ucfirst((string) $token)));
