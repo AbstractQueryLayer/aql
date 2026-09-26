@@ -20,8 +20,8 @@
     "ifcastle/aql-aspects": "*",
     "ifcastle/aql-dsl": "*",
     "ifcastle/aop": "^0.1.0",
-    "ifcastle/di": "^0.6.0",
-    "ifcastle/design-patterns": "^0.2.20",
+    "ifcastle/di": "^0.8",
+    "ifcastle/design-patterns": "^0.4",
     "ifcastle/exceptions": "^5.0",
     "ifcastle/type-definitions": "^0.5.7"
   },

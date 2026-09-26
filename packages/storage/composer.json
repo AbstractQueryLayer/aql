@@ -19,7 +19,7 @@
     "php": ">=8.5",
     "ifcastle/aql-dsl": "*",
     "ifcastle/aql-result": "*",
-    "ifcastle/di": "^0.6.0",
+    "ifcastle/di": "^0.8",
     "ifcastle/exceptions": "^5.0"
   },
   "autoload": {

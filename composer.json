@@ -11,7 +11,13 @@
         }
     ],
     "repositories": [
-        { "type": "path", "url": "./packages/*", "options": { "symlink": true } }
+        { "type": "path", "url": "./packages/*", "options": { "symlink": true } },
+        {
+            "type": "path",
+            "url": "../ifcastle/packages/*",
+            "options": { "symlink": true },
+            "only": ["ifcastle/di", "ifcastle/design-patterns", "ifcastle/type-definitions"]
+        }
     ],
     "require": {
         "php": ">=8.5",

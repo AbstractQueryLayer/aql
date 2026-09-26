@@ -21,7 +21,7 @@
     "ifcastle/aql-result": "*",
     "ifcastle/aql-storage": "*",
     "ifcastle/aql-transaction": "*",
-    "ifcastle/di": "^0.6.0",
+    "ifcastle/di": "^0.8",
     "ifcastle/exceptions": "^5.0",
     "ext-pdo": "*",
     "ifcastle/aql-sqldriver": "*"
