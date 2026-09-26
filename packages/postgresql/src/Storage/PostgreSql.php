@@ -25,14 +25,22 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
     }
 
     #[\Override]
-    protected function normalizeException(\PDOException $exception, string $sql): StorageException
+    protected function normalizeException(\Throwable $exception, string $sql): StorageException
     {
-        return match ($exception->errorInfo[0]) {
-            // PostgreSQL error codes
-            '40001'             => new RecoverableException($exception->errorInfo[2], $sql, $exception), // Deadlock
-            '08006'             => new ServerHasGoneAwayException($exception->errorInfo[2], $sql, $exception), // Connection Failure
-            '23505'             => new DuplicateKeysException($exception->errorInfo[2], $sql, $exception), // Unique violation
-            default             => new QueryException($exception->errorInfo[2], $sql, $exception)
+        if (false === $exception instanceof \PDOException) {
+            return new QueryException($exception->getMessage(), $sql, $exception);
+        }
+
+        $message                    = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        // PostgreSQL reports its own SQLSTATE: https://www.postgresql.org/docs/current/errcodes-appendix.html
+        return match ($exception->errorInfo[0] ?? null) {
+            '40001',                // serialization_failure
+            '40P01'                 // deadlock_detected
+                                    => new RecoverableException($message, $sql, $exception),
+            '08006'                 => new ServerHasGoneAwayException($message, $sql, $exception), // connection_failure
+            '23505'                 => new DuplicateKeysException($message, $sql, $exception), // unique_violation
+            default                 => new QueryException($message, $sql, $exception)
         };
     }
 

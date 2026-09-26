@@ -84,13 +84,7 @@ abstract class PDOAbstract extends SqlDriverAbstract
 
         } catch (\PDOException $pdoException) {
 
-            $pdoException           = $this->normalizeException($pdoException, $sql);
-
-            if ($pdoException instanceof ServerHasGoneAwayException) {
-                $this->dbh          = null;
-            }
-
-            throw $pdoException;
+            throw $this->queryFailed($pdoException, $sql);
         }
     }
 
@@ -100,13 +94,7 @@ abstract class PDOAbstract extends SqlDriverAbstract
         try {
             $statement                  = $this->dbh->prepare($sql);
         } catch (\PDOException $pdoException) {
-            $pdoException               = $this->normalizeException($pdoException, $sql);
-
-            if ($pdoException instanceof ServerHasGoneAwayException) {
-                $this->dbh              = null;
-            }
-
-            throw $pdoException;
+            throw $this->queryFailed($pdoException, $sql);
         }
 
         return new PDOStatementAdapter($statement);
@@ -122,16 +110,34 @@ abstract class PDOAbstract extends SqlDriverAbstract
         try {
             $statement->getPdoStatement()->execute($parameters);
         } catch (\PDOException $pdoException) {
-            $pdoException               = $this->normalizeException($pdoException, $statement->getQuery());
-
-            if ($pdoException instanceof ServerHasGoneAwayException) {
-                $this->dbh              = null;
-            }
-
-            throw $pdoException;
+            throw $this->queryFailed($pdoException, $statement->getQuery());
         }
 
         return new PDOResult($statement->getPdoStatement());
+    }
+
+    /**
+     * Returns the storage exception for a failed query. On a lost connection an unpooled PDO is dropped,
+     * so that the next query reconnects.
+     */
+    protected function queryFailed(\PDOException $pdoException, string $sql): StorageException
+    {
+        $exception                  = $this->normalizeException($pdoException, $sql);
+
+        if ($exception instanceof ServerHasGoneAwayException && false === $this->isPooled()) {
+            $this->dbh              = null;
+        }
+
+        return $exception;
+    }
+
+    /**
+     * Whether the PDO runs the TrueAsync connection pool. A pool evicts a broken connection itself, and
+     * dropping the pooled PDO would close the connections of every other coroutine.
+     */
+    protected function isPooled(): bool
+    {
+        return false;
     }
 
     #[\Override]

@@ -18,11 +18,16 @@ use IfCastle\AQL\SQLite\Executor\SQLiteQueryExecutor;
 use IfCastle\AQL\Storage\Exceptions\DuplicateKeysException;
 use IfCastle\AQL\Storage\Exceptions\QueryException;
 use IfCastle\AQL\Storage\Exceptions\RecoverableException;
-use IfCastle\AQL\Storage\Exceptions\ServerHasGoneAwayException;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
 
 class SQLite extends PDOAbstract implements FunctionHandlerInterface
 {
+    private const int SQLITE_BUSY   = 5;
+
+    private const int SQLITE_LOCKED = 6;
+
+    private const int SQLITE_CONSTRAINT = 19;
+
     public function __construct(array $config)
     {
         if (!empty($config['dsn'])) {
@@ -39,12 +44,17 @@ class SQLite extends PDOAbstract implements FunctionHandlerInterface
             return new QueryException($exception->getMessage(), $sql, $exception);
         }
 
-        return match ($exception->errorInfo[0]) {
-            // please see: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
-            1213                => new RecoverableException($exception->errorInfo[2], $sql, $exception),
-            2006                => new ServerHasGoneAwayException($exception->errorInfo[2], $sql, $exception),
-            1022                => new DuplicateKeysException($exception->errorInfo[2], $sql, $exception),
-            default             => new QueryException($exception->errorInfo[2], $sql, $exception)
+        $message                    = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        // Result codes: https://www.sqlite.org/rescode.html. PDO gives the primary code only, so a unique
+        // violation is told from NOT NULL, CHECK and foreign key violations by its message.
+        return match ($exception->errorInfo[1] ?? null) {
+            self::SQLITE_BUSY,
+            self::SQLITE_LOCKED     => new RecoverableException($message, $sql, $exception),
+            self::SQLITE_CONSTRAINT => \str_starts_with($message, 'UNIQUE constraint failed')
+                                    ? new DuplicateKeysException($message, $sql, $exception)
+                                    : new QueryException($message, $sql, $exception),
+            default                 => new QueryException($message, $sql, $exception)
         };
     }
 
