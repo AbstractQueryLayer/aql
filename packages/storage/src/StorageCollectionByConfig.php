@@ -10,6 +10,7 @@ use IfCastle\DI\ConfigInterface;
 use IfCastle\DI\ConfigurableFromArrayInterface;
 use IfCastle\DI\ContainerInterface;
 use IfCastle\DI\DisposableInterface;
+use IfCastle\Exceptions\UnexpectedValueType;
 
 class StorageCollectionByConfig implements
     StorageCollectionInterface,
@@ -21,7 +22,7 @@ class StorageCollectionByConfig implements
     protected array $config;
 
     /**
-     * @var array<string, string|StorageInterface>
+     * @var array<string, StorageInterface>
      */
     protected array $storageList    = [];
 
@@ -39,11 +40,16 @@ class StorageCollectionByConfig implements
 
         $this->config               = $config;
 
+        // Every storage is built with the collection, so one that opens a connection pool opens it here
+        // rather than inside the first request that asks for it; applications resolve the collection
+        // at startup.
         foreach ($config as $storageName => $storageConfig) {
-            $this->storageList[$storageName] = $storageConfig['class'] ?? throw new StorageException([
+            $storageClass           = $storageConfig['class'] ?? throw new StorageException([
                 'template'          => 'Config key class is required for storage {storageName}',
                 'storageName'        => $storageName,
             ]);
+
+            $this->storageList[$storageName] = $this->buildStorage($storageName, $storageClass);
         }
     }
 
@@ -63,18 +69,14 @@ class StorageCollectionByConfig implements
     #[\Override]
     public function findStorage(?string $storageName = null): ?StorageInterface
     {
-        $storageName                ??= StorageCollectionInterface::STORAGE_MAIN;
+        return $this->storageList[$storageName ?? StorageCollectionInterface::STORAGE_MAIN] ?? null;
+    }
 
-        if (false === \array_key_exists($storageName, $this->storageList)) {
-            return null;
-        }
-
-        $storageClass               = $this->storageList[$storageName];
-
-        if ($storageClass instanceof StorageInterface) {
-            return $storageClass;
-        }
-
+    /**
+     * @throws UnexpectedValueType
+     */
+    private function buildStorage(string $storageName, string $storageClass): StorageInterface
+    {
         $storage                    = StorageCollection::instanciateStorage(
             $storageName, $storageClass, $this->diContainer, $this->config[$storageName]
         );
@@ -82,8 +84,6 @@ class StorageCollectionByConfig implements
         if ($storage instanceof ConfigurableFromArrayInterface) {
             $storage->configureFromArray($this->config[$storageName]);
         }
-
-        $this->storageList[$storageName] = $storage;
 
         return $storage;
     }

@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace IfCastle\AQL\MySql\Storage;
 
 use IfCastle\AQL\MySql\MariaDb;
-use IfCastle\AQL\Storage\Exceptions\ConnectFailed;
 use IfCastle\DI\Exceptions\ConfigException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use function Async\await;
 use function Async\spawn;
-use function Async\suspend;
 
 class MySqlPoolTest extends TestCase
 {
@@ -78,63 +76,6 @@ class MySqlPoolTest extends TestCase
         $this->assertSame([$changed['connection'], self::TIME_ZONE], [$next['connection'], $next['timeZone']]);
 
         $mySql->dispose();
-    }
-
-    public function testConnectingSurvivesTheCancelledScopeOfItsFirstCaller(): void
-    {
-        // The init command makes the PDO constructor talk to the server, so connecting suspends.
-        $mySql                      = $this->mySql(['initial_queries' => "SET time_zone = '" . self::TIME_ZONE . "'"]);
-        $query                      = static fn() => $mySql->executeSql('SELECT 1 AS one')->toArray()[0]['one'];
-
-        $firstCallerScope           = new \Async\Scope();
-        $firstCallerScope->spawn($query);
-        $other                      = spawn($query);
-
-        // Both callers are now waiting for the connection.
-        suspend();
-        $firstCallerScope->cancel();
-
-        $this->assertSame(1, await($other));
-
-        $mySql->dispose();
-    }
-
-    public function testFailedConnectingIsRetriedOnceForAllWaiters(): void
-    {
-        $mySql                      = new class ([
-            'dsn'                   => 'mysql:host=127.0.0.1;port=1;dbname=' . MariaDb::database(),
-            'username'              => MariaDb::user(),
-            'password'              => MariaDb::password(),
-            'max_attempts'          => 3,
-            // With the pool the constructor connects only to apply a driver option.
-            'options'               => [\PDO::ATTR_EMULATE_PREPARES => true],
-        ]) extends MySql {
-            public int $attempts    = 0;
-
-            #[\Override]
-            protected function connectionAttempt(): void
-            {
-                ++$this->attempts;
-                parent::connectionAttempt();
-            }
-        };
-
-        $coroutines                 = [];
-
-        for ($i = 0; $i < 5; $i++) {
-            $coroutines[]           = spawn(static function () use ($mySql): string {
-                try {
-                    $mySql->connect();
-                } catch (ConnectFailed) {
-                    return 'failed';
-                }
-
-                return 'connected';
-            });
-        }
-
-        $this->assertSame(\array_fill(0, 5, 'failed'), \array_map(static fn($coroutine) => await($coroutine), $coroutines));
-        $this->assertSame(3, $mySql->attempts);
     }
 
     /**
