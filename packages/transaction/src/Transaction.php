@@ -143,14 +143,16 @@ class Transaction implements TransactionInterface
             $errors[]               = $throwable;
         }
 
+        $commit                     = $status === TransactionFinishedStatusEnum::COMMITTED;
+
         foreach ($finalizeHandlers as $storageHandler) {
 
             if ($errors !== []) {
-                $status             = false;
+                $commit             = false;
             }
 
             try {
-                $storageHandler($status, $this);
+                $storageHandler($commit, $this);
             } catch (\Throwable $exception) {
                 $errors[]           = $exception;
             }

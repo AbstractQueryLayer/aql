@@ -59,12 +59,6 @@ class SQLite extends PDOAbstract implements FunctionHandlerInterface
     }
 
     #[\Override]
-    protected function isNestedTransactionsSupported(): bool
-    {
-        return false;
-    }
-
-    #[\Override]
     public function newEntityToTableGenerator(EntityInterface $entity): EntityToTableInterface
     {
         return new EntityToTable($entity);

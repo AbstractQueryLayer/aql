@@ -14,6 +14,16 @@ interface TransactionInterface
 
     public function rollBack(?\Throwable $throwable = null): void;
 
+    /**
+     * Registers a storage the transaction runs on. When the transaction finishes, it calls the handler as
+     * $finalizeHandler(bool $commit, TransactionInterface $transaction): true to commit the storage, false
+     * to roll it back. Storages finish in the reverse order of registration; after a handler fails, the
+     * rest roll back.
+     *
+     * @param string $storage the storage key, unique within the transaction
+     *
+     * @throws \LogicException when the transaction has finished or the storage is already registered
+     */
     public function openTransaction(string $storage, callable $finalizeHandler): void;
 
     public function isTransactionOpened(?string $storage = null): bool;

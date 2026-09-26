@@ -13,7 +13,6 @@ use IfCastle\AQL\Storage\Exceptions\RecoverableException;
 use IfCastle\AQL\Storage\Exceptions\ServerHasGoneAwayException;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
 use IfCastle\AQL\Storage\SqlStatementInterface;
-use IfCastle\AQL\Transaction\IsolationLevelEnum;
 use IfCastle\AQL\Transaction\TransactionInterface;
 use IfCastle\DI\Exceptions\ConfigException;
 use IfCastle\Exceptions\UnexpectedValueType;
@@ -140,40 +139,35 @@ abstract class PDOAbstract extends SqlDriverAbstract
         return false;
     }
 
+    /**
+     * Closes the connection, and under the pool every pooled connection; the next query opens it again.
+     */
+    #[\Override]
+    public function disconnect(): void
+    {
+        $this->dbh                  = null;
+        parent::disconnect();
+    }
+
     #[\Override]
     protected function isDisconnected(): bool
     {
         return $this->dbh === null;
     }
 
+    /**
+     * Begins through PDO, which keeps a pooled connection with the coroutine until the transaction ends.
+     *
+     * @throws StorageException when the transaction names an isolation level: this driver cannot set one
+     */
     #[\Override]
     protected function realBeginTransaction(TransactionInterface $transaction): void
     {
-        if ($transaction->getParentTransaction() === null) {
-
-            $isolationLevel         = match ($transaction->getIsolationLevel()) {
-                null                => null,
-                IsolationLevelEnum::UNCOMMITTED  => 'READ UNCOMMITTED',
-                IsolationLevelEnum::COMMITTED    => 'READ COMMITTED',
-                IsolationLevelEnum::REPEATABLE   => 'REPEATABLE READ',
-                IsolationLevelEnum::SERIALIZABLE => 'SERIALIZABLE',
-            };
-
-            if ($isolationLevel !== null) {
-                $this->dbh->exec('SET SESSION TRANSACTION ISOLATION LEVEL ' . $isolationLevel . '; START TRANSACTION');
-            } else {
-                $this->dbh->beginTransaction();
-            }
+        if ($transaction->getIsolationLevel() !== null) {
+            throw new QueryException(static::class . ' cannot set a transaction isolation level', 'BEGIN');
         }
 
-        if ($transaction->getTransactionId() === null) {
-            $transaction->setTransactionId('t' . \spl_object_id($transaction));
-        }
-
-        //
-        // See: https://dev.mysql.com/doc/refman/9.0/en/savepoint.html
-        //
-        $this->dbh->exec('SAVEPOINT ' . $transaction->getTransactionId());
+        $this->transactionCall($this->dbh->beginTransaction(...), 'BEGIN');
     }
 
     #[\Override]
@@ -189,30 +183,34 @@ abstract class PDOAbstract extends SqlDriverAbstract
     }
 
     #[\Override]
-    protected function realCommit(TransactionInterface $transaction): void
+    protected function realCommit(): void
     {
-        if ($transaction->getTransactionId() === null) {
-            $this->dbh->commit();
-            return;
-        }
-
-        //
-        // See: https://dev.mysql.com/doc/refman/9.0/en/savepoint.html
-        //
-        $this->dbh->exec('RELEASE SAVEPOINT ' . $transaction->getTransactionId());
+        $this->transactionCall($this->dbh->commit(...), 'COMMIT');
     }
 
     #[\Override]
-    protected function realRollback(TransactionInterface $transaction): void
+    protected function realInTransaction(): bool
     {
-        if ($transaction->getParentTransaction()?->getTransactionId() === null) {
-            $this->dbh->rollBack();
-            return;
-        }
+        return $this->dbh->inTransaction();
+    }
 
-        //
-        // See: https://dev.mysql.com/doc/refman/9.0/en/savepoint.html
-        //
-        $this->dbh->exec('ROLLBACK TO SAVEPOINT ' . $transaction->getParentTransaction()->getTransactionId());
+    #[\Override]
+    protected function realRollback(): void
+    {
+        $this->transactionCall($this->dbh->rollBack(...), 'ROLLBACK');
+    }
+
+    /**
+     * Runs a transaction method of PDO, reporting its failure as a storage exception.
+     *
+     * @throws StorageException
+     */
+    protected function transactionCall(callable $call, string $sql): void
+    {
+        try {
+            $call();
+        } catch (\PDOException $pdoException) {
+            throw $this->queryFailed($pdoException, $sql);
+        }
     }
 }

@@ -106,13 +106,19 @@ class MySql extends SqlDriverAbstract
     }
 
     #[\Override]
-    protected function realCommit(TransactionInterface $transaction): void
+    protected function realCommit(): void
     {
         $this->connection->execute('COMMIT');
     }
 
     #[\Override]
-    protected function realRollback(TransactionInterface $transaction): void
+    protected function realInTransaction(): bool
+    {
+        // TODO: Implement realInTransaction() method.
+    }
+
+    #[\Override]
+    protected function realRollback(): void
     {
         $this->connection->execute('ROLLBACK');
     }
@@ -121,12 +127,6 @@ class MySql extends SqlDriverAbstract
     protected function normalizeException(\Throwable $exception, string $sql): StorageException
     {
         // TODO: Implement normalizeException() method.
-    }
-
-    #[\Override]
-    protected function isNestedTransactionsSupported(): bool
-    {
-        return true;
     }
 
     #[\Override]

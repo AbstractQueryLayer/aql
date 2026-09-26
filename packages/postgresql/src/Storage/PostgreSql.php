@@ -45,12 +45,6 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
     }
 
     #[\Override]
-    protected function isNestedTransactionsSupported(): bool
-    {
-        return true; // PostgreSQL поддерживает вложенные транзакции с использованием savepoints
-    }
-
-    #[\Override]
     public function newEntityToTableGenerator(EntityInterface $entity): EntityToTableInterface
     {
         return new EntityToTable($entity);
