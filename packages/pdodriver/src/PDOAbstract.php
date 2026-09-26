@@ -37,11 +37,17 @@ abstract class PDOAbstract extends SqlDriverAbstract
      *
      * @param array<int, mixed> $options
      * @return array<int, mixed>
-     * @throws ConfigException when the configured options cannot work together
+     * @throws ConfigException when persistent connections are asked for, or the options cannot work together
      */
     protected function defineOptions(array $options): array
     {
-        return $options === [] ? [\PDO::ATTR_PERSISTENT => true] : $options;
+        // TrueAsync forbids them: a persistent connection belongs to the process and outlives the
+        // request, and one that served a coroutine crashes PHP at shutdown.
+        if (!empty($options[\PDO::ATTR_PERSISTENT])) {
+            throw new ConfigException('PDO::ATTR_PERSISTENT is not supported under TrueAsync');
+        }
+
+        return $options;
     }
 
     /**
