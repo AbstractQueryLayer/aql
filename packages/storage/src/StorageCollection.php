@@ -15,11 +15,18 @@ class StorageCollection implements
     DisposableInterface
 {
     /**
+     * @param array<string, mixed>|null $config passed to the storage constructor; null constructs it
+     *                                          without arguments
+     *
      * @throws UnexpectedValueType
      */
-    public static function instanciateStorage(string $storageName, string $storageClass, ContainerInterface $container): StorageInterface
-    {
-        $storage                = new $storageClass();
+    public static function instanciateStorage(
+        string $storageName,
+        string $storageClass,
+        ContainerInterface $container,
+        ?array $config = null
+    ): StorageInterface {
+        $storage                = $config === null ? new $storageClass() : new $storageClass($config);
 
         if ($storage instanceof AutoResolverInterface) {
             $storage->resolveDependencies($container);

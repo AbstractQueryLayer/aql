@@ -75,7 +75,9 @@ class StorageCollectionByConfig implements
             return $storageClass;
         }
 
-        $storage                    = StorageCollection::instanciateStorage($storageName, $storageClass, $this->diContainer);
+        $storage                    = StorageCollection::instanciateStorage(
+            $storageName, $storageClass, $this->diContainer, $this->config[$storageName]
+        );
 
         if ($storage instanceof ConfigurableFromArrayInterface) {
             $storage->configureFromArray($this->config[$storageName]);
