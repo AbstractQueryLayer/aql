@@ -18,9 +18,6 @@ class MySqlFromConfigTest extends BaseTestCase
                 'dsn'               => MariaDb::dsn(),
                 'username'          => MariaDb::user(),
                 'password'          => MariaDb::password(),
-                // Not the driver's default ATTR_PERSISTENT: TrueAsync crashes at process shutdown
-                // when it closes a persistent pdo_mysql connection that served a coroutine.
-                'options'           => [\PDO::ATTR_PERSISTENT => false],
             ],
         ]);
 

@@ -29,9 +29,19 @@ abstract class PDOAbstract extends SqlDriverAbstract
     {
         parent::__construct($config);
 
-        if ($this->options === []) {
-            $this->options[\PDO::ATTR_PERSISTENT] = true;
-        }
+        $this->options              = $this->defineOptions($this->options);
+    }
+
+    /**
+     * Returns the PDO options the connection is opened with, given the configured ones.
+     *
+     * @param array<int, mixed> $options
+     * @return array<int, mixed>
+     * @throws ConfigException when the configured options cannot work together
+     */
+    protected function defineOptions(array $options): array
+    {
+        return $options === [] ? [\PDO::ATTR_PERSISTENT => true] : $options;
     }
 
     /**

@@ -22,6 +22,8 @@
     "require": {
         "php": ">=8.5",
         "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-true_async": "*",
         "ifcastle/aql-amphp": "*",
         "ifcastle/aql-aspects": "*",
         "ifcastle/aql-dsl": "*",
