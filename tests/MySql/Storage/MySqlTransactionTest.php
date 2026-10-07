@@ -6,6 +6,8 @@ namespace IfCastle\AQL\MySql\Storage;
 
 use IfCastle\AQL\MySql\MariaDb;
 use IfCastle\AQL\Storage\Exceptions\ConnectFailed;
+use IfCastle\AQL\Storage\Exceptions\QueryException;
+use IfCastle\AQL\Storage\Exceptions\ServerHasGoneAwayException;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
 use IfCastle\AQL\Transaction\IsolationLevelEnum;
 use IfCastle\AQL\Transaction\Transaction;
@@ -240,17 +242,119 @@ class MySqlTransactionTest extends TestCase
             // DDL commits the open transaction implicitly; the next insert would autocommit.
             $this->mySql->executeSql('DROP TABLE IF EXISTS ' . self::TABLE . '_ddl', $this->context($transaction));
 
+            $refused                = null;
+
             try {
                 $this->insert(2, $transaction);
-            } catch (StorageException $exception) {
-                return [$exception, $this->ids()];
+            } catch (StorageException $refused) {
             }
 
-            return [null, $this->ids()];
+            // Nothing is left to roll back, and the coroutine can begin a new transaction.
+            $transaction->rollBack();
+            $next                   = new Transaction();
+            $this->insert(3, $next);
+            $next->commit();
+
+            return [$refused, $this->ids()];
         });
 
         $this->assertInstanceOf(StorageException::class, $refused);
-        $this->assertSame([1], $idsAfter);
+        $this->assertSame([1, 3], $idsAfter);
+    }
+
+    public function testSavepointEndedWithAnEnclosingOneIsNotRolledBackAlone(): void
+    {
+        [$statement, $rollBack] = $this->inCoroutine(function (): array {
+            $parent                 = new Transaction();
+            $first                  = (new Transaction())->setParentTransaction($parent);
+            $second                 = (new Transaction())->setParentTransaction($parent);
+            $this->insert(1, $first);
+            $this->insert(2, $second);
+
+            // Releasing the first savepoint releases the second, set after it, as well.
+            $first->commit();
+            $statement              = $this->failureOf(fn() => $this->insert(3, $second));
+            $rollBack               = $this->failureOf($second->rollBack(...));
+            $parent->commit();
+
+            return [$statement, $rollBack];
+        });
+
+        $this->assertInstanceOf(QueryException::class, $statement);
+        $this->assertInstanceOf(QueryException::class, $rollBack);
+        $this->assertStringContainsString('enclosing savepoint', $statement->getMessage());
+        $this->assertStringContainsString('enclosing savepoint', $rollBack->getMessage());
+        $this->assertSame([1, 2], $this->idsFromNewCoroutine());
+    }
+
+    public function testSavepointRolledBackWithAnEnclosingOneDoesNotCommit(): void
+    {
+        [$commit, $rollBack]        = $this->inCoroutine(function (): array {
+            $parent                 = new Transaction();
+            $first                  = (new Transaction())->setParentTransaction($parent);
+            $second                 = (new Transaction())->setParentTransaction($parent);
+            $this->insert(1, $first);
+            $this->insert(2, $second);
+
+            // Rolling back to the first savepoint undoes the second one's row as well.
+            $first->rollBack();
+            $commit                 = $this->failureOf($second->commit(...));
+            $rollBack               = $this->failureOf($second->rollBack(...));
+            $parent->commit();
+
+            return [$commit, $rollBack];
+        });
+
+        $this->assertInstanceOf(QueryException::class, $commit);
+        $this->assertNull($rollBack, 'rolling back rows already rolled back is not an error');
+        $this->assertSame([], $this->idsFromNewCoroutine());
+    }
+
+    public function testLostConnectionRollsBackQuietlyAndTheCoroutineGoesOn(): void
+    {
+        [$lost, $rollBack, $idsAfter] = $this->inCoroutine(function (): array {
+            $transaction            = new Transaction();
+            $context                = $this->context($transaction);
+            $connection             = $this->mySql->executeSql('SELECT CONNECTION_ID() AS id', $context)->toArray()[0]['id'];
+            $this->pdo->exec('KILL ' . (int) $connection);
+
+            $lost                   = $this->failureOf(fn() => $this->insert(1, $transaction));
+            $rollBack               = $this->failureOf($transaction->rollBack(...));
+
+            $next                   = new Transaction();
+            $this->insert(2, $next);
+            $next->commit();
+
+            return [$lost, $rollBack, $this->ids()];
+        });
+
+        $this->assertInstanceOf(ServerHasGoneAwayException::class, $lost);
+        $this->assertNull($rollBack);
+        $this->assertSame([2], $idsAfter);
+    }
+
+    public function testChildBegunTwiceIsRefusedAndKeepsWorking(): void
+    {
+        $refused                    = $this->inCoroutine(function (): ?\LogicException {
+            $parent                 = new Transaction();
+            $child                  = (new Transaction())->setParentTransaction($parent);
+            $this->insert(1, $child);
+            $refused                = null;
+
+            try {
+                $this->mySql->beginTransaction($child);
+            } catch (\LogicException $refused) {
+            }
+
+            $this->insert(2, $child);
+            $child->commit();
+            $parent->commit();
+
+            return $refused;
+        });
+
+        $this->assertInstanceOf(\LogicException::class, $refused);
+        $this->assertSame([1, 2], $this->idsFromNewCoroutine());
     }
 
     public function testDisconnectedStorageDoesNotOpenAnotherPool(): void
@@ -260,6 +364,17 @@ class MySqlTransactionTest extends TestCase
         $this->expectException(ConnectFailed::class);
 
         $this->inCoroutine(fn() => $this->mySql->executeSql('SELECT 1'));
+    }
+
+    private function failureOf(callable $work): ?StorageException
+    {
+        try {
+            $work();
+        } catch (StorageException $exception) {
+            return $exception;
+        }
+
+        return null;
     }
 
     private function insert(int $id, TransactionInterface $transaction): void

@@ -34,7 +34,7 @@ class StorageCollectionByConfig implements
 
         $config                     = $configRegistry->findSection('storages');
 
-        if ($config === null) {
+        if ($config === []) {
             $config                 = ['main' => $configRegistry->requireSection('database')];
         }
 

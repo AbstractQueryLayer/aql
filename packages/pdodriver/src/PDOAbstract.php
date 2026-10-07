@@ -208,7 +208,9 @@ abstract class PDOAbstract extends SqlDriverAbstract
     protected function transactionCall(callable $call, string $sql): void
     {
         try {
-            $call();
+            if ($call() === false) {
+                throw new QueryException('PDO refused to finish the transaction operation', $sql);
+            }
         } catch (\PDOException $pdoException) {
             throw $this->queryFailed($pdoException, $sql);
         }

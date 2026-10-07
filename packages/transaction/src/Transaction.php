@@ -20,6 +20,11 @@ class Transaction implements TransactionInterface
      */
     protected array $storageHandlers = [];
 
+    /**
+     * @var array<string, callable>
+     */
+    protected array $finishChecks   = [];
+
     protected ?TransactionInterface $parent = null;
 
     protected TransactionStatusEnum $status = TransactionStatusEnum::UNDEFINED;
@@ -60,7 +65,7 @@ class Transaction implements TransactionInterface
     }
 
     #[\Override]
-    public function openTransaction(string $storage, callable $finalizeHandler): void
+    public function openTransaction(string $storage, callable $finalizeHandler, ?callable $finishCheck = null): void
     {
         if ($this->status === TransactionStatusEnum::COMMITTED || $this->status === TransactionStatusEnum::ROLLED_BACK) {
             throw new \LogicException('Transaction already finished');
@@ -73,6 +78,10 @@ class Transaction implements TransactionInterface
         }
 
         $this->storageHandlers[$storage] = $finalizeHandler;
+
+        if ($finishCheck !== null) {
+            $this->finishChecks[$storage] = $finishCheck;
+        }
     }
 
     #[\Override]
@@ -126,6 +135,15 @@ class Transaction implements TransactionInterface
      */
     protected function handler(TransactionFinishedStatusEnum $status, ?\Throwable $throwable = null): void
     {
+        // A storage that refuses to finish here leaves the transaction open, so it can finish where it may.
+        try {
+            foreach ($this->finishChecks as $finishCheck) {
+                $finishCheck();
+            }
+        } catch (\Throwable $refusal) {
+            throw $throwable === null ? $refusal : new CompositeException('Transaction cannot finish here', $throwable, $refusal);
+        }
+
         $this->status               = $status->toTransactionStatus();
 
         $finalizeHandlers           = \array_reverse($this->storageHandlers);
@@ -135,6 +153,7 @@ class Transaction implements TransactionInterface
         }
 
         $this->storageHandlers      = [];
+        $this->finishChecks         = [];
         $this->finalizeHandler      = null;
 
         $errors                     = [];

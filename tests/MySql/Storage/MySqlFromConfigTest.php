@@ -10,6 +10,27 @@ use IfCastle\AQL\Storage\StorageCollectionByConfig;
 
 class MySqlFromConfigTest extends BaseTestCase
 {
+    public function testDatabaseSectionProvidesTheMainStorage(): void
+    {
+        $this->getConfigMutable()->setSection('database', [
+            'class' => MySql::class,
+            'dsn' => MariaDb::dsn(),
+            'username' => MariaDb::user(),
+            'password' => MariaDb::password(),
+        ]);
+
+        $collection = new StorageCollectionByConfig();
+
+        try {
+            $collection->resolveDependencies($this->getDiContainer());
+            $storage = $collection->findStorage();
+            $this->assertInstanceOf(MySql::class, $storage);
+            $this->assertSame([['answer' => 42]], $storage->executeSql('SELECT 42 AS answer')->toArray());
+        } finally {
+            $collection->dispose();
+        }
+    }
+
     public function testStorageCollectionBuildsMySqlFromItsSection(): void
     {
         $this->getConfigMutable()->setSection('storages', [
