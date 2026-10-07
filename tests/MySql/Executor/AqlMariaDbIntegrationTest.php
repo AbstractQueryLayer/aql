@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace IfCastle\AQL\MySql\Executor;
 
 use IfCastle\AQL\Dsl\Parser\AqlParser;
+use IfCastle\AQL\Dsl\Sql\Constant\Constant;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
+use IfCastle\AQL\Dsl\Sql\Query\Subquery;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Transaction\WithCompensatingTransaction;
@@ -36,8 +41,10 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
     protected function setUp(): void
     {
         $this->pdo = MariaDb::pdo();
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
         $this->pdo->exec('CREATE TABLE ' . self::TABLE . ' (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(64) NOT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('CREATE TABLE aql_round_trip_link (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
         $this->mySql = new MySql([
             'dsn' => MariaDb::dsn(),
             'username' => MariaDb::user(),
@@ -68,6 +75,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
     {
         parent::tearDown();
         $this->mySql->dispose();
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
     }
 
@@ -76,6 +84,52 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $id = $this->insert($this->aqlExecutor, 1);
         $this->assertGreaterThan(0, $id);
         $this->assertSame([['id' => $id, 'value' => 'worker-1']], $this->select($this->aqlExecutor, $id));
+    }
+
+    public function testAggregateFunctionArgumentsReachMariaDb(): void
+    {
+        $ids = [
+            $this->insert($this->aqlExecutor, 1),
+            $this->insert($this->aqlExecutor, 2),
+            $this->insert($this->aqlExecutor, 3),
+        ];
+        $query = (new AqlParser())->parse(
+            'SELECT COUNT(id) AS total, SUM(id) AS idSum FROM AqlRoundTrip'
+        );
+        $rows = $this->aqlExecutor->executeAql($query)->finalize()->toArray();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(3, (int) $rows[0]['total']);
+        $this->assertSame(\array_sum($ids), (int) $rows[0]['idSum']);
+    }
+
+    public function testDescendingOrderIsAppliedByMariaDb(): void
+    {
+        $ids = [
+            $this->insert($this->aqlExecutor, 1),
+            $this->insert($this->aqlExecutor, 2),
+            $this->insert($this->aqlExecutor, 3),
+        ];
+        $query = (new AqlParser())->parse('SELECT id, value FROM AqlRoundTrip ORDER BY id DESC');
+        $rows = $this->aqlExecutor->executeAql($query)->finalize()->toArray();
+
+        $this->assertSame(\array_reverse($ids), \array_map('intval', \array_column($rows, 'id')));
+    }
+
+    public function testIndependentInSubqueryNeedsNoEntityRelation(): void
+    {
+        $first = $this->insert($this->aqlExecutor, 1);
+        $second = $this->insert($this->aqlExecutor, 2);
+        $this->pdo->exec('INSERT INTO aql_round_trip_link (roundTripId, label) VALUES (' . $second . ', "match")');
+
+        $subquery = new Subquery('AqlRoundTripLink', ['roundTripId'],
+            (new Where())->equal('label', new Constant('match')));
+        $query = (new AqlParser())->parse('SELECT id, value FROM AqlRoundTrip');
+        $query->setWhere((new Where())->add(new LROperation('id', LROperationInterface::IN, $subquery)));
+        $rows = $this->aqlExecutor->executeAql($query)->finalize()->toArray();
+
+        $this->assertSame([['id' => $second, 'value' => 'worker-2']], $rows);
+        $this->assertNotSame($first, $second);
     }
 
     public function testTenOverlappingCoroutinesInsertAndReadTheirOwnRows(): void

@@ -149,6 +149,9 @@ class FunctionReference extends NodeAbstract implements FunctionReferenceInterfa
     {
         $clone                      = clone $this;
         $clone->isResolved          = true;
+        // The original is already marked transformed when a handler resolves it. Its replacement
+        // must still be visited so that cloned arguments receive their SQL contexts and names.
+        $clone->isTransformed       = false;
         return $clone;
     }
 

@@ -48,4 +48,19 @@ class OrderItem extends NodeAbstract implements OrderItemInterface
 
         return $aql . ' ' . $this->direction;
     }
+
+    #[\Override]
+    protected function generateResult(): mixed
+    {
+        $expression = $this->childNodes[0]->getResultAsString();
+        if ($expression === '') {
+            return '';
+        }
+
+        return $expression . match ($this->direction) {
+            self::ASC => '',
+            self::DESC => ' DESC',
+            default => throw new \LogicException('Unknown ORDER BY direction: ' . $this->direction),
+        };
+    }
 }
