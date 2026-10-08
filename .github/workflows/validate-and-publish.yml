@@ -49,6 +49,11 @@ jobs:
           path: ifcastle
           persist-credentials: false
 
+      - name: Keep declared main aliases on the pinned dependency checkout
+        run: |
+          git -C ifcastle checkout -B main
+          test "$(git -C ifcastle rev-parse HEAD)" = a4047b2e535a62d0d4599538c89ac55bdfdea4d9
+
       - name: Define runtime paths
         run: |
           echo "CI_RUNTIME_PREFIX=$RUNNER_TEMP/ifcastle-runtime" >> "$GITHUB_ENV"
