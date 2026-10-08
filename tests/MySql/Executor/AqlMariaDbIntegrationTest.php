@@ -103,6 +103,16 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame(\array_sum($ids), (int) $rows[0]['idSum']);
     }
 
+    public function testSha2OfNestedConcatPreservesUnicodeBytes(): void
+    {
+        $value = 'Русский café 😀';
+        $insert = $this->pdo->prepare('INSERT INTO ' . self::TABLE . ' (value) VALUES (?)');
+        $insert->execute([$value]);
+        $query = (new AqlParser())->parse("SELECT SHA2(CONCAT('html', ':', value), 256) AS digest FROM AqlRoundTrip");
+        $rows = $this->aqlExecutor->executeAql($query)->finalize()->toArray();
+        $this->assertSame([['digest' => hash('sha256', 'html:' . $value)]], $rows);
+    }
+
     public function testDescendingOrderIsAppliedByMariaDb(): void
     {
         $ids = [
