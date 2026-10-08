@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\MySql\Executor;
 
 use IfCastle\AQL\Dsl\Parser\AqlParser;
+use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
 use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
@@ -140,6 +141,29 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 
         $this->assertSame([['id' => $second, 'value' => 'worker-2']], $rows);
         $this->assertNotSame($first, $second);
+    }
+
+    public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
+    {
+        $first = $this->insert($this->aqlExecutor, 1);
+        $second = $this->insert($this->aqlExecutor, 2);
+        $this->insert($this->aqlExecutor, 3);
+
+        $select = (new AqlParser())->parse('SELECT id, value FROM AqlRoundTrip');
+        $select->setWhere((new Where())->equal('id', new Constant($first))
+            ->add((new Conditions(Conditions::TYPE_OR))
+                ->equal('value', new Constant('worker-2'))
+                ->equal('value', new Constant('worker-3'))));
+        $this->assertSame([], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
+
+        $select = (new AqlParser())->parse('SELECT id, value FROM AqlRoundTrip');
+        $select->setWhere((new Where())
+            ->add((new Conditions(Conditions::TYPE_OR))
+                ->equal('id', new Constant($first))
+                ->equal('id', new Constant($second)))
+            ->equal('value', new Constant('worker-2')));
+        $this->assertSame([['id' => $second, 'value' => 'worker-2']],
+            $this->aqlExecutor->executeAql($select)->finalize()->toArray());
     }
 
     public function testTenOverlappingCoroutinesInsertAndReadTheirOwnRows(): void

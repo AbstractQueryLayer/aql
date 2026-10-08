@@ -311,13 +311,45 @@ class Conditions extends NodeAbstract implements ConditionsInterface
     #[\Override]
     protected function generateResult(): mixed
     {
-        $result                     = $this->generateResultForChildNodes();
+        $result                     = $this->generateConditionResults();
 
         if ($result === []) {
             return '';
         }
 
         return \implode(' ' . $this->type . ' ', $result);
+    }
+
+    /** Preserve the boolean groups represented by nested Conditions nodes in generated SQL. */
+    protected function generateConditionResults(): array
+    {
+        $conditions                 = [];
+
+        foreach ($this->childNodes as $condition) {
+            if (!$condition instanceof NodeInterface) {
+                continue;
+            }
+
+            $result                 = $condition->getResult();
+
+            if (empty($result)) {
+                continue;
+            }
+
+            $conditions[]           = [$condition, $result];
+        }
+
+        // A sole child already has the parent's full boolean scope. With siblings, a nested
+        // group needs parentheses so SQL operator precedence cannot change the AQL tree.
+        $multiple                   = \count($conditions) > 1;
+        $results                    = [];
+
+        foreach ($conditions as [$condition, $result]) {
+            $results[]              = $multiple && $condition instanceof ConditionsInterface
+                ? '(' . $result . ')' : $result;
+        }
+
+        return $results;
     }
 
     #[\Override]

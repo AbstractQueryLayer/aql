@@ -26,7 +26,7 @@ class Where extends Conditions
     #[\Override]
     protected function generateResult(): mixed
     {
-        $result                     = $this->generateResultForChildNodes();
+        $result                     = $this->generateConditionResults();
 
         if ($result === []) {
             return '';

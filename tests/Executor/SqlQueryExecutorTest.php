@@ -40,6 +40,19 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
         );
     }
 
+    public function testNestedBooleanConditionsKeepTheirSqlGrouping(): void
+    {
+        $this->executeCase(new SqlQueryCaseDescriptor(
+            'SELECT id FROM Book WHERE id = 1 AND (title = "first" OR title = "second")',
+            'SELECT `t0`.`id` FROM `book` as `t0` WHERE `t0`.`id` = \'1\' AND (`t0`.`title` = \'first\' OR `t0`.`title` = \'second\')',
+        ));
+
+        $this->executeCase(new SqlQueryCaseDescriptor(
+            'SELECT id FROM Book WHERE (id = 1 OR id = 2) AND title = "second"',
+            'SELECT `t0`.`id` FROM `book` as `t0` WHERE (`t0`.`id` = \'1\' OR `t0`.`id` = \'2\') AND `t0`.`title` = \'second\'',
+        ));
+    }
+
     public function testSelectWithOrderByGroupBy(): void
     {
         $this->executeCase(new SqlQueryCaseDescriptor(
