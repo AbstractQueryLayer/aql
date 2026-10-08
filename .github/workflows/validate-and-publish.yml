@@ -13,31 +13,87 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Run Tests
+    timeout-minutes: 40
+    env:
+      AQL_TEST_DB_HOST: 127.0.0.1
+      AQL_TEST_DB_PORT: '3307'
+      AQL_TEST_DB_NAME: aql_test
+      AQL_TEST_DB_USER: root
+      AQL_TEST_DB_PASSWORD: test
+    services:
+      mariadb:
+        image: mariadb:11.4.13
+        env:
+          MARIADB_ROOT_PASSWORD: test
+          MARIADB_DATABASE: aql_test
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -u root -ptest"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
-          extensions: mbstring, xml, ctype, json, pdo, pdo_sqlite, pdo_mysql
-          coverage: none
+          path: aql
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
+      - name: Checkout pinned IFCastle dependencies and runtime builder
+        uses: actions/checkout@v4
         with:
-          path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          repository: IFCastle/ifcastle
+          ref: a4047b2e535a62d0d4599538c89ac55bdfdea4d9
+          path: ifcastle
+          persist-credentials: false
 
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Define runtime paths
+        run: |
+          echo "CI_RUNTIME_PREFIX=$RUNNER_TEMP/ifcastle-runtime" >> "$GITHUB_ENV"
+          echo "CI_RUNTIME_SOURCE=$RUNNER_TEMP/ifcastle-runtime-source" >> "$GITHUB_ENV"
 
-      - name: Run PHPUnit tests
-        run: composer test
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends autoconf bison re2c build-essential pkg-config \
+            libuv1-dev libssl-dev libxml2-dev libsqlite3-dev libonig-dev libcurl4-openssl-dev \
+            libzip-dev libargon2-dev zlib1g-dev
+
+      - name: Restore pinned native runtime
+        id: runtime
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CI_RUNTIME_PREFIX }}
+          key: ubuntu24-x64-zts-runtime-${{ hashFiles('ifcastle/.github/scripts/build-runtime.sh') }}
+
+      - name: Build pinned TrueAsync runtime
+        if: steps.runtime.outputs.cache-hit != 'true'
+        run: bash ifcastle/.github/scripts/build-runtime.sh
+
+      - name: Verify runtime and install Composer
+        run: |
+          echo "$CI_RUNTIME_PREFIX/bin" >> "$GITHUB_PATH"
+          "$CI_RUNTIME_PREFIX/bin/php" -v
+          "$CI_RUNTIME_PREFIX/bin/php" --ri true_async
+          "$CI_RUNTIME_PREFIX/bin/php" --ri true_async_server
+          "$CI_RUNTIME_PREFIX/bin/php" -r 'if (!PHP_ZTS || PHP_VERSION_ID < 80600 || !extension_loaded("pdo_mysql") || version_compare(phpversion("true_async_server"), "0.16.0", "<")) exit(1);'
+          curl --fail --silent --show-error --location https://getcomposer.org/download/2.9.4/composer.phar -o "$RUNNER_TEMP/composer.phar"
+          curl --fail --silent --show-error --location https://getcomposer.org/download/2.9.4/composer.phar.sha256sum -o "$RUNNER_TEMP/composer.sha256"
+          expected=$(awk '{print $1}' "$RUNNER_TEMP/composer.sha256")
+          actual=$(sha256sum "$RUNNER_TEMP/composer.phar" | awk '{print $1}')
+          test "$actual" = "$expected"
+
+      - name: Install and verify dependencies
+        working-directory: aql
+        run: |
+          php "$RUNNER_TEMP/composer.phar" install --prefer-dist --no-progress --no-interaction
+          php "$RUNNER_TEMP/composer.phar" check-platform-reqs
+
+      - name: Run full PHPUnit suite against MariaDB
+        working-directory: aql
+        run: php "$RUNNER_TEMP/composer.phar" test
 
   split:
     needs: validate
@@ -79,14 +135,16 @@ jobs:
 
       - name: Install git-filter-repo
         run: |
-          wget -q https://raw.githubusercontent.com/newren/git-filter-repo/main/git-filter-repo
+          wget -q https://raw.githubusercontent.com/newren/git-filter-repo/d7b75aca907380f608892cc289e616f195427b99/git-filter-repo
           chmod +x git-filter-repo
           sudo mv git-filter-repo /usr/local/bin/
 
       - name: Split ${{ matrix.package }}
+        env:
+          SPLIT_TOKEN: ${{ secrets.SPLIT_TOKEN }}
         run: |
           PACKAGE_NAME="${{ matrix.package }}"
-          REPO_URL="https://${{ secrets.SPLIT_TOKEN }}@github.com/AbstractQueryLayer/${PACKAGE_NAME}.git"
+          REPO_URL="https://github.com/AbstractQueryLayer/${PACKAGE_NAME}.git"
           TARGET_BRANCH="${{ github.ref_name }}"
 
           echo "Splitting package: $PACKAGE_NAME"
@@ -97,7 +155,7 @@ jobs:
           cd temp-repo
 
           # Checkout the target branch
-          git checkout "$TARGET_BRANCH"
+          git checkout --detach "$GITHUB_SHA"
 
           # Filter repository to extract only this package and move to root
           git-filter-repo \
@@ -111,6 +169,12 @@ jobs:
 
           # Set remote and push
           git remote add split-origin "$REPO_URL"
+          # Git reads the secret from its credential helper, not a URL or log line.
+          git config credential.helper '!f() { echo username=x-access-token; echo "password=$SPLIT_TOKEN"; }; f'
 
-          echo "Pushing to $REPO_URL"
-          git push split-origin "HEAD:$TARGET_BRANCH" --force
+          echo "Pushing package $PACKAGE_NAME to AbstractQueryLayer/$PACKAGE_NAME"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            git push split-origin "refs/tags/$TARGET_BRANCH:refs/tags/$TARGET_BRANCH" --force
+          else
+            git push split-origin "HEAD:refs/heads/$TARGET_BRANCH" --force
+          fi
