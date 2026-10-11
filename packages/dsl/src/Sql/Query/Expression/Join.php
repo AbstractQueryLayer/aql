@@ -87,6 +87,10 @@ class Join extends NodeAbstract implements JoinInterface
             $aql                    .= ' AS ' . $this->qualifier;
         }
 
+        foreach ($this->getSubject()->getIndexHints() as [$hint, $indexes]) {
+            $aql                    .= ' ' . $hint . ' INDEX (' . \implode(', ', $indexes) . ')';
+        }
+
         $aql                        .= $this->joinOn(
             (string) $this->childNodes[self::NODE_RELATION]?->getAql($forResolved),
             (string) $this->childNodes[self::NODE_CONDITIONS]?->getAql($forResolved)

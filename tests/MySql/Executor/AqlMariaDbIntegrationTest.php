@@ -16,7 +16,6 @@ use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Transaction\WithCompensatingTransaction;
 use IfCastle\AQL\Executor\Transaction\WithTransaction;
 use IfCastle\AQL\MySql\MariaDb;
-use IfCastle\AQL\MySql\Storage\MySql;
 use IfCastle\AQL\Storage\StorageCollection;
 use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\TestCases\TestCaseWithDiContainer;
@@ -34,7 +33,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 
     private \PDO $pdo;
 
-    private MySql $mySql;
+    private SqlRecordingMySql $mySql;
 
     private AqlExecutorInterface $aqlExecutor;
 
@@ -46,7 +45,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
         $this->pdo->exec('CREATE TABLE ' . self::TABLE . ' (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(64) NOT NULL) ENGINE=InnoDB');
         $this->pdo->exec('CREATE TABLE aql_round_trip_link (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
-        $this->mySql = new MySql([
+        $this->mySql = new SqlRecordingMySql([
             'dsn' => MariaDb::dsn(),
             'username' => MariaDb::user(),
             'password' => MariaDb::password(),
@@ -201,6 +200,40 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
             $this->assertSame([['name' => 'one', 'title' => null], ['name' => 'two', 'title' => null]], $none);
         } finally {
             $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
+        }
+    }
+
+    /**
+     * The shape of the lib catalogue page (S25 Q3): an equality on the first column of (column, id) and a backward
+     * range on id; on the full table the optimizer prefers PRIMARY there, which the hint overrides.
+     */
+    public function testIndexHintReachesTheMariaDbPlan(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS article');
+        $this->pdo->exec('CREATE TABLE article (id INT PRIMARY KEY, name VARCHAR(64) NOT NULL,'
+            . ' draftRevisionId INT NULL, publishedRevisionId INT NULL,'
+            . ' KEY idx_article_draft (draftRevisionId, id)) ENGINE=InnoDB');
+
+        try {
+            $this->pdo->exec("INSERT INTO article VALUES (1, 'one', 1, NULL), (2, 'two', 2, NULL),"
+                . " (3, 'three', 1, NULL), (4, 'four', 1, NULL)");
+
+            // Without a hint MariaDB 11.4 already picks idx_article_draft here, so IGNORE shows the hint is applied.
+            foreach (['FORCE' => 'idx_article_draft', 'IGNORE' => 'PRIMARY'] as $hint => $key) {
+                $rows = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                    'SELECT a.id FROM Article a ' . $hint . ' INDEX (idx_article_draft)'
+                    . ' WHERE a.draftRevisionId = 1 AND a.id < 4 ORDER BY a.id DESC LIMIT 20'
+                ))->finalize()->toArray();
+
+                $this->assertSame([3, 1], \array_map('intval', \array_column($rows, 'id')), $hint);
+
+                $plan = $this->pdo->query('EXPLAIN ' . $this->mySql->lastSql)->fetchAll(\PDO::FETCH_ASSOC);
+
+                $this->assertCount(1, $plan, $hint);
+                $this->assertSame($key, $plan[0]['key'], $hint);
+            }
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS article');
         }
     }
 

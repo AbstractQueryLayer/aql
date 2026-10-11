@@ -9,6 +9,7 @@ use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Join as JoinNode;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Subject;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\SubjectInterface;
 use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 
 class Join extends AqlParserAbstract
@@ -60,7 +61,7 @@ class Join extends AqlParserAbstract
             $joinType               = JoinInterface::INNER;
         }
 
-        $subjectName                = null;
+        $subject                    = null;
         $join                       = null;
         $subjectAlias               = null;
         $role                       = null;
@@ -88,6 +89,10 @@ class Join extends AqlParserAbstract
 
             // 4. Subject alias: [AS] alias
             $subjectAlias           = $this->parseQualifier($tokens);
+
+            // 4a. Index hints: USE INDEX (name)
+            $subject                = new Subject($role === null ? \ucfirst($subjectName) : '');
+            $this->parseIndexHints($tokens, $subject);
         }
 
         // 5. ON expression
@@ -129,8 +134,8 @@ class Join extends AqlParserAbstract
             $tokens->nextTokens();
         }
 
-        if ($join === null) {
-            $join                   = new JoinNode($joinType, new Subject($role === null ? \ucfirst($subjectName) : ''));
+        if ($subject !== null) {
+            $join                   = new JoinNode($joinType, $subject);
 
             if ($role !== null) {
                 $join->setRole(...$role);
@@ -179,6 +184,47 @@ class Join extends AqlParserAbstract
         $tokens->nextToken();
 
         return [$owner, $token];
+    }
+
+    /**
+     * Parses index hints after a subject and its alias: any number of `USE|FORCE|IGNORE INDEX (name[, name])`.
+     *
+     * @throws ParseException
+     */
+    protected function parseIndexHints(TokensIteratorInterface $tokens, SubjectInterface $subject): void
+    {
+        while (\in_array($tokens->currentTokenAsString(), SubjectInterface::INDEX_HINTS, true)) {
+            $hint                   = $tokens->currentTokenAsString();
+            $tokens->nextTokens()->assertTokenIs('INDEX')->assertTokenIs('(');
+            $subject->addIndexHint($hint, ...$this->parseIndexNames($tokens));
+        }
+    }
+
+    /**
+     * Parses `name[, name])` of an index hint, the closing bracket included.
+     *
+     * @return list<string>
+     *
+     * @throws ParseException
+     */
+    protected function parseIndexNames(TokensIteratorInterface $tokens): array
+    {
+        $names                      = [];
+
+        do {
+            [$type, $token, $line]  = $tokens->currentToken();
+
+            if ($type !== T_STRING) {
+                throw new ParseException(\sprintf('Expected an index name (got \'%s\')', $token), ['line' => $line]);
+            }
+
+            $names[]                = $token;
+            $tokens->nextTokens();
+        } while ($tokens->checkAndConsumeToken(','));
+
+        $tokens->assertTokenIs(')');
+
+        return $names;
     }
 
     public function parseDependentJoins(TokensIterator $tokens): array

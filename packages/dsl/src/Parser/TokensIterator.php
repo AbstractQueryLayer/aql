@@ -183,7 +183,7 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
     #[\Override]
     public function checkAndConsumeToken(string $token): bool
     {
-        if ($this->currentTokenAsString() !== \strtoupper($token)) {
+        if ($this->currentTokenAsString() === \strtoupper($token)) {
             $this->nextTokens();
             return true;
         }

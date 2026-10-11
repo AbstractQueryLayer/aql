@@ -8,6 +8,14 @@ use IfCastle\AQL\Dsl\Node\NodeInterface;
 
 interface SubjectInterface extends NodeInterface
 {
+    public const string USE_INDEX   = 'USE';
+
+    public const string FORCE_INDEX = 'FORCE';
+
+    public const string IGNORE_INDEX = 'IGNORE';
+
+    public const array INDEX_HINTS  = [self::USE_INDEX, self::FORCE_INDEX, self::IGNORE_INDEX];
+
     /**
      * Returns name of a subject.
      */
@@ -44,4 +52,28 @@ interface SubjectInterface extends NodeInterface
      * Returns subject alias or Resolved Name.
      */
     public function getNameOrAlias(): string;
+
+    /**
+     * Index hints in the order they were added: [hint, index names], hint is one of INDEX_HINTS.
+     *
+     * @return list<array{0: string, 1: list<string>}>
+     */
+    public function getIndexHints(): array;
+
+    /**
+     * Adds `USE|FORCE|IGNORE INDEX (indexes)` after the table. Index names are those of the database, not of the
+     * entity; the hint changes the plan, never the rows.
+     *
+     * @param string $hint one of INDEX_HINTS
+     *
+     * @return $this
+     */
+    public function addIndexHint(string $hint, string ...$indexes): static;
+
+    /**
+     * Removes every index hint: for a database without them.
+     *
+     * @return $this
+     */
+    public function clearIndexHints(): static;
 }

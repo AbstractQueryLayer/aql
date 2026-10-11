@@ -56,6 +56,13 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
 
         $subject                    = $subject->resolveNode();
 
+        if (!$subject instanceof SubjectInterface) {
+            return;
+        }
+
+        // SQLite has no USE/FORCE/IGNORE INDEX; a hint changes only the plan, so the query keeps its rows without it
+        $subject->clearIndexHints();
+
         // SQLite does not support UPDATE ... FROM aliases
         if ($context->getCurrentSqlQuery()->getResolvedAction() === QueryInterface::ACTION_UPDATE) {
             $subject->setSubjectAlias('');

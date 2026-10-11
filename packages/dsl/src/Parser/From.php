@@ -73,6 +73,7 @@ class From extends Join
                 $mainSubject        = new SubjectNode(\ucfirst((string) $token));
                 $tokens->nextToken();
                 $mainQualifier      = $this->parseQualifier($tokens);
+                $this->parseIndexHints($tokens, $mainSubject);
                 [,$token]           = $tokens->currentToken();
             } elseif ($this->isJoinFirstKeyword($token)) {
                 $joins[]            = (new Join())->parseTokens($tokens);
@@ -114,7 +115,7 @@ class From extends Join
     }
 
     /**
-     * Parses `, Entity [[AS] alias]`: a comma join whose kind comes from the relation.
+     * Parses `, Entity [[AS] alias] [index hints]`: a comma join whose kind comes from the relation.
      *
      * @throws ParseException
      */
@@ -127,6 +128,8 @@ class From extends Join
         if ($qualifier !== null) {
             $join->setQualifier($qualifier)->setAlias($qualifier);
         }
+
+        $this->parseIndexHints($tokens, $join->getSubject());
 
         return $join;
     }

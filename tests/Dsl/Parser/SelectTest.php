@@ -249,6 +249,14 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testIndexHints(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT * FROM Test t force index (a, b) JOIN t.role r USE INDEX (c) IGNORE INDEX (d)',
+            /** @lang aql */ 'SELECT * FROM Test AS t FORCE INDEX (a, b) INNER JOIN t.role AS r USE INDEX (c) IGNORE INDEX (d)'
+        ));
+    }
+
     public function testWhereEntity(): void
     {
         $this->executeCase(new ParserCaseDescriptor(
