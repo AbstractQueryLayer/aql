@@ -76,7 +76,7 @@ final class PostgreSqlBinaryPropertyTest extends TestCaseWithDiContainer
         $other                      = \str_repeat("\x00", 31) . "\xff";
         $executor                   = $this->getAqlExecutor();
 
-        // INSERT … SET and UPDATE … SET render MySQL syntax on PostgreSQL (S24.20), so only VALUES writes here.
+        // INSERT … SET and UPDATE … SET render MySQL syntax on PostgreSQL (lib plan S28.1), so only VALUES writes here.
         $insert                     = (new AqlParser())->parse('INSERT INTO AqlBinaryHash (hash) VALUES ({first}), ({second})');
         $insert->applyParameters(['first' => self::HASH, 'second' => $other]);
         $this->assertSame(2, $executor->executeAql($insert)->getAffectedRows());
