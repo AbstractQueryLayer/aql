@@ -58,7 +58,8 @@ class DirectRelation extends RelationAbstract implements DirectRelationInterface
         );
 
         $reversed->isLeastOnce      = $this->isLeastOnce;
-        $reversed->isRequired       = $this->isRequired;
+        // Only the forward side is guaranteed a row: the other end may have none (a section without books).
+        $reversed->isRequired       = false;
         $reversed->isConsistent     = $this->isConsistent;
         $reversed->integrity        = $this->integrity;
         $reversed->derivedFrom      = $this->derivedFrom;

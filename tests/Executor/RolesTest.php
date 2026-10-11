@@ -134,6 +134,11 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 FROM `article_revision` as `t0_t0`
                 INNER JOIN `article_revision` as `t0_t1` ON (`t0_t1`.`id` = `t0_t0`.`parentId`) WHERE `t0_t1`.`title` = \'x\')',
             ],
+            'reverse relation joined by entity is LEFT: a section may have no books' => [
+                'SELECT s.title, b.title AS book FROM BookSection s, Book b',
+                'SELECT `t0`.`title`, `t1`.`title` as `book` FROM `book_section` as `t0`
+                LEFT JOIN `book` as `t1` ON (`t1`.`bookSectionId` = `t0`.`id`)',
+            ],
             'written JOIN stays INNER on an optional relation' => [
                 'SELECT * FROM Book JOIN BookProvider p',
                 'SELECT * FROM `book` as `t0` INNER JOIN `book_provider` as `t1` ON (`t1`.`id` = `t0`.`bookProviderId`)',

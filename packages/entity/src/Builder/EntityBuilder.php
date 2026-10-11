@@ -276,7 +276,8 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
         $indirectRelation->setIsRequired($isRequired);
 
         $fromEntity->describeRelation($indirectRelation);
-        $fromEntity->describeRelation($crossReferenceRelation->reverseRelation());
+        // A reversed relation is never required by itself; the hop to the junction follows the cross reference.
+        $fromEntity->describeRelation($crossReferenceRelation->reverseRelation()->setIsRequired($isRequired));
 
         $fromEntity->describeProperty(new PropertyCrossReference(
             $this->namingStrategy->generatePropertyName([$toEntity->getEntityName(), 'list']),

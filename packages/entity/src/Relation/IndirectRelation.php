@@ -38,7 +38,8 @@ class IndirectRelation extends RelationAbstract implements IndirectRelationInter
     public function reverseRelation(): ?static
     {
         $relation                   = new static(...\array_reverse($this->entitiesPath));
-        $relation->isRequired       = $this->isRequired;
+        // Only the forward side is guaranteed a row: the other end may have none (a section without books).
+        $relation->isRequired       = false;
         $relation->isConsistent     = $this->isConsistent;
         $relation->isLeastOnce      = $this->isLeastOnce;
         $relation->integrity        = $this->integrity;

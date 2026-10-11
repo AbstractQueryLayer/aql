@@ -160,9 +160,11 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
     {
         $this->executeCase(new SqlQueryCaseDescriptor(
             /** @lang aql */'SELECT (SELECT title FROM BookSection, Book) as title FROM Book',
+            // LEFT: BookSection → Book is the reverse of the required Book.bookSectionId, and a section may have no
+            // books; an INNER join here dropped such sections (aql-relations.md: required ⇔ forward).
             /** @lang aql */'SELECT 
             (SELECT `t0_t0`.`title` FROM `book_section` as `t0_t0` 
-                INNER JOIN `book` as `t0_t1` ON (`t0_t1`.`bookSectionId` = `t0_t0`.`id`) WHERE `t0_t0`.`id` = `t0`.`bookSectionId` LIMIT 1) 
+                LEFT JOIN `book` as `t0_t1` ON (`t0_t1`.`bookSectionId` = `t0_t0`.`id`) WHERE `t0_t0`.`id` = `t0`.`bookSectionId` LIMIT 1) 
             as `title` FROM `book` as `t0`',
         ),
         );
@@ -319,6 +321,17 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
             /** @lang aql */ 'SELECT `t0`.`id`, `t1`.`name` FROM `book` as `t0` 
             INNER JOIN `book_to_author` as `t2` ON (`t2`.`bookId` = `t0`.`id`) 
             INNER JOIN `author` as `t1` ON (`t1`.`id` = `t2`.`authorId`)',
+        ));
+    }
+
+    /** An optional cross reference keeps readers without novels: both hops are LEFT, not LEFT then INNER. */
+    public function testSelectWithOptionalCrossReferenceJoinsBothHopsLeft(): void
+    {
+        $this->executeCase(new SqlQueryCaseDescriptor(
+            /** @lang aql */ 'SELECT nick, Novel.title FROM Reader, Novel',
+            /** @lang aql */ 'SELECT `t0`.`nick`, `t1`.`title` FROM `reader` as `t0`
+            LEFT JOIN `reader_to_novel` as `t2` ON (`t2`.`readerId` = `t0`.`id`)
+            LEFT JOIN `novel` as `t1` ON (`t1`.`id` = `t2`.`novelId`)',
         ));
     }
 
@@ -587,6 +600,10 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
         ));
     }
 
+    /**
+     * cte2 joins cte1 LEFT: BookSection → cte1 is the reverse of the required Book.bookSectionId, and a section may
+     * have no books (aql-relations.md: required ⇔ forward).
+     */
     public function testCteWithDerivedRef(): void
     {
         $this->executeCase(new SqlQueryCaseDescriptor(
@@ -599,7 +616,7 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
                 WITH
                  cte1 AS (SELECT `t0`.`title`, `t0`.`isTop`, `t0`.`price`, `t0`.`bookSectionId` FROM `book` as `t0`),
                  cte2 AS (SELECT FROM `book_section` as `t0`
-                                 INNER JOIN `cte1` as `t1` ON (`t1`.`bookSectionId` = `t0`.`id`))
+                                 LEFT JOIN `cte1` as `t1` ON (`t1`.`bookSectionId` = `t0`.`id`))
             
                 SELECT `t0`.`title`, `t0`.`isTop`, `t0`.`price` FROM `cte1` as `t0`
                 SQL,
