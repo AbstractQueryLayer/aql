@@ -30,6 +30,8 @@ class Select extends QueryAbstract implements SelectInterface
 {
     final public const string LOCK_MODE = 'lock';
 
+    final public const string LOCK_WAIT = 'lockWait';
+
     private const string FOR_SHARE_CLAUSE = ' FOR SHARE';
 
     /**
@@ -64,6 +66,8 @@ class Select extends QueryAbstract implements SelectInterface
     protected ?string $unionOption  = null;
 
     protected ?LockMode $lockMode   = null;
+
+    protected ?LockWait $lockWait   = null;
 
     /**
      * @throws RequiredValueEmpty
@@ -231,6 +235,10 @@ class Select extends QueryAbstract implements SelectInterface
 
         $lockMode                   = $array[self::LOCK_MODE] ?? null;
         $query->lockMode            = $lockMode === null ? null : LockMode::from($lockMode);
+        $lockWait                   = $array[self::LOCK_WAIT] ?? null;
+        // A wait without a lock mode renders nothing and is dropped, as setLockMode(null) drops it.
+        $query->lockWait            = $lockWait === null || $query->lockMode === null
+                                    ? null : LockWait::from($lockWait);
 
         return $query;
     }
@@ -238,7 +246,8 @@ class Select extends QueryAbstract implements SelectInterface
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
-        return parent::toArray($validator) + [self::LOCK_MODE => $this->lockMode?->value];
+        return parent::toArray($validator)
+            + [self::LOCK_MODE => $this->lockMode?->value, self::LOCK_WAIT => $this->lockWait?->value];
     }
 
     #[\Override]
@@ -268,6 +277,28 @@ class Select extends QueryAbstract implements SelectInterface
     {
         $this->lockMode             = $mode;
 
+        if ($mode === null) {
+            $this->lockWait         = null;
+        }
+
+        return $this;
+    }
+
+    #[\Override]
+    public function getLockWait(): ?LockWait
+    {
+        return $this->lockWait;
+    }
+
+    #[\Override]
+    public function setLockWait(?LockWait $wait): static
+    {
+        if ($wait !== null && $this->lockMode === null) {
+            throw new \LogicException($wait->value . ' needs a locking read: set the lock mode first');
+        }
+
+        $this->lockWait             = $wait;
+
         return $this;
     }
 
@@ -290,7 +321,7 @@ class Select extends QueryAbstract implements SelectInterface
             return $this->getResultAsString();
         }
 
-        return $this->generateSql(self::FOR_SHARE_CLAUSE);
+        return $this->generateSql(self::FOR_SHARE_CLAUSE . $this->lockWaitClause());
     }
 
     #[\Override]
@@ -361,7 +392,13 @@ class Select extends QueryAbstract implements SelectInterface
      */
     private function lockClause(): string
     {
-        return $this->lockMode === null ? '' : ' ' . $this->lockMode->value;
+        return $this->lockMode === null ? '' : ' ' . $this->lockMode->value . $this->lockWaitClause();
+    }
+
+    /** ` SKIP LOCKED` or ` NOWAIT` after the locking-read clause, or an empty string; MariaDB and PostgreSQL agree. */
+    private function lockWaitClause(): string
+    {
+        return $this->lockWait === null ? '' : ' ' . $this->lockWait->value;
     }
 
     protected function getParentUnion(): UnionInterface|null

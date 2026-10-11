@@ -15,6 +15,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\OrderByInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where as WhereNode;
 use IfCastle\AQL\Dsl\Sql\Query\LockMode;
+use IfCastle\AQL\Dsl\Sql\Query\LockWait;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Select as SelectNode;
 use IfCastle\AQL\Dsl\Sql\Query\SelectInterface;
@@ -128,6 +129,7 @@ class Select extends AqlParserAbstract
         $limit                      = (new Limit())->parseTokens($tokens);
         // 7. Locking read: the last clause of the SELECT
         $lockMode                   = $this->parseLockMode($tokens);
+        $lockWait                   = $lockMode === null ? null : $this->parseLockWait($tokens);
 
         // Build a query
 
@@ -146,7 +148,7 @@ class Select extends AqlParserAbstract
         $query->setGroupBy($groupBy);
 
         if ($query instanceof SelectInterface) {
-            $query->setLockMode($lockMode);
+            $query->setLockMode($lockMode)->setLockWait($lockWait);
         } elseif ($lockMode !== null) {
             throw new ParseException(
                 $lockMode->value . ' needs a SELECT node, the parser built ' . $query::class,
@@ -211,19 +213,51 @@ class Select extends AqlParserAbstract
             return null;
         }
 
-        foreach (\explode(' ', $mode->value) as $word) {
+        $this->expectPhrase($tokens, $mode->value);
+
+        return $mode;
+    }
+
+    /**
+     * Parses `SKIP LOCKED` or `NOWAIT` after a locking-read clause; null when neither follows.
+     *
+     * @throws ParseException when `SKIP` is not followed by `LOCKED`
+     */
+    private function parseLockWait(TokensIteratorInterface $tokens): ?LockWait
+    {
+        $wait                       = match ($tokens->currentTokenAsString()) {
+            'SKIP'                  => LockWait::SKIP_LOCKED,
+            'NOWAIT'                => LockWait::NOWAIT,
+            default                 => null,
+        };
+
+        if ($wait === null) {
+            return null;
+        }
+
+        $this->expectPhrase($tokens, $wait->value);
+
+        return $wait;
+    }
+
+    /**
+     * Consumes the words of $phrase, separated by single spaces, from the current token on.
+     *
+     * @throws ParseException when a token differs from the next word
+     */
+    private function expectPhrase(TokensIteratorInterface $tokens, string $phrase): void
+    {
+        foreach (\explode(' ', $phrase) as $word) {
             [, $token]              = $tokens->currentToken();
 
             if (\strtoupper((string) $token) !== $word) {
                 throw new ParseException(
-                    'Expected ' . $mode->value . ' (got: "' . $token . '")', ['line' => $tokens->getCurrentLine()]
+                    'Expected ' . $phrase . ' (got: "' . $token . '")', ['line' => $tokens->getCurrentLine()]
                 );
             }
 
             $tokens->nextToken();
         }
-
-        return $mode;
     }
 
     /**

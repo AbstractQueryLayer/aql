@@ -61,6 +61,33 @@ class SelectLockTest extends TestCase
         $this->assertSame('SELECT * FROM Test', $select->getAql());
     }
 
+    public function testLockWaitRendersAfterTheLockClauseInBothShareForms(): void
+    {
+        $skip = Select::from('Test')->limit(1)->forUpdate()->setLockWait(LockWait::SKIP_LOCKED);
+        $share = Select::from('Test')->lockInShareMode()->setLockWait(LockWait::NOWAIT);
+
+        $this->assertSame(LockWait::SKIP_LOCKED, $skip->getLockWait());
+        $this->assertStringEndsWith(' LIMIT 1 FOR UPDATE SKIP LOCKED', $this->resultOf($skip));
+        $this->assertStringEndsWith(' LOCK IN SHARE MODE NOWAIT', $this->resultOf($share));
+        $this->assertStringEndsWith(' FOR SHARE NOWAIT', $share->getResultWithForShare());
+        $this->assertSame('SELECT * FROM Test LOCK IN SHARE MODE NOWAIT', (clone $share)->getAql());
+    }
+
+    public function testLockWaitNeedsALockingRead(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        Select::from('Test')->setLockWait(LockWait::SKIP_LOCKED);
+    }
+
+    public function testClearingTheLockModeClearsTheLockWait(): void
+    {
+        $select = Select::from('Test')->forUpdate()->setLockWait(LockWait::NOWAIT)->setLockMode(null);
+
+        $this->assertNull($select->getLockWait());
+        $this->assertSame('SELECT * FROM Test', $select->getAql());
+    }
+
     private function resultOf(Select $select): string
     {
         return (string) $select->getResult();

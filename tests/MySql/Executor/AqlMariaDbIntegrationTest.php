@@ -14,6 +14,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Subquery;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Exceptions\QueryException;
+use IfCastle\AQL\Storage\Exceptions\QueryException as StorageQueryException;
 use IfCastle\AQL\Executor\Transaction\WithCompensatingTransaction;
 use IfCastle\AQL\Executor\Transaction\WithTransaction;
 use IfCastle\AQL\MySql\MariaDb;
@@ -696,6 +697,50 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
                 $this->assertSame(self::ER_LOCK_WAIT_TIMEOUT, $exception->errorInfo[1]);
             }
         });
+    }
+
+    /** A worker leasing jobs: the row another transaction holds is skipped, and NOWAIT fails instead of waiting. */
+    public function testSkipLockedPassesOverAHeldRowAndNowaitFailsAtOnce(): void
+    {
+        $held = $this->insert($this->aqlExecutor, 1);
+        $free = $this->insert($this->aqlExecutor, 2);
+        $other = $this->secondConnection();
+        $other->beginTransaction();
+        $other->query('SELECT id FROM ' . self::TABLE . ' WHERE id = ' . $held . ' FOR UPDATE')->fetchAll();
+
+        try {
+            $rows = (new WithTransaction($this->aqlExecutor))->run(
+                function (AqlExecutorInterface $executor) use ($held, $free): array {
+                    $select = (new AqlParser())->parse(
+                        'SELECT id FROM AqlRoundTrip WHERE id IN ({held}, {free}) ORDER BY id FOR UPDATE SKIP LOCKED'
+                    );
+                    $select->applyParameters(['held' => $held, 'free' => $free]);
+
+                    return $executor->executeAql($select)->finalize()->toArray();
+                }
+            );
+            $this->assertSame([['id' => $free]], $rows);
+            $this->assertStringEndsWith(' FOR UPDATE SKIP LOCKED', $this->mySql->lastSql);
+
+            $started = \hrtime(true);
+            $error = null;
+
+            try {
+                (new WithTransaction($this->aqlExecutor))->run(
+                    fn(AqlExecutorInterface $executor): array
+                        => $this->lockingSelect($executor, $held, ' FOR UPDATE NOWAIT')
+                );
+            } catch (\Throwable $exception) {
+                $error = $exception;
+            }
+
+            $this->assertInstanceOf(StorageQueryException::class, $error, 'NOWAIT read a held row');
+            $this->assertSame(self::ER_LOCK_WAIT_TIMEOUT, $error->getPrevious()?->errorInfo[1] ?? null);
+            $this->assertStringEndsWith(' FOR UPDATE NOWAIT', $this->mySql->lastSql);
+            $this->assertLessThan(5.0, (\hrtime(true) - $started) / 1e9, 'NOWAIT waited for the lock');
+        } finally {
+            $other->rollBack();
+        }
     }
 
     public function testForUpdateRendersAfterLimit(): void

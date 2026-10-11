@@ -391,6 +391,32 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testSkipLockedAndNowaitFollowTheLockClause(): void
+    {
+        foreach (['FOR UPDATE SKIP LOCKED', 'FOR UPDATE NOWAIT', 'LOCK IN SHARE MODE SKIP LOCKED',
+            'LOCK IN SHARE MODE NOWAIT'] as $clause) {
+            $this->executeCase(new ParserCaseDescriptor(
+                'SELECT id FROM Test WHERE state = {s} LIMIT 1 ' . $clause,
+                'SELECT id FROM Test WHERE state = {s} LIMIT 0, 1 ' . $clause
+            ));
+        }
+    }
+
+    public function testSkipWithoutLockedIsRejected(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('SELECT id FROM Test FOR UPDATE SKIP');
+    }
+
+    public function testSkipLockedWithoutALockClauseIsRejected(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        // SKIP alone is a table alias, as in MariaDB, so the whole statement is what fails.
+        (new AqlParser())->parse('SELECT id FROM Test SKIP LOCKED');
+    }
+
     public function testIncompleteLockClauseIsRejected(): void
     {
         $this->expectException(Exceptions\ParseException::class);

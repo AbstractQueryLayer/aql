@@ -30,4 +30,17 @@ class SelectSerializationTest extends TestCase
         $this->assertNull(Select::fromArray([Select::LOCK_MODE => null])->getLockMode());
         $this->assertNull(Select::fromArray([])->getLockMode());
     }
+
+    public function testLockWaitRoundTripsWithItsLockMode(): void
+    {
+        $array = Select::from('Test')->forUpdate()->setLockWait(LockWait::SKIP_LOCKED)->toArray();
+
+        $this->assertSame('SKIP LOCKED', $array[Select::LOCK_WAIT]);
+        // Select::fromArray cannot rebuild a whole serialised tree yet (PLAN Fog), so only the lock keys go back.
+        $restored = Select::fromArray(
+            [Select::LOCK_MODE => $array[Select::LOCK_MODE], Select::LOCK_WAIT => $array[Select::LOCK_WAIT]]
+        );
+        $this->assertSame(LockWait::SKIP_LOCKED, $restored->getLockWait());
+        $this->assertNull(Select::fromArray([Select::LOCK_WAIT => 'NOWAIT'])->getLockWait());
+    }
 }

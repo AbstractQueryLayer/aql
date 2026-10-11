@@ -26,6 +26,19 @@ interface SelectInterface extends QueryInterface
     public function setLockMode(?LockMode $mode): static;
 
     /**
+     * What the locking read does with rows another transaction has locked; null: it waits for them.
+     */
+    public function getLockWait(): ?LockWait;
+
+    /**
+     * Sets `SKIP LOCKED` or `NOWAIT` after the locking-read clause; null makes the read wait. Setting the lock mode
+     * to null clears it too.
+     *
+     * @throws \LogicException when $wait is not null and the query is not a locking read
+     */
+    public function setLockWait(?LockWait $wait): static;
+
+    /**
      * Makes the query a locking read with an exclusive lock: `SELECT ... FOR UPDATE`.
      * The lock lasts until the transaction the query runs in ends. The executors refuse a locking read outside a
      * transaction, anywhere but the top-level SELECT, and for a query that needs secondary queries.
