@@ -1148,6 +1148,25 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame([['id' => $source + 1, 'value' => 'worker-2']], $this->select($this->aqlExecutor, $source + 1));
     }
 
+    public function testInsertSelectCopiesABinaryColumnInTheDatabase(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_binary_hash');
+        $this->pdo->exec('CREATE TABLE aql_binary_hash (id INT AUTO_INCREMENT PRIMARY KEY, hash BINARY(32) NOT NULL)'
+            . ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $hash = "\xff" . \str_repeat("\x00", 30) . "\xc3";
+
+        try {
+            $this->pdo->prepare('INSERT INTO aql_binary_hash (hash) VALUES (?)')->execute([$hash]);
+            $copy = (new AqlParser())->parse('INSERT INTO AqlBinaryHash (hash) SELECT hash FROM AqlBinaryHash WHERE id = 1');
+            $this->assertSame(2, (int) $this->aqlExecutor->executeAql($copy)->getLastPrimaryKey()['id']);
+
+            $this->assertSame([$hash, $hash],
+                $this->pdo->query('SELECT hash FROM aql_binary_hash ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN));
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS aql_binary_hash');
+        }
+    }
+
     public function testInsertSelectIntoACompositeKeyFiresTheTriggerForEveryRow(): void
     {
         $this->pdo->exec('CREATE TABLE aql_round_trip_label (roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL,'
