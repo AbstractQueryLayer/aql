@@ -668,4 +668,50 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
         $this->newSqlQueryExecutor()->executeQuery($aql);
     }
 
+    /** A numeric string parameter becomes a number in INTERVAL, a non-numeric one is refused. */
+    public function testIntervalAmountParameterRendersAsNumber(): void
+    {
+        foreach ([90, '90'] as $seconds) {
+            $aqlQuery               = (new AqlParser())->parse(
+                'SELECT id FROM Book WHERE price + INTERVAL {s} SECOND > 5'
+            );
+            $aqlQuery->applyParameters(['s' => $seconds]);
+
+            $sqlStorageMock         = $this->getSqlStorageMock();
+            $sqlStorageMock->reset();
+            $this->newSqlQueryExecutor()->executeQuery($aqlQuery);
+
+            $this->assertSqlStrings(
+                'SELECT `t0`.`id` FROM `book` as `t0` WHERE `t0`.`price` + INTERVAL 90 SECOND > \'5\'',
+                $sqlStorageMock->getLastSql() ?? 'no query', 'Sql should be equals',
+            );
+        }
+
+        $aqlQuery                   = (new AqlParser())->parse(
+            'SELECT id FROM Book WHERE price + INTERVAL {s} SECOND > 5'
+        );
+        $aqlQuery->applyParameters(['s' => '1 OR 1=1']);
+
+        $this->expectException(TransformationException::class);
+        $this->expectExceptionMessage('The INTERVAL amount must be a number');
+
+        $this->newSqlQueryExecutor()->executeQuery($aqlQuery);
+    }
+
+    public function testValuesWithArithmeticRenderEachRow(): void
+    {
+        $aqlQuery                   = (new AqlParser())->parse(
+            'INSERT INTO Book (title, price) VALUES ({t}, 2 + 3), ("b", 7 - 1)'
+        );
+        $aqlQuery->applyParameters(['t' => 'a']);
+
+        $sqlStorageMock             = $this->getSqlStorageMock();
+        $sqlStorageMock->reset();
+        $this->newSqlQueryExecutor()->executeQuery($aqlQuery);
+
+        $this->assertSqlStrings(
+            'INSERT INTO `book` (`title`,`price`) VALUES (\'a\',\'2\' + \'3\'), (\'b\',\'7\' - \'1\')',
+            $sqlStorageMock->getLastSql() ?? 'no query', 'Sql should be equals',
+        );
+    }
 }

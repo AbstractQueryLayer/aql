@@ -352,4 +352,11 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testTupleWithArithmeticAndInterval(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT a - 1 as c, expiresAt + INTERVAL {s} DAY AS d FROM Test',
+            /** @lang aql */ 'SELECT a - 1 as "c", expiresAt + INTERVAL {s} DAY as "d" FROM Test'
+        ));
+    }
 }

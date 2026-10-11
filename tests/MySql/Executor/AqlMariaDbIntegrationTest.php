@@ -51,7 +51,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_lease');
         $this->pdo->exec('CREATE TABLE aql_round_trip_lease (id INT AUTO_INCREMENT PRIMARY KEY, ownerId INT NOT NULL,'
             . ' expiresAt DATETIME(6) NOT NULL, windowStart DATETIME(6) NOT NULL, attempts INT NOT NULL DEFAULT 0,'
-            . ' bonus INT NULL) ENGINE=InnoDB');
+            . ' bonus INT NULL, UNIQUE KEY uniq_owner (ownerId)) ENGINE=InnoDB');
         $this->pdo->exec('CREATE TABLE aql_round_trip_link (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
         $this->mySql = new SqlRecordingMySql([
             'dsn' => MariaDb::dsn(),
@@ -403,7 +403,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 
             $this->assertSame(
                 [2, 3],
-                \array_map('intval', \array_column($this->aqlExecutor->executeAql($select)->finalize()->toArray(), 'ownerId')),
+                $this->ownerIds($this->aqlExecutor->executeAql($select)->finalize()->toArray()),
                 $call
             );
             $this->assertStringContainsString('> ' . $call, $this->mySql->lastSql);
@@ -420,7 +420,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 
         $this->assertSame(
             [1, 3],
-            \array_map('intval', \array_column($this->aqlExecutor->executeAql($select)->finalize()->toArray(), 'ownerId'))
+            $this->ownerIds($this->aqlExecutor->executeAql($select)->finalize()->toArray())
         );
         $this->assertStringContainsString('`bonus` IS NULL', $this->mySql->lastSql);
     }
@@ -441,18 +441,168 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertStringContainsString('COALESCE(`t0`.`bonus`, 0)', $this->mySql->lastSql);
     }
 
+    public function testInsertValuesAcceptExpressionsAndIntervalArithmetic(): void
+    {
+        $before = $this->serverUtcNow();
+
+        $insert = (new AqlParser())->parse(
+            'INSERT INTO AqlRoundTripLease (ownerId, windowStart, expiresAt, attempts)'
+            . ' VALUES ({owner}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6) + INTERVAL {seconds} SECOND, 1 + 1)'
+        );
+        $insert->applyParameters(['owner' => 7, 'seconds' => 90]);
+
+        $this->assertSame(1, $this->aqlExecutor->executeAql($insert)->getAffectedRows());
+        $this->assertStringContainsString(
+            'VALUES (7,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) + INTERVAL 90 SECOND,1 + 1)',
+            $this->mySql->lastSql
+        );
+
+        $after = $this->serverUtcNow();
+        $row = $this->pdo->query('SELECT windowStart, expiresAt, attempts FROM aql_round_trip_lease')
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        $windowStart = $this->microtime($row['windowStart']);
+        $this->assertGreaterThanOrEqual($before - 0.001, $windowStart);
+        $this->assertLessThanOrEqual($after + 0.001, $windowStart);
+        $this->assertEqualsWithDelta(90.0, $this->microtime($row['expiresAt']) - $windowStart, 0.001);
+        $this->assertSame(2, (int) $row['attempts']);
+    }
+
+    public function testInsertMultipleRowsOfValuesKeepsConstantsAndExpressions(): void
+    {
+        $insert = (new AqlParser())->parse(
+            'INSERT INTO AqlRoundTripLease (ownerId, windowStart, expiresAt, attempts) VALUES'
+            . ' (1, "2026-01-01 00:00:00", "2026-01-02 00:00:00", 3), (2, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 4 - 1)'
+        );
+
+        $this->assertSame(2, $this->aqlExecutor->executeAql($insert)->getAffectedRows());
+
+        $rows = $this->pdo->query('SELECT ownerId, attempts, windowStart FROM aql_round_trip_lease ORDER BY ownerId')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->assertSame([1, 3], [(int) $rows[0]['ownerId'], (int) $rows[0]['attempts']]);
+        $this->assertSame('2026-01-01 00:00:00', \substr($rows[0]['windowStart'], 0, 19));
+        $this->assertSame([2, 3], [(int) $rows[1]['ownerId'], (int) $rows[1]['attempts']]);
+        $this->assertEqualsWithDelta($this->serverUtcNow(), $this->microtime($rows[1]['windowStart']), 5.0);
+    }
+
+    public function testWhereComparesAnIntervalShiftedColumnWithTheServerClock(): void
+    {
+        $this->insertLeases([[1, '-120 seconds'], [2, '-30 seconds'], [3, '-61 seconds'], [4, '+10 seconds']]);
+
+        $select = (new AqlParser())->parse(
+            'SELECT ownerId FROM AqlRoundTripLease WHERE windowStart + INTERVAL {seconds} SECOND <= UTC_TIMESTAMP(6)'
+            . ' ORDER BY ownerId'
+        );
+        $select->applyParameters(['seconds' => 60]);
+
+        $this->assertSame(
+            [1, 3],
+            $this->ownerIds($this->aqlExecutor->executeAql($select)->finalize()->toArray())
+        );
+        $this->assertStringContainsString(
+            '`t0`.`windowStart` + INTERVAL 60 SECOND <= UTC_TIMESTAMP(6)',
+            $this->mySql->lastSql
+        );
+    }
+
+    public function testSelectColumnAndUpdateSetAcceptIntervalAndArithmetic(): void
+    {
+        $this->insertLeases([[1, '+1 hour', 5], [2, '+1 hour', 5]]);
+
+        $select = (new AqlParser())->parse(
+            'SELECT expiresAt - INTERVAL {minutes} MINUTE AS earlier, bonus + 1 AS next FROM AqlRoundTripLease'
+            . ' WHERE ownerId = 1'
+        );
+        $select->applyParameters(['minutes' => 30]);
+        $row = $this->aqlExecutor->executeAql($select)->finalize()->toArray()[0];
+        $expiresAt = $this->microtime($this->pdo->query('SELECT expiresAt FROM aql_round_trip_lease WHERE ownerId = 1')
+            ->fetchColumn());
+
+        $this->assertEqualsWithDelta($expiresAt - 1800.0, $this->microtime($row['earlier']), 0.001);
+        $this->assertSame(6, (int) $row['next']);
+
+        $update = (new AqlParser())->parse(
+            'UPDATE AqlRoundTripLease SET bonus = bonus + 10, expiresAt = UTC_TIMESTAMP(6) + INTERVAL {days} DAY'
+            . ' WHERE ownerId = 2'
+        );
+        $update->applyParameters(['days' => 2]);
+        $before = $this->serverUtcNow();
+
+        $this->assertSame(1, $this->aqlExecutor->executeAql($update)->getAffectedRows());
+
+        $after = $this->serverUtcNow();
+        $row = $this->pdo->query('SELECT bonus, expiresAt FROM aql_round_trip_lease WHERE ownerId = 2')
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        $this->assertSame(15, (int) $row['bonus']);
+        $this->assertGreaterThanOrEqual($before + 2 * 86400 - 0.001, $this->microtime($row['expiresAt']));
+        $this->assertLessThanOrEqual($after + 2 * 86400 + 0.001, $this->microtime($row['expiresAt']));
+    }
+
+    /** The shape of a counter inside a time window: the counter restarts once the window is over. */
+    public function testOnDuplicateKeyUpdateRestartsTheCounterAfterTheWindow(): void
+    {
+        $this->insertLeases([[1, '+1 hour', null, '-120 seconds', 5], [2, '+1 hour', null, '-10 seconds', 5]]);
+
+        foreach ([1, 2] as $owner) {
+            $upsert = (new AqlParser())->parse(
+                'INSERT INTO AqlRoundTripLease (ownerId, expiresAt, windowStart, attempts)'
+                . ' VALUES ({owner}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 1) ON DUPLICATE KEY UPDATE'
+                . ' attempts = IF(windowStart + INTERVAL {seconds} SECOND <= UTC_TIMESTAMP(6), 1, attempts + 1),'
+                . ' windowStart = IF(windowStart + INTERVAL {seconds} SECOND <= UTC_TIMESTAMP(6),'
+                . ' UTC_TIMESTAMP(6), windowStart)'
+            );
+            $upsert->applyParameters(['owner' => $owner, 'seconds' => 60]);
+            $this->aqlExecutor->executeAql($upsert);
+        }
+
+        $this->assertStringContainsString(
+            'ON DUPLICATE KEY UPDATE `attempts` = IF(`windowStart` + INTERVAL 60 SECOND <= UTC_TIMESTAMP(6), 1,'
+            . ' `attempts` + 1)',
+            $this->mySql->lastSql
+        );
+
+        $rows = $this->pdo->query('SELECT ownerId, attempts, windowStart FROM aql_round_trip_lease ORDER BY ownerId')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->assertSame([1, 6], [(int) $rows[0]['attempts'], (int) $rows[1]['attempts']]);
+        $this->assertEqualsWithDelta($this->serverUtcNow(), $this->microtime($rows[0]['windowStart']), 5.0);
+        $this->assertEqualsWithDelta($this->serverUtcNow() - 10, $this->microtime($rows[1]['windowStart']), 5.0);
+    }
+
+    /** @return list<int> */
+    private function ownerIds(array $rows): array
+    {
+        return \array_map('intval', \array_column($rows, 'ownerId'));
+    }
+
+    private function serverUtcNow(): float
+    {
+        return $this->microtime($this->pdo->query('SELECT UTC_TIMESTAMP(6)')->fetchColumn());
+    }
+
+    /** Seconds since the epoch of a UTC DATETIME(6) string as the server returns it. */
+    private function microtime(string $datetime): float
+    {
+        return (float) (new \DateTimeImmutable($datetime, new \DateTimeZone('UTC')))->format('U.u');
+    }
+
     /**
-     * @param list<array{0: int, 1: string, 2?: int|null}> $leases owner id, expiry as a relative time string
-     *                                                            and the optional bonus of each row
+     * @param list<array{0: int, 1: string, 2?: int|null, 3?: string, 4?: int}> $leases owner id, expiry as a relative
+     *        time string, bonus, window start as a relative time string (default: the expiry) and attempts
      */
     private function insertLeases(array $leases): void
     {
-        $insert = $this->pdo->prepare('INSERT INTO aql_round_trip_lease (ownerId, expiresAt, windowStart, bonus)'
-            . ' VALUES (?, ?, ?, ?)');
+        $insert = $this->pdo->prepare('INSERT INTO aql_round_trip_lease'
+            . ' (ownerId, expiresAt, windowStart, attempts, bonus) VALUES (?, ?, ?, ?, ?)');
+        $format = static fn(string $relative): string => (new \DateTimeImmutable($relative, new \DateTimeZone('UTC')))
+            ->format('Y-m-d H:i:s');
 
         foreach ($leases as $lease) {
-            $expiresAt = (new \DateTimeImmutable($lease[1], new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
-            $insert->execute([$lease[0], $expiresAt, $expiresAt, $lease[2] ?? null]);
+            $insert->execute([
+                $lease[0], $format($lease[1]), $format($lease[3] ?? $lease[1]), $lease[4] ?? 0, $lease[2] ?? null,
+            ]);
         }
     }
 

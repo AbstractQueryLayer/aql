@@ -23,7 +23,7 @@ class TupleColumn extends AqlParserAbstract
         } elseif ($tokens->currentTokenAsString() === '[') {
             $expression             = (new NestedTuple())->parseTokens($tokens);
         } else {
-            $expression             = $this->parseOperand($tokens);
+            $expression             = $this->parseExpression($tokens);
         }
 
         $alias                      = $this->parseAlias($tokens);

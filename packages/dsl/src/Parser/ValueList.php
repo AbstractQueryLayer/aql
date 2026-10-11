@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Dsl\Parser;
 
+use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
+use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\ValueList as ValueListNode;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\ValueListInterface;
 
@@ -58,7 +60,7 @@ class ValueList extends AqlParserAbstract
                     break;
                 }
 
-                $values[]               = (new Constant())->parseTokens($tokens);
+                $values[]               = $this->parseValue($tokens);
 
                 if ($tokens->currentTokenAsString() !== ',' || $tokens->currentTokenAsString() === ')') {
                     break;
@@ -83,5 +85,39 @@ class ValueList extends AqlParserAbstract
         }
 
         return $valueList;
+    }
+
+    /**
+     * A VALUES item is a constant, parameter, function call or arithmetic over them.
+     * A column reference is rejected: a row being inserted has no columns to read.
+     *
+     * @throws ParseException
+     */
+    private function parseValue(TokensIteratorInterface $tokens): NodeInterface
+    {
+        $value                      = $this->parseExpression($tokens);
+
+        if (self::containsColumn($value)) {
+            throw new ParseException(
+                'A column reference is not allowed in a VALUES expression', ['line' => $tokens->getCurrentLine()]
+            );
+        }
+
+        return $value;
+    }
+
+    private static function containsColumn(NodeInterface $node): bool
+    {
+        if ($node instanceof ColumnInterface) {
+            return true;
+        }
+
+        foreach ($node->getChildNodes() as $child) {
+            if ($child instanceof NodeInterface && self::containsColumn($child)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

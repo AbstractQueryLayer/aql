@@ -7,9 +7,7 @@ namespace IfCastle\AQL\Dsl\Parser;
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
-use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\Assign as AssignNode;
-use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 
 class Assign extends AqlParserAbstract
 {
@@ -34,11 +32,7 @@ class Assign extends AqlParserAbstract
         $tokens->nextToken();
 
         // 3. Right side
-        $right                      = $this->parseOperand($tokens, true);
-
-        if ($right instanceof ConstantInterface === false && $right instanceof SubqueryInterface === false) {
-            throw new ParseException('Left side of assign should be a Constant or Subquery');
-        }
+        $right                      = $this->parseExpression($tokens, true);
 
         return new AssignNode($left, $right);
     }

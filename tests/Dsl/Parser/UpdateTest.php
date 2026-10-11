@@ -41,4 +41,19 @@ class UpdateTest extends TestCase
             /** @lang aql */'UPDATE Entity INNER JOIN (SELECT * FROM Entity2) as test SET name = "test" WHERE id = 5'
         ));
     }
+
+    public function testUpdateWithArithmeticAndInterval(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'UPDATE Entity SET attempts = attempts + 1,'
+            . ' expiresAt = UTC_TIMESTAMP(6) + INTERVAL {s} MINUTE WHERE id = 5'
+        ));
+    }
+
+    public function testUpdateWithConditionalExpression(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'UPDATE Entity SET attempts = IF(attempts >= 3, 0, attempts + 1) WHERE id = 5'
+        ));
+    }
 }

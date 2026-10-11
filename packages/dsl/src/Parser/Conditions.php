@@ -100,7 +100,7 @@ class Conditions extends AqlParserAbstract
                 $condition          = (new WhereEntity())->parseTokens($tokens);
             } else {
                 // LR operation case
-                $left               = $this->parseOperand($tokens);
+                $left               = $this->parseExpression($tokens);
                 [$operation, $right] = $this->parseRight($tokens);
 
                 if ($operation === null && $right === null) {
@@ -267,7 +267,7 @@ class Conditions extends AqlParserAbstract
                 if (\in_array($tokens->nextTokens()->currentTokenAsString(), ['ANY', 'SOME', 'ALL'], true)) {
                     $right              = (new Subquery())->parseTokens($tokens);
                 } else {
-                    $right              = $this->parseOperand($tokens);
+                    $right              = $this->parseExpression($tokens);
                 }
 
                 break;

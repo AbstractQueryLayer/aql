@@ -12,7 +12,7 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
         T_FUNCTION, T_AS, T_ARRAY, T_BREAK, T_ABSTRACT,
         T_CONST, T_CONTINUE, T_DEFAULT, T_DECLARE, T_DO, T_WHILE,
         T_ECHO, T_EMPTY, T_EXIT, T_EXTENDS, T_FINAL, T_FINALLY,
-        T_GLOBAL, T_GOTO, T_INTERFACE, T_NEW, T_NAMESPACE,
+        T_GLOBAL, T_GOTO, T_IF, T_INTERFACE, T_NEW, T_NAMESPACE,
         T_PRIVATE, T_PUBLIC, T_PROTECTED, T_RETURN,
     ];
 

@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Dsl\Parser;
 
+use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReference as FunctionReferenceNode;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
 
 /**
  * Parser for FunctionReferences.
  */
 class FunctionReference extends AqlParserAbstract
 {
+    private const array COMPARISONS = ['=', '<', '>', '<=', '>=', '<>', '!='];
+
     /**
      * @throws ParseException
      */
@@ -97,7 +101,7 @@ class FunctionReference extends AqlParserAbstract
 
         while ($tokens->valid() && !\array_key_exists(\strtolower($tokens->currentTokenAsString()), $stopTokens)) {
 
-            $parameters[]           = $this->parseOperand($tokens);
+            $parameters[]           = $this->parseParameter($tokens);
 
             if ($tokens->currentTokenAsString() !== ',') {
                 break;
@@ -124,5 +128,23 @@ class FunctionReference extends AqlParserAbstract
         }
 
         return $function;
+    }
+
+    /**
+     * A function argument is a value expression, optionally compared with another one:
+     * `IF(windowStart + INTERVAL 5 SECOND <= UTC_TIMESTAMP(6), 1, attempts + 1)`.
+     *
+     * @throws ParseException
+     */
+    private function parseParameter(TokensIteratorInterface $tokens): NodeInterface
+    {
+        $left                       = $this->parseExpression($tokens);
+        $operation                  = $tokens->currentTokenAsString();
+
+        if (false === \in_array($operation, self::COMPARISONS, true)) {
+            return $left;
+        }
+
+        return new LROperation($left, $operation, $this->parseExpression($tokens->nextTokens()));
     }
 }

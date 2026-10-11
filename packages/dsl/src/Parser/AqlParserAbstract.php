@@ -11,6 +11,9 @@ use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantNull;
 use IfCastle\AQL\Dsl\Sql\Parameter\Parameter;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Arithmetic;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\TimeInterval;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\TimeIntervalEnum;
 use IfCastle\Exceptions\UnexpectedValue;
 
 abstract class AqlParserAbstract implements ParserInterface
@@ -176,6 +179,56 @@ abstract class AqlParserAbstract implements ParserInterface
 
         return new Column($operand, $entityName);
 
+    }
+
+    /**
+     * Parse a value expression: an operand followed by any number of `+ operand` or `- operand` terms.
+     * After `+` or `-` the term may be an interval: `INTERVAL amount UNIT`, for example
+     * `UTC_TIMESTAMP(6) + INTERVAL {seconds} SECOND`. The result is the bare operand when no operator follows.
+     *
+     * @throws ParseException|UnexpectedValue
+     */
+    protected function parseExpression(TokensIteratorInterface $tokens, bool $isAllowSubqueries = false): NodeInterface
+    {
+        $expression                 = $this->parseOperand($tokens, $isAllowSubqueries);
+
+        while (true) {
+            $operator               = $tokens->currentTokenAsString();
+
+            if ($operator !== Arithmetic::PLUS && $operator !== Arithmetic::MINUS) {
+                return $expression;
+            }
+
+            $tokens->nextToken();
+
+            $term                   = $tokens->currentTokenAsString() === 'INTERVAL'
+                ? $this->parseTimeInterval($tokens)
+                : $this->parseOperand($tokens);
+
+            $expression             = new Arithmetic($expression, $operator, $term);
+        }
+    }
+
+    /**
+     * Parse `INTERVAL amount UNIT`, the current token being INTERVAL.
+     *
+     * @throws ParseException|UnexpectedValue
+     */
+    private function parseTimeInterval(TokensIteratorInterface $tokens): TimeInterval
+    {
+        $amount                     = $this->parseOperand($tokens->nextTokens());
+
+        [, $unit, $line]            = $tokens->currentToken();
+
+        $interval                   = TimeIntervalEnum::tryFrom(\strtoupper((string) $unit))
+            ?? throw new ParseException(
+                \sprintf('Expected INTERVAL unit, such as SECOND or DAY (got \'%s\')', $unit),
+                ['line' => $line]
+            );
+
+        $tokens->nextToken();
+
+        return new TimeInterval($interval, $amount);
     }
 
     /**
