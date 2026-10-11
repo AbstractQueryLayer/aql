@@ -503,6 +503,18 @@ class DerivedProperty implements PropertyInterface
     }
 
     #[\Override]
+    public function setRelationRole(string $role): static
+    {
+        throw new \ErrorException('DerivedProperty is read-only');
+    }
+
+    #[\Override]
+    public function setRelationIntegrity(string $integrity, array $derivedFrom = []): static
+    {
+        throw new \ErrorException('DerivedProperty is read-only');
+    }
+
+    #[\Override]
     public function isPrimaryKey(): bool
     {
         return $this->originalProperty->isPrimaryKey();

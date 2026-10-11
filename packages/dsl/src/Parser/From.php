@@ -36,6 +36,7 @@ class From extends Join
     {
         $stopTokens                 = $tokens->getStopTokens();
         $mainSubject                = null;
+        $mainQualifier              = null;
         $joins                      = [];
         $from                       = null;
 
@@ -70,13 +71,23 @@ class From extends Join
 
             if ($mainSubject === null) {
                 $mainSubject        = new SubjectNode(\ucfirst((string) $token));
-                [,$token]           = $tokens->nextToken();
+                $tokens->nextToken();
+                $mainQualifier      = $this->parseQualifier($tokens);
+                [,$token]           = $tokens->currentToken();
             } elseif ($this->isJoinFirstKeyword($token)) {
                 $joins[]            = (new Join())->parseTokens($tokens);
                 [,$token]           = $tokens->currentToken();
             } else {
-                $joins[]            = new JoinNode('', new SubjectNode(\ucfirst((string) $token)));
-                [,$token]           = $tokens->nextToken();
+                $join               = new JoinNode('', new SubjectNode(\ucfirst((string) $token)));
+                $tokens->nextToken();
+                $qualifier          = $this->parseQualifier($tokens);
+
+                if ($qualifier !== null) {
+                    $join->setQualifier($qualifier)->setAlias($qualifier);
+                }
+
+                $joins[]            = $join;
+                [,$token]           = $tokens->currentToken();
             }
 
             if ($tokens->valid() === false) {
@@ -101,7 +112,13 @@ class From extends Join
             return $from;
         }
 
-        return new FromNode($mainSubject, ...$joins);
+        $from                       = new FromNode($mainSubject, ...$joins);
+
+        if ($mainQualifier !== null) {
+            $from->setQualifier($mainQualifier);
+        }
+
+        return $from;
     }
 
     #[\Override]

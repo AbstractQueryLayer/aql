@@ -20,6 +20,8 @@ use IfCastle\AQL\Entity\Modifiers\ModifierInterface;
 use IfCastle\AQL\Entity\PostAction\PostActionDescriptorInterface;
 use IfCastle\AQL\Entity\PostAction\PostActionEntityDescriptor;
 use IfCastle\AQL\Entity\Property\PropertyInterface;
+use IfCastle\AQL\Entity\Relation\DirectRelationInterface;
+use IfCastle\AQL\Entity\Relation\IndirectRelationInterface;
 use IfCastle\AQL\Executor\Context\NodeContextInterface;
 use IfCastle\AQL\Executor\Exceptions\PropertyNotFound;
 use IfCastle\AQL\Executor\FunctionHandlerInterface;
@@ -117,6 +119,12 @@ abstract class EntityAbstract implements
      * @var array<string, RelationInterface>
      */
     protected array $relations      = [];
+
+    /**
+     * The same relations by right entity and name, for lookups by entity (rule R6).
+     * @var array<string, array<string, RelationInterface>>
+     */
+    protected array $relationsByTarget = [];
 
     /**
      * @var ModifierInterface[]
@@ -422,7 +430,9 @@ abstract class EntityAbstract implements
     #[\Override]
     public function getRelation(string $toEntity): RelationInterface
     {
-        if (false === \array_key_exists($toEntity, $this->relations)) {
+        $relation                   = $this->findRelation($toEntity);
+
+        if ($relation === null) {
             throw new EntityDescriptorException([
                 'template'          => 'Relation between entities {from} and {to} were not found',
                 'from'              => $this->getEntityName(),
@@ -430,7 +440,7 @@ abstract class EntityAbstract implements
             ]);
         }
 
-        return $this->relations[$toEntity];
+        return $relation;
     }
 
     #[\Override]
@@ -486,39 +496,119 @@ abstract class EntityAbstract implements
         return $this->actions[$basicQuery->getQueryAction()] ?? null;
     }
 
+    /**
+     * Finds a relation by its name, or else by its right entity when exactly one relation leads there.
+     *
+     * @throws EntityDescriptorException when several relations lead to the entity: a role must be named
+     */
     #[\Override]
     public function findRelation(string $toEntity): ?RelationInterface
     {
-        return $this->relations[$toEntity] ?? null;
+        if (\array_key_exists($toEntity, $this->relations)) {
+            return $this->relations[$toEntity];
+        }
+
+        $relations                  = $this->relationsTo($toEntity);
+
+        if (\count($relations) > 1) {
+            $this->throwAmbiguousRelation($toEntity, \array_keys($relations));
+        }
+
+        return $relations === [] ? null : \reset($relations);
     }
 
     /**
-     * Resolve relation from $this to $toEntity.
+     * Resolves the single relation between $this and $toEntity in either direction (rule R6 of
+     * dev/design/aql-relations.md): own relations to it, plus its relations to $this that are not mirrors of
+     * the own ones. A recursive relation is never resolved this way.
      *
-     *
-     * @throws EntityDescriptorException
+     * @throws EntityDescriptorException when there is no relation, or more than one
      */
     #[\Override]
     public function resolveRelation(EntityInterface $toEntity): RelationInterface
     {
-        $relation                   = $this->findRelation($toEntity->getEntityName());
+        $toName                     = $toEntity->getEntityName();
+        $ownName                    = $this->getEntityName();
+        $toOriginal                 = $toEntity instanceof AliasEntity ? $toEntity->getOriginalEntity()->getEntityName() : $toName;
+        $reversed                   = $toEntity->findRelation($ownName);
 
-        if ($relation === null) {
-            $relation               = $this->reverseRelation($toEntity->getRelation($this->getEntityName()));
-        } else {
-            $relation               = clone $relation;
-        }
-
-        if ($relation === null) {
-            // "Unable to build relations between entities '{$this->getName()}' and '{$toEntity->getName()}'"
+        if ($toOriginal === $ownName) {
             throw new EntityDescriptorException([
-                'template'          => 'Unable to build relation between entities {from}->{to}',
-                'from'              => $this->getEntityName(),
-                'to'                => $toEntity->getEntityName(),
+                'template'          => 'A relation of {entity} to itself must be joined by its role',
+                'entity'            => $ownName,
             ]);
         }
 
-        return $relation;
+        // Own relations name the original entity; aimed at a later occurrence they lead to its alias.
+        $candidates                 = \array_map(
+            static fn(RelationInterface $relation): RelationInterface => $toOriginal === $toName
+                ? $relation : $relation->cloneWithSubjects(rightEntityName: $toName),
+            $this->relationsTo($toOriginal)
+        );
+        if ($reversed !== null && !$this->mirrorsAny($reversed, $candidates)) {
+            $candidates[$toName . '.' . $reversed->getRelationName()] = $this->reverseRelation($reversed);
+        }
+
+        if ($candidates === []) {
+            throw new EntityDescriptorException([
+                'template'          => 'Unable to build relation between entities {from}->{to}',
+                'from'              => $ownName,
+                'to'                => $toName,
+            ]);
+        }
+
+        if (\count($candidates) > 1) {
+            $this->throwAmbiguousRelation($toName, \array_keys($candidates));
+        }
+
+        return clone \reset($candidates);
+    }
+
+    /**
+     * @return array<string, RelationInterface> own relations whose right entity is $entityName, by name
+     */
+    protected function relationsTo(string $entityName): array
+    {
+        return $this->relationsByTarget[$entityName] ?? [];
+    }
+
+    /**
+     * True when $relation, seen from its owner, is the reverse of one of $relations: the same edge declared on
+     * both ends, which R6 counts once.
+     *
+     * @param array<RelationInterface> $relations
+     */
+    protected function mirrorsAny(RelationInterface $relation, array $relations): bool
+    {
+        foreach ($relations as $candidate) {
+            if ($relation instanceof IndirectRelationInterface && $candidate instanceof IndirectRelationInterface
+                && $candidate->getEntitiesPath() === \array_reverse($relation->getEntitiesPath())) {
+                return true;
+            }
+
+            if ($relation instanceof DirectRelationInterface && $candidate instanceof DirectRelationInterface
+                && $candidate->getLeftKey()->getKeyColumns() === $relation->getRightKey()->getKeyColumns()
+                && $candidate->getRightKey()->getKeyColumns() === $relation->getLeftKey()->getKeyColumns()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<string> $names
+     *
+     * @throws EntityDescriptorException
+     */
+    protected function throwAmbiguousRelation(string $toEntity, array $names): never
+    {
+        throw new EntityDescriptorException([
+            'template'          => 'Several relations lead from {from} to {to}: {roles}; join by role',
+            'from'              => $this->getEntityName(),
+            'to'                => $toEntity,
+            'roles'             => \implode(', ', $names),
+        ]);
     }
 
     /**
@@ -543,10 +633,14 @@ abstract class EntityAbstract implements
             return true;
         }
 
-        $relation                   = $this->findRelation($withEntity->getEntityName())
-                                      ?? $withEntity->findRelation($this->getEntityName());
+        $relations                  = $this->relationsTo($withEntity->getEntityName());
 
-        return $relation?->isConsistentRelations();
+        if ($relations === [] && $withEntity instanceof self) {
+            $relations              = $withEntity->relationsTo($this->getEntityName());
+        }
+
+        // Every relation between two entities joins the same two storages, so any of them answers.
+        return $relations === [] ? null : \reset($relations)->isConsistentRelations();
     }
 
     #[\Override]
@@ -651,18 +745,26 @@ abstract class EntityAbstract implements
         return $this;
     }
 
+    /**
+     * @param list<string> $derivedFrom
+     */
     #[\Override]
     public function describeReference(
         string|(EntityInterface & EntityDescriptorInterface) $toEntity,
         string                                               $relationType  = RelationInterface::REFERENCE,
         bool                                                 $isRequired    = true,
-        ?string                                               $propertyName  = null
+        ?string                                               $propertyName  = null,
+        ?string                                               $role          = null,
+        string                                               $integrity     = RelationInterface::INTEGRITY_DECLARED,
+        array                                                $derivedFrom   = []
     ): static {
         if ($this->buildAsRaw) {
             return $this;
         }
 
-        $this->getEntityBuilder()->buildReference($this, $toEntity, $relationType, $isRequired);
+        $this->getEntityBuilder()->buildReference(
+            $this, $toEntity, $relationType, $isRequired, $propertyName, $role, $integrity, $derivedFrom
+        );
         return $this;
     }
 
@@ -764,7 +866,12 @@ abstract class EntityAbstract implements
         $key                        = $relation->getRelationName();
         $this->throwIfRedefine('relation', $key, $this->relations, $isRedefine);
 
+        if (\array_key_exists($key, $this->relations)) {
+            unset($this->relationsByTarget[$this->relations[$key]->getRightEntityName()][$key]);
+        }
+
         $this->relations[$key]      = $relation;
+        $this->relationsByTarget[$relation->getRightEntityName()][$key] = $relation;
 
         return $this;
     }

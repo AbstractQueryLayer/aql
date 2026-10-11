@@ -7,6 +7,7 @@ namespace IfCastle\AQL\Entity\Property;
 use IfCastle\AOP\AspectsByGroupsTrait;
 use IfCastle\AQL\Aspects\AccessControl\AccessByGroups\AccessByGroupsTrait;
 use IfCastle\AQL\Dsl\Node\NodeHelper;
+use IfCastle\AQL\Dsl\Relation\RelationInterface;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\Variable;
@@ -123,6 +124,18 @@ class PropertyAbstract implements PropertyInterface
      * Type of relations.
      */
     protected ?string $relationType = null;
+
+    /**
+     * Name of the relation this reference creates; NULL: derived from the property name.
+     */
+    protected ?string $relationRole = null;
+
+    protected string $relationIntegrity = RelationInterface::INTEGRITY_DECLARED;
+
+    /**
+     * @var list<string>
+     */
+    protected array $relationDerivedFrom = [];
 
     /**
      * If property able result.
@@ -877,6 +890,45 @@ class PropertyAbstract implements PropertyInterface
     }
 
     #[\Override]
+    public function setRelationRole(string $role): static
+    {
+        $this->relationRole         = $role;
+
+        return $this;
+    }
+
+    #[\Override]
+    public function setRelationIntegrity(string $integrity, array $derivedFrom = []): static
+    {
+        $this->relationIntegrity    = $integrity;
+        $this->relationDerivedFrom  = $derivedFrom;
+
+        return $this;
+    }
+
+    /**
+     * Role of the relation this reference creates: the explicit role, or the property name without `Id`.
+     *
+     * @throws EntityDescriptorException when the property has no `Id` suffix and no explicit role
+     */
+    protected function relationRoleName(EntityInterface $ownerEntity): string
+    {
+        if ($this->relationRole !== null) {
+            return $this->relationRole;
+        }
+
+        if (\strlen($this->name) > 2 && \str_ends_with($this->name, 'Id')) {
+            return \substr($this->name, 0, -2);
+        }
+
+        throw new EntityDescriptorException([
+            'template'          => 'Reference property {entity}.{property} needs an explicit role: its name has no Id suffix',
+            'entity'            => $ownerEntity->getEntityName(),
+            'property'          => $this->name,
+        ]);
+    }
+
+    #[\Override]
     public function isPrimaryKey(): bool
     {
         return $this->isPrimaryKey;
@@ -961,7 +1013,7 @@ class PropertyAbstract implements PropertyInterface
     {
         // If property has referenceToEntity and relationType
         // and relations for that entity is not defined
-        if (!empty($this->referenceToEntity) && $ownerEntity->findRelation($this->referenceToEntity) === null) {
+        if (!empty($this->referenceToEntity) && !\array_key_exists($this->relationRoleName($ownerEntity), $ownerEntity->getRelations())) {
             $this->addRelationToEntity($ownerEntity, $container->resolveDependency(EntityDescriptorFactoryInterface::class));
         }
     }
@@ -1028,17 +1080,29 @@ class PropertyAbstract implements PropertyInterface
     protected function addRelationToEntity(EntityInterface $ownerEntity, EntityDescriptorFactoryInterface $entityFactory): void
     {
         $entity                     = $entityFactory->getEntityDescriptor($this->referenceToEntity, true);
+        $role                       = $this->relationRoleName($ownerEntity);
 
-        $relation                   = new DirectRelation(
+        // A role shares the column namespace in `alias.name` expressions, so it cannot repeat a property name.
+        if ($ownerEntity->getProperty($role, false) !== null) {
+            throw new EntityDescriptorException([
+                'template'          => 'Role {entity}.{role} repeats a property name',
+                'entity'            => $ownerEntity->getEntityName(),
+                'role'              => $role,
+            ]);
+        }
+
+        $relation                   = (new DirectRelation(
             $ownerEntity->getEntityName(), new Key($this->name),
             $entity->getEntityName(), $entity->getPrimaryKey(),
             $this->relationType,
-        );
+        ))->setRelationName($role)->setIntegrity($this->relationIntegrity, $this->relationDerivedFrom);
 
         //
-        // If the property IS NOT NULL, then relation is required
+        // A NOT NULL reference is required unless no constraint guarantees the referenced row
         //
-        $relation->setIsRequired($this->isNotNull());
+        $relation->setIsRequired(
+            $this->isNotNull() && $this->relationIntegrity !== RelationInterface::INTEGRITY_LOGICAL
+        );
 
         //
         // If entities are in different storages, then the relation is not consistent

@@ -19,6 +19,7 @@ use IfCastle\AQL\Entity\Relation\DirectRelation;
 use IfCastle\AQL\Entity\Relation\DirectRelationInterface;
 use IfCastle\AQL\Entity\Relation\IndirectRelation;
 use IfCastle\AQL\Entity\Relation\IndirectRelationInterface;
+use IfCastle\AQL\Entity\Relation\RelationAbstract;
 use IfCastle\AQL\Entity\Relation\RelationInheritByInterface;
 use IfCastle\DI\ContainerInterface;
 use IfCastle\DI\DisposableInterface;
@@ -55,13 +56,19 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
 
     protected function buildProperties(EntityInterface & EntityDescriptorInterface $entity): void {}
 
+    /**
+     * @param list<string> $derivedFrom
+     */
     #[\Override]
     public function buildReference(
         EntityDescriptorInterface&EntityInterface $fromEntity,
         (EntityDescriptorInterface&EntityInterface)|string $toEntity,
         string $relationType = RelationInterface::REFERENCE,
         bool $isRequired = true,
-        ?string $propertyName = null
+        ?string $propertyName = null,
+        ?string $role = null,
+        string $integrity = RelationInterface::INTEGRITY_DECLARED,
+        array $derivedFrom = []
     ): void {
         $toEntity = $toEntity instanceof EntityInterface ? $toEntity : $this->entityFactory->getEntity($toEntity, true);
 
@@ -71,7 +78,10 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
             $fromEntity,
             $relationType,
             $isRequired,
-            $propertyName
+            $propertyName,
+            $role,
+            $integrity,
+            $derivedFrom
         );
     }
 
@@ -254,7 +264,7 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
                 ->setIsConsistent($relation->isConsistentRelations())
                 ->setIsLeastOnce($relation->isLeastOnce());
 
-            return $newRelation;
+            return $this->keepRole($relation, $newRelation);
         }
 
         //
@@ -265,7 +275,7 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
             ->setIsConsistent($relation->isConsistentRelations())
             ->setIsLeastOnce($relation->isLeastOnce());
 
-        return $newRelation;
+        return $this->keepRole($relation, $newRelation);
     }
 
     /**
@@ -287,7 +297,17 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
             ->setIsConsistent($relation->isConsistentRelations())
             ->setIsLeastOnce($relation->isLeastOnce());
 
-        return $newRelation;
+        return $this->keepRole($relation, $newRelation);
+    }
+
+    /**
+     * An inherited relation keeps the parent's role and integrity: the child's inherited reference property then
+     * finds its relation by role and adds no second one.
+     */
+    protected function keepRole(RelationInterface $inherited, RelationAbstract $relation): RelationAbstract
+    {
+        return $relation->setRelationName($inherited->getRelationName())
+            ->setIntegrity($inherited->getIntegrity(), $inherited->getDerivedFrom());
     }
 
     #[\Override]

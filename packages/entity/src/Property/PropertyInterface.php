@@ -272,6 +272,19 @@ interface PropertyInterface extends AccessByGroupsMutableInterface, AspectsByGro
 
     public function setRelationType(string $relationType): static;
 
+    /**
+     * Names the relation this reference property creates. Without a role the name is the property name
+     * without its `Id` suffix; a property without the suffix must be given a role.
+     */
+    public function setRelationRole(string $role): static;
+
+    /**
+     * Sets the integrity of the relation this reference property creates (RelationInterface::INTEGRITY_*).
+     *
+     * @param list<string> $derivedFrom constraint names, required for an implied relation
+     */
+    public function setRelationIntegrity(string $integrity, array $derivedFrom = []): static;
+
     public function isPrimaryKey(): bool;
 
     public function setIsPrimaryKey(bool $isPrimaryKey): static;

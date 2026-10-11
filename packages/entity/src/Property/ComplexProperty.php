@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Entity\Property;
 
+use IfCastle\AQL\Dsl\Relation\RelationInterface;
 use IfCastle\AQL\Entity\EntityDescriptorInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
@@ -17,6 +18,8 @@ use IfCastle\AQL\Executor\Context\PropertyContextInterface;
 class ComplexProperty extends PropertyAbstract
 {
     /**
+     * @param list<string> $derivedFrom
+     *
      * @throws EntityDescriptorException
      */
     public static function describeReferenceByKey(
@@ -25,22 +28,40 @@ class ComplexProperty extends PropertyAbstract
         EntityInterface&EntityDescriptorInterface $fromEntity,
         string                                    $relationType,
         bool                                      $isRequired = true,
-        ?string                                    $propertyName = null
+        ?string                                    $propertyName = null,
+        ?string                                    $role = null,
+        string                                    $integrity = RelationInterface::INTEGRITY_DECLARED,
+        array                                     $derivedFrom = []
     ): void {
         $primaryKey                 = $toEntity->getPrimaryKey();
         $namingStrategy             = $toEntity->getNamingStrategy();
 
         if ($primaryKey->isKeySimple()) {
-            $fromEntity->describeProperty(
-                $toEntity->getProperty($primaryKey->getKeyName())
-                           ->cloneAsReference($toEntity->getEntityName())
-                           ->setName($propertyName ?? $namingStrategy->generatePropertyName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity))
-                           ->setFieldName($namingStrategy->generateColumnName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity))
-                           ->setRelationType($relationType)
-                           ->setIsNotNull($isRequired)
-            );
+            $name                   = $propertyName
+                ?? $namingStrategy->generatePropertyName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity);
+            $property               = $toEntity->getProperty($primaryKey->getKeyName())
+                ->cloneAsReference($toEntity->getEntityName())
+                ->setName($name)
+                ->setFieldName($propertyName ?? $namingStrategy->generateColumnName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity))
+                ->setRelationType($relationType)
+                ->setIsNotNull($isRequired)
+                ->setRelationIntegrity($integrity, $derivedFrom);
+
+            if ($role !== null) {
+                $property->setRelationRole($role);
+            }
+
+            $fromEntity->describeProperty($property);
 
             return;
+        }
+
+        if ($role !== null || $integrity !== RelationInterface::INTEGRITY_DECLARED) {
+            throw new EntityDescriptorException([
+                'template'          => 'Roles and integrity of composite references are not supported yet ({from} -> {to})',
+                'from'              => $fromEntity->getEntityName(),
+                'to'                => $toEntity->getEntityName(),
+            ]);
         }
 
         $properties                 = [];

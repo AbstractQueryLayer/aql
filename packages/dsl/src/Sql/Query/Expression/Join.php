@@ -17,6 +17,13 @@ class Join extends NodeAbstract implements JoinInterface
 
     protected string $alias         = '';
 
+    protected string $qualifier     = '';
+
+    /**
+     * @var array{0: string, 1: string}|null
+     */
+    protected ?array $role          = null;
+
     protected bool $onlySubject     = false;
 
     /**
@@ -70,8 +77,14 @@ class Join extends NodeAbstract implements JoinInterface
             $aql                    = $join
                                     . $this->childNodes[self::NODE_SUBQUERY]->getAql($forResolved)
                                     . ' as ' . $this->childNodes[self::NODE_SUBJECT]->getNameOrAlias();
+        } elseif ($this->role !== null && $this->getSubject()->getSubjectName() === '') {
+            $aql                    = $join . $this->role[0] . '.' . $this->role[1];
         } else {
             $aql                    = $join . $this->childNodes[self::NODE_SUBJECT]->getAql($forResolved);
+        }
+
+        if ($this->qualifier !== '') {
+            $aql                    .= ' AS ' . $this->qualifier;
         }
 
         $relations                  = $this->childNodes[self::NODE_RELATION]?->getAql($forResolved);
@@ -163,6 +176,34 @@ class Join extends NodeAbstract implements JoinInterface
     public function getAlias(): string
     {
         return $this->alias === '' ? $this->childNodes[self::NODE_SUBJECT]->getNameOrAlias() : $this->alias;
+    }
+
+    #[\Override]
+    public function getQualifier(): string
+    {
+        return $this->qualifier;
+    }
+
+    #[\Override]
+    public function setQualifier(string $qualifier): static
+    {
+        $this->qualifier            = $qualifier;
+
+        return $this;
+    }
+
+    #[\Override]
+    public function getRole(): ?array
+    {
+        return $this->role;
+    }
+
+    #[\Override]
+    public function setRole(string $ownerQualifier, string $role): static
+    {
+        $this->role                 = [$ownerQualifier, $role];
+
+        return $this;
     }
 
     #[\Override]

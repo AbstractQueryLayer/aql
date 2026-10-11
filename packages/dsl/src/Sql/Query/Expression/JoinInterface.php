@@ -68,6 +68,23 @@ interface JoinInterface extends NodeInterface, ChildNodeMutableInterface
 
     public function getAlias(): string;
 
+    /**
+     * The name the query uses for this occurrence of the subject (`FROM Work w`, `JOIN w.publishedRevision v`);
+     * empty when the query names it by its entity.
+     */
+    public function getQualifier(): string;
+
+    public function setQualifier(string $qualifier): static;
+
+    /**
+     * For a join along a role (`JOIN w.publishedRevision v`): [owner qualifier, role name]; NULL otherwise.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    public function getRole(): ?array;
+
+    public function setRole(string $ownerQualifier, string $role): static;
+
     public function setAlias(string $alias): static;
 
     public function getSubject(): SubjectInterface;

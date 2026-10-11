@@ -14,6 +14,15 @@ use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 class Join extends AqlParserAbstract
 {
     public const string ALLOW_JOINS = 'JOIN';
+
+    /**
+     * Words that may follow a subject in FROM or JOIN and are therefore never taken for an alias without AS.
+     */
+    public const array WORDS_AFTER_SUBJECT = [
+        'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'NATURAL', 'STRAIGHT_JOIN', 'SUBQUERY', 'ON', 'USING',
+        'WHERE', 'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'SET', 'FOR', 'LOCK', 'WITH', 'VALUES',
+        'SELECT', 'INTO', 'USE', 'FORCE', 'IGNORE', 'PARTITION', 'WINDOW', 'RETURNING',
+    ];
     public const string ALLOW_JOIN_CONDITIONS = 'ON';
     public const string ALLOW_JOIN_DEPENDENT = 'Dependent Joins';
     public const string ALLOW_DERIVED_TABLE = 'Derived Table';
@@ -54,6 +63,7 @@ class Join extends AqlParserAbstract
         $subjectName                = null;
         $join                       = null;
         $subjectAlias               = null;
+        $role                       = null;
         $conditions                 = null;
         $dependentJoins             = [];
 
@@ -71,22 +81,23 @@ class Join extends AqlParserAbstract
             }
 
             $subjectName            = $token;
-
-            // 4. Subject alias
             $tokens->nextToken();
 
-            if ($tokens->currentTokenAsString() === 'AS') {
+            // 3a. Role path: JOIN owner.role
+            if ($tokens->currentTokenAsString() === '.') {
 
                 [$type, $token, $line] = $tokens->nextToken();
 
                 if ($type !== T_STRING) {
-                    throw new ParseException(\sprintf('Expected EntityName alias (got \'%s\')', $token), ['line' => $line]);
+                    throw new ParseException(\sprintf('Expected a role name after \'%s.\' (got \'%s\')', $subjectName, $token), ['line' => $line]);
                 }
 
-                $subjectAlias       = $token;
-
-                $tokens->nextTokens();
+                $role               = [$subjectName, $token];
+                $tokens->nextToken();
             }
+
+            // 4. Subject alias: [AS] alias
+            $subjectAlias           = $this->parseQualifier($tokens);
         }
 
         // 5. ON expression
@@ -128,12 +139,18 @@ class Join extends AqlParserAbstract
             $tokens->nextTokens();
         }
 
-        $join                       ??= new JoinNode(
-            $joinType, new Subject(\ucfirst($subjectName), '', $subjectAlias ?? '')
-        );
+        if ($join === null) {
+            $join                   = new JoinNode($joinType, new Subject($role === null ? \ucfirst($subjectName) : ''));
 
-        if ($subjectAlias !== null) {
-            $join->setAlias($subjectAlias);
+            if ($role !== null) {
+                $join->setRole(...$role);
+            }
+
+            if ($subjectAlias !== null || $role !== null) {
+                // A role join without an alias is named by its role: `JOIN w.publishedRevision` → publishedRevision.x
+                $join->setQualifier($subjectAlias ?? $role[1]);
+                $join->setAlias($subjectAlias ?? $role[1]);
+            }
         }
 
         if ($conditions !== null) {
@@ -203,6 +220,44 @@ class Join extends AqlParserAbstract
     protected function nodeForSubquery(SubqueryInterface $subquery, string $joinType, string $alias): JoinInterface
     {
         return JoinNode::newFromSubquery($subquery, $joinType, $alias);
+    }
+
+    /**
+     * Parses an optional `[AS] alias` after a subject. Without AS, a word is an alias unless it is a keyword that
+     * may follow a subject or one of the iterator's stop tokens.
+     *
+     * @throws ParseException
+     */
+    public function parseQualifier(TokensIteratorInterface $tokens): ?string
+    {
+        [$type, $token, $line]      = $tokens->currentToken();
+
+        if ($type === false) {
+            return null;
+        }
+
+        if ($token === 'AS') {
+
+            [$type, $token, $line]  = $tokens->nextToken();
+
+            if ($type !== T_STRING) {
+                throw new ParseException(\sprintf('Expected an alias after AS (got \'%s\')', $token), ['line' => $line]);
+            }
+
+            $tokens->nextTokens();
+
+            return $token;
+        }
+
+        if ($type !== T_STRING
+            || \in_array(\strtoupper((string) $token), self::WORDS_AFTER_SUBJECT, true)
+            || \array_key_exists(\strtolower((string) $token), $tokens->getStopTokens())) {
+            return null;
+        }
+
+        $tokens->nextTokens();
+
+        return $token;
     }
 
     public function isJoinFirstKeyword(string $token): bool

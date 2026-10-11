@@ -162,7 +162,7 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
             /** @lang aql */'SELECT (SELECT title FROM BookSection, Book) as title FROM Book',
             /** @lang aql */'SELECT 
             (SELECT `t0_t0`.`title` FROM `book_section` as `t0_t0` 
-                INNER JOIN `book` as `t0_t1` ON (`t0_t1`.`bookSectionId` = `t1`.`id`) WHERE `t0_t0`.`id` = `t0`.`bookSectionId` LIMIT 1) 
+                INNER JOIN `book` as `t0_t1` ON (`t0_t1`.`bookSectionId` = `t0_t0`.`id`) WHERE `t0_t0`.`id` = `t0`.`bookSectionId` LIMIT 1) 
             as `title` FROM `book` as `t0`',
         ),
         );

@@ -64,6 +64,18 @@ abstract class RelationAbstract extends NodeAbstract implements RelationInterfac
     protected string $rightEntityName;
 
     /**
+     * Role name; NULL means the relation is named by its right entity.
+     */
+    protected ?string $relationName = null;
+
+    protected string $integrity     = self::INTEGRITY_DECLARED;
+
+    /**
+     * @var list<string>
+     */
+    protected array $derivedFrom    = [];
+
+    /**
      * Additional conditions.
      */
     protected ?ConditionsInterface $conditions = null;
@@ -90,7 +102,49 @@ abstract class RelationAbstract extends NodeAbstract implements RelationInterfac
     #[\Override]
     public function getRelationName(): string
     {
-        return $this->rightEntityName;
+        return $this->relationName ?? $this->rightEntityName;
+    }
+
+    /**
+     * Names the relation by a role; a relation without a name is named by its right entity.
+     */
+    public function setRelationName(string $relationName): static
+    {
+        $this->relationName         = $relationName;
+        return $this;
+    }
+
+    #[\Override]
+    public function getIntegrity(): string
+    {
+        return $this->integrity;
+    }
+
+    #[\Override]
+    public function getDerivedFrom(): array
+    {
+        return $this->derivedFrom;
+    }
+
+    /**
+     * @param list<string> $derivedFrom constraint names, required for INTEGRITY_IMPLIED
+     *
+     * @throws \InvalidArgumentException on an unknown integrity, or derivedFrom that does not fit it
+     */
+    public function setIntegrity(string $integrity, array $derivedFrom = []): static
+    {
+        if (!\in_array($integrity, [self::INTEGRITY_DECLARED, self::INTEGRITY_IMPLIED, self::INTEGRITY_LOGICAL], true)) {
+            throw new \InvalidArgumentException(\sprintf('Unknown relation integrity "%s"', $integrity));
+        }
+
+        if (($integrity === self::INTEGRITY_IMPLIED) === ($derivedFrom === [])) {
+            throw new \InvalidArgumentException('Only an implied relation lists the constraints it is derived from');
+        }
+
+        $this->integrity            = $integrity;
+        $this->derivedFrom          = $derivedFrom;
+
+        return $this;
     }
 
     #[\Override]

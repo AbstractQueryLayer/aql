@@ -143,6 +143,40 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertNotSame($first, $second);
     }
 
+    public function testRoleJoinsAndSelfJoinReachMariaDb(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
+        $this->pdo->exec('CREATE TABLE article (id INT PRIMARY KEY, name VARCHAR(64) NOT NULL,'
+            . ' draftRevisionId INT NULL, publishedRevisionId INT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('CREATE TABLE article_revision (id INT PRIMARY KEY, title VARCHAR(64) NOT NULL,'
+            . ' articleId INT NOT NULL, parentId INT NULL) ENGINE=InnoDB');
+
+        try {
+            $this->pdo->exec("INSERT INTO article_revision VALUES (1, 'first', 1, NULL), (2, 'second', 1, 1),"
+                . " (3, 'third', 1, 2)");
+            $this->pdo->exec("INSERT INTO article VALUES (1, 'one', 3, 2), (2, 'two', NULL, NULL)");
+
+            $roles = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT a.name, p.title AS published, d.title AS draft FROM Article a'
+                . ' LEFT JOIN a.publishedRevision p LEFT JOIN a.draftRevision d ORDER BY a.id'
+            ))->finalize()->toArray();
+
+            $this->assertSame([
+                ['name' => 'one', 'published' => 'second', 'draft' => 'third'],
+                ['name' => 'two', 'published' => null, 'draft' => null],
+            ], $roles);
+
+            $ancestors = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT r.title, p.title AS parentTitle, g.title AS grandparentTitle FROM ArticleRevision r'
+                . ' JOIN r.parent p JOIN p.parent g'
+            ))->finalize()->toArray();
+
+            $this->assertSame([['title' => 'third', 'parentTitle' => 'second', 'grandparentTitle' => 'first']], $ancestors);
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
+        }
+    }
+
     public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
     {
         $first = $this->insert($this->aqlExecutor, 1);

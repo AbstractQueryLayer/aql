@@ -193,9 +193,40 @@ interface RelationInterface extends NodeInterface
     final public const string SELF_REFERENCE = 'self';
 
     /**
-     * Returns unique relation name.
+     * Integrity of a relation: a foreign key on exactly its columns exists in the database.
+     * DDL generation emits the constraint.
+     */
+    final public const string INTEGRITY_DECLARED = 'declared';
+
+    /**
+     * Integrity of a relation: it follows from declared foreign keys by projection or transitivity
+     * (see getDerivedFrom()); no constraint of its own exists, and DDL generation emits none.
+     */
+    final public const string INTEGRITY_IMPLIED = 'implied';
+
+    /**
+     * Integrity of a relation: no constraint guarantees it; a logical relation is never required.
+     */
+    final public const string INTEGRITY_LOGICAL = 'logical';
+
+    /**
+     * Returns the relation name, unique among the relations of its left (owner) entity.
+     * A relation built from a reference property is named by its role (`publishedRevision` for
+     * `publishedRevisionId`); other relations are named by their right entity.
      */
     public function getRelationName(): string;
+
+    /**
+     * Returns one of the INTEGRITY_* constants.
+     */
+    public function getIntegrity(): string;
+
+    /**
+     * Names of the foreign-key constraints an implied relation follows from; empty otherwise.
+     *
+     * @return list<string>
+     */
+    public function getDerivedFrom(): array;
 
     public function getRelationType(): string;
 

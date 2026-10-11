@@ -8,6 +8,7 @@ use IfCastle\AQL\Dsl\Ddl\ColumnDefinitionInterface;
 use IfCastle\AQL\Dsl\Ddl\ConstraintDefinition;
 use IfCastle\AQL\Dsl\Ddl\Table;
 use IfCastle\AQL\Dsl\Ddl\TableInterface;
+use IfCastle\AQL\Dsl\Relation\RelationInterface;
 use IfCastle\AQL\Entity\Builder\NamingStrategy\NamingStrategyInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Entity\Manager\EntityFactoryInterface;
@@ -126,7 +127,9 @@ abstract class EntityToTableAbstract implements EntityToTableInterface, AutoReso
     {
         foreach ($this->entity->getRelations() as $relation) {
 
-            if ($relation instanceof DirectRelationInterface === false) {
+            // Only a declared relation is a constraint of its own; implied and logical ones have none to emit.
+            if ($relation instanceof DirectRelationInterface === false
+                || $relation->getIntegrity() !== RelationInterface::INTEGRITY_DECLARED) {
                 continue;
             }
 

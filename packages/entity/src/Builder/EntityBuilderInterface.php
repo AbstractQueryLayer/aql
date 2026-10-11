@@ -12,12 +12,18 @@ interface EntityBuilderInterface
 {
     public function buildEntity(EntityInterface & EntityDescriptorInterface $entity, bool $isRaw = false): void;
 
+    /**
+     * @param list<string> $derivedFrom
+     */
     public function buildReference(
         EntityDescriptorInterface & EntityInterface          $fromEntity,
         string|(EntityInterface & EntityDescriptorInterface) $toEntity,
         string                                               $relationType = RelationInterface::REFERENCE,
         bool                                                 $isRequired = true,
-        ?string                                               $propertyName = null
+        ?string                                               $propertyName = null,
+        ?string                                               $role = null,
+        string                                               $integrity = RelationInterface::INTEGRITY_DECLARED,
+        array                                                $derivedFrom = []
     ): void;
 
     public function buildCrossReference(

@@ -64,13 +64,21 @@ interface EntityDescriptorInterface extends NamingStrategyAwareInterface, PostAc
      * The property can be NULLABLE or not (default is NOT NULL $isRequired = true).
      * The method causes the Relation section to be automatically populated with the specified relationship.
      *
+     * @param string|null  $propertyName the reference column; default: target entity name + its key name
+     * @param string|null  $role         relation name; default: the property name without its `Id` suffix
+     * @param string       $integrity    RelationInterface::INTEGRITY_*: what guarantees the referenced row
+     * @param list<string> $derivedFrom  constraint names an implied relation follows from
+     *
      * @return   $this
      */
     public function describeReference(
         string|(EntityInterface & EntityDescriptorInterface) $toEntity,
         string                                             $relationType = RelationInterface::REFERENCE,
         bool                                               $isRequired = true,
-        ?string                                             $propertyName = null
+        ?string                                             $propertyName = null,
+        ?string                                             $role = null,
+        string                                             $integrity = RelationInterface::INTEGRITY_DECLARED,
+        array                                              $derivedFrom = []
     ): static;
 
     /**

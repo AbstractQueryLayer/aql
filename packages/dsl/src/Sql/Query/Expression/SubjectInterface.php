@@ -13,6 +13,8 @@ interface SubjectInterface extends NodeInterface
      */
     public function getSubjectName(): string;
 
+    public function setSubjectName(string $subjectName): static;
+
     /**
      * Returns DataBase resolved name (example table name).
      */

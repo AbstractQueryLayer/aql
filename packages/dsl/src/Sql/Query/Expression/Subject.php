@@ -25,6 +25,16 @@ class Subject extends NodeAbstract implements SubjectInterface
         return $this->subjectName;
     }
 
+    /**
+     * Names the subject's entity once the executor resolves it (a role join knows its entity only then).
+     */
+    public function setSubjectName(string $subjectName): static
+    {
+        $this->subjectName          = $subjectName;
+
+        return $this;
+    }
+
     #[\Override]
     public function getResolvedName(): ?string
     {

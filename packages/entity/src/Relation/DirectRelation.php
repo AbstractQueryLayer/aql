@@ -59,6 +59,9 @@ class DirectRelation extends RelationAbstract implements DirectRelationInterface
 
         $reversed->isLeastOnce      = $this->isLeastOnce;
         $reversed->isRequired       = $this->isRequired;
+        $reversed->isConsistent     = $this->isConsistent;
+        $reversed->integrity        = $this->integrity;
+        $reversed->derivedFrom      = $this->derivedFrom;
 
         if ($this->conditions !== null) {
             $reversed->conditions   = $this->conditions->reverseConditions();
