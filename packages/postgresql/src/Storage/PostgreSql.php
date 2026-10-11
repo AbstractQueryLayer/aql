@@ -9,8 +9,10 @@ use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Executor\Context\NodeContextInterface;
 use IfCastle\AQL\Executor\FunctionHandlerInterface;
+use IfCastle\AQL\Executor\SqlQueryExecutor;
 use IfCastle\AQL\Generator\Ddl\EntityToTableInterface;
 use IfCastle\AQL\PdoDriver\PDOAbstract;
+use IfCastle\AQL\PostgreSql\Executor\PostgreSqlQueryExecutor;
 use IfCastle\AQL\Storage\Exceptions\DuplicateKeysException;
 use IfCastle\AQL\Storage\Exceptions\QueryException;
 use IfCastle\AQL\Storage\Exceptions\RecoverableException;
@@ -55,6 +57,12 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
             '23505'                 => new DuplicateKeysException($message, $sql, $exception), // unique_violation
             default                 => new QueryException($message, $sql, $exception)
         };
+    }
+
+    #[\Override]
+    protected function newSqlQueryExecutor(): SqlQueryExecutor
+    {
+        return new PostgreSqlQueryExecutor();
     }
 
     #[\Override]

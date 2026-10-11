@@ -359,4 +359,42 @@ class SelectTest extends TestCase
             /** @lang aql */ 'SELECT a - 1 as "c", expiresAt + INTERVAL {s} DAY as "d" FROM Test'
         ));
     }
+
+    public function testForUpdateEndsTheSelectAfterLimit(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test WHERE id = {id} ORDER BY id LIMIT 1 FOR UPDATE',
+            /** @lang aql */ 'SELECT id FROM Test WHERE id = {id} ORDER BY id LIMIT 0, 1 FOR UPDATE'
+        ));
+    }
+
+    public function testForUpdateWithoutWhere(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test FOR UPDATE',
+            /** @lang aql */ 'SELECT id FROM Test FOR UPDATE'
+        ));
+    }
+
+    public function testLockInShareMode(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test WHERE id = 1 LOCK IN SHARE MODE',
+            /** @lang aql */ 'SELECT id FROM Test WHERE id = 1 LOCK IN SHARE MODE'
+        ));
+    }
+
+    public function testIncompleteLockClauseIsRejected(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('SELECT id FROM Test LOCK IN SHARE');
+    }
+
+    public function testForWithoutUpdateIsRejected(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('SELECT id FROM Test FOR SHARE');
+    }
 }

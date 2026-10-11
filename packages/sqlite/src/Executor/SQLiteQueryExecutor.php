@@ -14,6 +14,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\SubjectInterface;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
+use IfCastle\AQL\Dsl\Sql\Query\SelectInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Executor\Context\NodeContextInterface;
 use IfCastle\AQL\Executor\Exceptions\QueryException;
@@ -35,9 +36,33 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
             }
         } elseif ($query instanceof QueryInterface && $query->isModifying()) {
             $this->refuseUnsupportedRowSelection($query, $context);
+        } elseif ($query instanceof SelectInterface) {
+            $this->refuseLockingRead($query);
         }
 
         parent::postHandleQuery($query, $context);
+    }
+
+    /**
+     * SQLite has no row locks: a write locks the whole database file. A locking read would run as a plain read and
+     * promise a protection it does not give, so it is refused.
+     *
+     * @throws QueryException
+     */
+    private function refuseLockingRead(SelectInterface $query): void
+    {
+        $lockMode                   = $query->getLockMode();
+
+        if ($lockMode === null) {
+            return;
+        }
+
+        throw new QueryException([
+            'query'                 => $query,
+            'clause'                => $lockMode->value,
+            'template'              => 'SQLite does not support {clause} in {query}; the statement is refused'
+                                       . ' because it would run as a read that locks no rows',
+        ]);
     }
 
     /**

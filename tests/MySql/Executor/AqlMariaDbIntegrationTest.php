@@ -32,6 +32,9 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 {
     private const string TABLE = 'aql_round_trip';
 
+    // https://mariadb.com/kb/en/mariadb-error-code-reference/ : Lock wait timeout exceeded
+    private const int ER_LOCK_WAIT_TIMEOUT = 1205;
+
     private \PDO $pdo;
 
     private SqlRecordingMySql $mySql;
@@ -569,6 +572,101 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame([1, 6], [(int) $rows[0]['attempts'], (int) $rows[1]['attempts']]);
         $this->assertEqualsWithDelta($this->serverUtcNow(), $this->microtime($rows[0]['windowStart']), 5.0);
         $this->assertEqualsWithDelta($this->serverUtcNow() - 10, $this->microtime($rows[1]['windowStart']), 5.0);
+    }
+
+    /**
+     * The lock-wait timeout of the second connection is one second, so a blocked UPDATE fails fast with error 1205.
+     * That the AQL query ran inside the transaction follows from the controls: the same locking read in autocommit
+     * releases its lock at once, and an ordinary read in the transaction holds none, so only a locking read inside the
+     * transaction can make the second connection wait.
+     */
+    public function testForUpdateInsideATransactionBlocksAnotherConnectionUntilCommit(): void
+    {
+        $id = $this->insert($this->aqlExecutor, 1);
+        $other = $this->secondConnection();
+        $transactional = new WithTransaction($this->aqlExecutor);
+
+        // An ordinary read in a transaction takes no row lock.
+        $transactional->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
+            $this->assertSame([['id' => $id]], $this->lockingSelect($executor, $id, ''));
+            $this->assertSame(1, $other->exec('UPDATE ' . self::TABLE . ' SET value = "plain" WHERE id = ' . $id));
+        });
+
+        // The same locking read outside a transaction releases its lock when the statement ends.
+        $this->assertSame([['id' => $id]], $this->lockingSelect($this->aqlExecutor, $id, ' FOR UPDATE'));
+        $this->assertSame(1, $other->exec('UPDATE ' . self::TABLE . ' SET value = "autocommit" WHERE id = ' . $id));
+
+        $transactional->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
+            $this->assertSame([['id' => $id]], $this->lockingSelect($executor, $id, ' FOR UPDATE'));
+            $this->assertStringEndsWith(' FOR UPDATE', $this->mySql->lastSql);
+
+            try {
+                $other->exec('UPDATE ' . self::TABLE . ' SET value = "blocked" WHERE id = ' . $id);
+                $this->fail('The UPDATE of a locked row did not wait');
+            } catch (\PDOException $exception) {
+                $this->assertSame(self::ER_LOCK_WAIT_TIMEOUT, $exception->errorInfo[1]);
+            }
+        });
+
+        $this->assertSame(1, $other->exec('UPDATE ' . self::TABLE . ' SET value = "after commit" WHERE id = ' . $id));
+        $this->assertSame(
+            ['after commit'],
+            $this->pdo->query('SELECT value FROM ' . self::TABLE . ' WHERE id = ' . $id)->fetchAll(\PDO::FETCH_COLUMN)
+        );
+    }
+
+    public function testLockInShareModeBlocksWritersButNotReaders(): void
+    {
+        $id = $this->insert($this->aqlExecutor, 1);
+        $other = $this->secondConnection();
+
+        (new WithTransaction($this->aqlExecutor))->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
+            $this->assertSame([['id' => $id]], $this->lockingSelect($executor, $id, ' LOCK IN SHARE MODE'));
+            $this->assertStringEndsWith(' LOCK IN SHARE MODE', $this->mySql->lastSql);
+
+            $this->assertSame(
+                ['worker-1'],
+                $other->query('SELECT value FROM ' . self::TABLE . ' WHERE id = ' . $id)->fetchAll(\PDO::FETCH_COLUMN)
+            );
+
+            try {
+                $other->exec('UPDATE ' . self::TABLE . ' SET value = "blocked" WHERE id = ' . $id);
+                $this->fail('The UPDATE of a share-locked row did not wait');
+            } catch (\PDOException $exception) {
+                $this->assertSame(self::ER_LOCK_WAIT_TIMEOUT, $exception->errorInfo[1]);
+            }
+        });
+    }
+
+    public function testForUpdateRendersAfterLimit(): void
+    {
+        $id = $this->insert($this->aqlExecutor, 1);
+
+        $select = (new AqlParser())->parse(
+            'SELECT id FROM AqlRoundTrip WHERE id = {id} ORDER BY id LIMIT {n} FOR UPDATE'
+        );
+        $select->applyParameters(['id' => $id, 'n' => 1]);
+
+        $this->assertSame([['id' => $id]], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
+        $this->assertStringEndsWith(' ORDER BY `t0`.`id` LIMIT 1 FOR UPDATE', $this->mySql->lastSql);
+    }
+
+    /** A plain connection whose UPDATE of a locked row fails after one second instead of fifty. */
+    private function secondConnection(): \PDO
+    {
+        $connection = MariaDb::pdo();
+        $connection->exec('SET SESSION innodb_lock_wait_timeout = 1');
+
+        return $connection;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function lockingSelect(AqlExecutorInterface $executor, int $id, string $lock): array
+    {
+        $select = (new AqlParser())->parse('SELECT id FROM AqlRoundTrip WHERE id = {id}' . $lock);
+        $select->applyParameters(['id' => $id]);
+
+        return $executor->executeAql($select)->finalize()->toArray();
     }
 
     /** @return list<int> */

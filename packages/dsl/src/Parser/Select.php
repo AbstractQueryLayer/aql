@@ -14,6 +14,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\OrderByInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where as WhereNode;
+use IfCastle\AQL\Dsl\Sql\Query\LockMode;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Select as SelectNode;
 use IfCastle\AQL\Dsl\Sql\Query\SelectInterface;
@@ -125,6 +126,8 @@ class Select extends AqlParserAbstract
         $orderBy                    = (new OrderBy())->parseTokens($tokens);
         // 6. Limit
         $limit                      = (new Limit())->parseTokens($tokens);
+        // 7. Locking read: the last clause of the SELECT
+        $lockMode                   = $this->parseLockMode($tokens);
 
         // Build a query
 
@@ -141,6 +144,10 @@ class Select extends AqlParserAbstract
         $query->setOrderBy($orderBy);
 
         $query->setGroupBy($groupBy);
+
+        if ($query instanceof SelectInterface) {
+            $query->setLockMode($lockMode);
+        }
 
         // restore oldStopTokens
         $tokens->setStopTokens($oldStopTokens);
@@ -180,6 +187,39 @@ class Select extends AqlParserAbstract
         }
 
         return $query;
+    }
+
+    /**
+     * Parses the locking-read clause `FOR UPDATE` or `LOCK IN SHARE MODE`; null when the SELECT has none.
+     *
+     * @throws ParseException when `FOR` or `LOCK` does not start one of the two clauses
+     */
+    private function parseLockMode(TokensIteratorInterface $tokens): ?LockMode
+    {
+        $mode                       = match ($tokens->currentTokenAsString()) {
+            'FOR'                   => LockMode::FOR_UPDATE,
+            'LOCK'                  => LockMode::SHARE,
+            default                 => null,
+        };
+
+        if ($mode === null) {
+            return null;
+        }
+
+        foreach (\explode(' ', $mode->value) as $word) {
+            [, $token, $line]       = $tokens->currentToken();
+
+            // At the end of the input the iterator has no current line, so the line comes from the token.
+            if (\strtoupper((string) $token) !== $word) {
+                throw new ParseException(
+                    'Expected ' . $mode->value . ' (got: "' . $token . '")', ['line' => (int) $line]
+                );
+            }
+
+            $tokens->nextToken();
+        }
+
+        return $mode;
     }
 
     /**

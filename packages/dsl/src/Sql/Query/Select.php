@@ -59,6 +59,10 @@ class Select extends QueryAbstract implements SelectInterface
     protected ?UnionEnum $unionType = null;
     protected ?string $unionOption  = null;
 
+    protected ?LockMode $lockMode   = null;
+
+    protected bool $shareAsForShare = false;
+
     /**
      * @throws RequiredValueEmpty
      * @throws NodeException
@@ -113,7 +117,7 @@ class Select extends QueryAbstract implements SelectInterface
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . $results;
+        $query                      = \strtoupper($this->queryAction) . ' ' . $results . $this->lockClause(false);
 
         if ($union->isEmpty()) {
 
@@ -175,7 +179,8 @@ class Select extends QueryAbstract implements SelectInterface
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . \implode(' ', $results);
+        $query                      = \strtoupper($this->queryAction) . ' ' . \implode(' ', $results)
+                                      . $this->lockClause(true);
 
         $union                      = $this->getUnion();
 
@@ -229,6 +234,40 @@ class Select extends QueryAbstract implements SelectInterface
 
             $tuple->addTupleColumn($column);
         }
+
+        return $this;
+    }
+
+    #[\Override]
+    public function getLockMode(): ?LockMode
+    {
+        return $this->lockMode;
+    }
+
+    #[\Override]
+    public function setLockMode(?LockMode $mode): static
+    {
+        $this->lockMode             = $mode;
+
+        return $this;
+    }
+
+    #[\Override]
+    public function forUpdate(): static
+    {
+        return $this->setLockMode(LockMode::FOR_UPDATE);
+    }
+
+    #[\Override]
+    public function lockInShareMode(): static
+    {
+        return $this->setLockMode(LockMode::SHARE);
+    }
+
+    #[\Override]
+    public function renderShareAsForShare(): static
+    {
+        $this->shareAsForShare      = true;
 
         return $this;
     }
@@ -293,6 +332,23 @@ class Select extends QueryAbstract implements SelectInterface
         $this->childNodes[self::NODE_HAVING]    = (new Conditions())->setParentNode($this);
         $this->childNodes[self::NODE_LIMIT]     = (new Limit())->setParentNode($this);
         $this->childNodes[self::NODE_UNION]     = (new Union())->setParentNode($this);
+    }
+
+    /**
+     * The locking-read clause with its leading space, or an empty string for an ordinary read.
+     * The AQL form is always the MariaDB one, which the AQL parser reads back; the SQL form follows the dialect.
+     */
+    private function lockClause(bool $forSql): string
+    {
+        if ($this->lockMode === null) {
+            return '';
+        }
+
+        if ($forSql && $this->lockMode === LockMode::SHARE && $this->shareAsForShare) {
+            return ' FOR SHARE';
+        }
+
+        return ' ' . $this->lockMode->value;
     }
 
     protected function getParentUnion(): UnionInterface|null
