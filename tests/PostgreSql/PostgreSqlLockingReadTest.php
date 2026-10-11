@@ -100,7 +100,9 @@ final class PostgreSqlLockingReadTest extends TestCaseWithDiContainer
 
         (new WithTransaction($this->getAqlExecutor()))->run(
             function (AqlExecutorInterface $executor) use ($aqlClause, $sqlClause, $other, $update): void {
-                $select             = (new AqlParser())->parse('SELECT id FROM AqlRoundTrip WHERE id = 1 ' . $aqlClause);
+                $select             = (new AqlParser())->parse(
+                    'SELECT id FROM AqlRoundTrip WHERE id = 1 ' . $aqlClause
+                );
 
                 $this->assertSame([['id' => 1]], $executor->executeAql($select)->finalize()->toArray());
                 $this->assertStringEndsWith(' ' . $sqlClause, $this->lastSql);
@@ -115,5 +117,23 @@ final class PostgreSqlLockingReadTest extends TestCaseWithDiContainer
         );
 
         $this->assertSame(1, $other->exec($update));
+    }
+
+    /** Control: that the other connection waits above is caused by the lock, not by the transaction itself. */
+    public function testPlainReadInATransactionDoesNotBlockAnotherConnection(): void
+    {
+        $other                      = PostgresServer::pdo();
+        $other->exec("SET lock_timeout = '1s'");
+
+        (new WithTransaction($this->getAqlExecutor()))->run(
+            function (AqlExecutorInterface $executor) use ($other): void {
+                $select             = (new AqlParser())->parse('SELECT id FROM AqlRoundTrip WHERE id = 1');
+
+                $this->assertSame([['id' => 1]], $executor->executeAql($select)->finalize()->toArray());
+                $this->assertStringNotContainsString(' FOR ', $this->lastSql);
+
+                $this->assertSame(1, $other->exec("UPDATE aql_round_trip SET value = 'plain' WHERE id = 1"));
+            }
+        );
     }
 }

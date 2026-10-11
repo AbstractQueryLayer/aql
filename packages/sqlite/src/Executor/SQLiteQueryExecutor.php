@@ -44,8 +44,8 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
     }
 
     /**
-     * SQLite has no row locks: a write locks the whole database file. A locking read would run as a plain read and
-     * promise a protection it does not give, so it is refused.
+     * SQLite has no row-level locks, so there are no rows for FOR UPDATE or LOCK IN SHARE MODE to lock: a locking
+     * read would run as a plain read and promise a protection it does not give. It is refused.
      *
      * @throws QueryException
      */
@@ -60,8 +60,8 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
         throw new QueryException([
             'query'                 => $query,
             'clause'                => $lockMode->value,
-            'template'              => 'SQLite does not support {clause} in {query}; the statement is refused'
-                                       . ' because it would run as a read that locks no rows',
+            'template'              => 'SQLite has no row-level locks and does not support {clause} in {query};'
+                                       . ' the statement is refused because it would run as a plain read',
         ]);
     }
 
