@@ -760,6 +760,66 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertStringEndsWith(' ORDER BY `t0`.`id` LIMIT 1 FOR UPDATE', $this->mySql->lastSql);
     }
 
+    /**
+     * A database-wide named lock through AQL: no entity is read, so the default storage runs the SELECT, and the lock
+     * belongs to the connection the pool gives the coroutine, which the second plain connection tells apart.
+     */
+    public function testNamedLockThroughSelectWithoutFrom(): void
+    {
+        $name = 'aql_lock_' . \bin2hex(\random_bytes(4));
+        $other = $this->secondConnection();
+        $lockOfOther = static fn(): int => (int) $other->query("SELECT GET_LOCK('" . $name . "', 0)")->fetchColumn();
+
+        $this->assertSame([['locked' => 1]], $this->selectWithoutFrom('SELECT GET_LOCK({name}, 0) AS locked', $name));
+        $this->assertStringStartsWith('SELECT GET_LOCK(', $this->mySql->lastSql);
+        $this->assertStringNotContainsString(' FROM ', $this->mySql->lastSql);
+        $this->assertSame(0, $lockOfOther());
+
+        $rows = $this->selectWithoutFrom('SELECT IS_USED_LOCK({name}) AS holder, CONNECTION_ID() AS self', $name);
+        $this->assertCount(1, $rows);
+        $this->assertSame($rows[0]['self'], $rows[0]['holder']);
+        $this->assertGreaterThan(0, $rows[0]['self']);
+
+        $released = $this->selectWithoutFrom('SELECT RELEASE_LOCK({name}) AS released', $name);
+        $this->assertSame([['released' => 1]], $released);
+        $this->assertSame(1, $lockOfOther());
+        $other->query("SELECT RELEASE_LOCK('" . $name . "')")->fetchAll();
+    }
+
+    public function testDatabaseFunctionReturnsTheConnectedDatabase(): void
+    {
+        $this->assertSame(
+            [['name' => MariaDb::database()]],
+            $this->selectWithoutFrom('SELECT DATABASE() AS name')
+        );
+    }
+
+    public function testColumnWithoutFromFailsBeforeAnySqlIsSent(): void
+    {
+        $lastSql = $this->mySql->lastSql;
+
+        try {
+            $this->selectWithoutFrom('SELECT id AS id');
+            $this->fail('A column of a SELECT without FROM was executed');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('the SELECT has no FROM', $exception->getMessage());
+        }
+
+        $this->assertSame($lastSql, $this->mySql->lastSql);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function selectWithoutFrom(string $aql, ?string $name = null): array
+    {
+        $select = (new AqlParser())->parse($aql);
+
+        if ($name !== null) {
+            $select->applyParameters(['name' => $name]);
+        }
+
+        return $this->aqlExecutor->executeAql($select)->finalize()->toArray();
+    }
+
     /** A plain connection whose UPDATE of a locked row fails after one second instead of fifty. */
     private function secondConnection(): \PDO
     {

@@ -16,6 +16,9 @@ use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
 class NestedTuple extends Select
 {
     #[\Override]
+    protected bool $allowWithoutFrom = false;
+
+    #[\Override]
     public function parseTokens(TokensIteratorInterface $tokens): QueryInterface
     {
         if ($tokens->currentTokenAsString() !== '[') {

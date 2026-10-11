@@ -12,6 +12,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where as WhereNode;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class SelectTest extends TestCase
 {
@@ -448,6 +449,60 @@ class SelectTest extends TestCase
         $this->expectExceptionMessage('FOR UPDATE');
 
         $parser->parseTokens(AqlParser::createTokenIterator('SELECT id FROM Test FOR UPDATE'));
+    }
+
+    public function testSelectWithoutFromRoundTrips(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT GET_LOCK({name}, 0) AS locked',
+            /** @lang aql */ 'SELECT GET_LOCK({name}, 0) as "locked"'
+        ));
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT IS_USED_LOCK({name}) AS holder, CONNECTION_ID() AS self',
+            /** @lang aql */ 'SELECT IS_USED_LOCK({name}) as "holder", CONNECTION_ID() as "self"'
+        ));
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT DATABASE()',
+            /** @lang aql */ 'SELECT DATABASE()'
+        ));
+    }
+
+    public function testSelectWithoutFromHasNoFromNode(): void
+    {
+        $select                     = $this->parseSql('SELECT 1 AS one');
+
+        $this->assertInstanceOf(QueryInterface::class, $select);
+        $this->assertNull($select->getFrom());
+        $this->assertSame('', $select->getMainEntityName());
+    }
+
+    #[DataProvider('clausesOfSelectWithoutFrom')]
+    public function testSelectWithoutFromRefusesEveryClause(string $aql): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql($aql);
+    }
+
+    public static function clausesOfSelectWithoutFrom(): iterable
+    {
+        yield 'WHERE'               => ['SELECT 1 WHERE 1 = 1'];
+        yield 'JOIN'                => ['SELECT 1 JOIN Test'];
+        yield 'GROUP BY'            => ['SELECT 1 GROUP BY a'];
+        yield 'ORDER BY'            => ['SELECT 1 ORDER BY a'];
+        yield 'LIMIT'               => ['SELECT 1 LIMIT 1'];
+        yield 'FOR UPDATE'          => ['SELECT 1 FOR UPDATE'];
+        yield 'LOCK IN SHARE MODE'  => ['SELECT 1 LOCK IN SHARE MODE'];
+        yield 'star'                => ['SELECT *'];
+        yield 'no expression'       => ['SELECT'];
+    }
+
+    public function testSubqueryWithoutFromIsRefused(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+        $this->expectExceptionMessage('FROM');
+
+        $this->parseSql('SELECT id FROM Test WHERE id IN (SELECT 1)');
     }
 
     public function testColumnOfConstantZeroIsKept(): void

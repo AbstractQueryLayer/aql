@@ -19,6 +19,9 @@ use IfCastle\Exceptions\UnexpectedValue;
 
 class Subquery extends Select
 {
+    #[\Override]
+    protected bool $allowWithoutFrom = false;
+
     /**
      * @throws UnexpectedValue
      * @throws ParseException

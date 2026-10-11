@@ -35,6 +35,12 @@ class Select extends AqlParserAbstract
     protected bool $isQueryParenthesis = false;
 
     /**
+     * Whether SELECT may omit FROM: `SELECT expression [AS alias], ...`, a row of expressions the server computes.
+     * A subquery and a nested tuple need an entity to read, so they keep FROM required.
+     */
+    protected bool $allowWithoutFrom = true;
+
+    /**
      * The method marks the SELECT query as the primary one.
      * The primary query has the right to capture UNION tokens and others without parentheses.
      *
@@ -111,7 +117,62 @@ class Select extends AqlParserAbstract
 
         // 1. Columns expression
         $tuple                      = (new Tuple())->parseTokens($tokens);
-        // 2. From and Joins expression
+        $query                      = $this->allowWithoutFrom && $tokens->currentTokenAsString() !== 'FROM'
+                                    ? $this->parseSelectWithoutFrom($tokens, $tuple, $options)
+                                    : $this->parseSelectFrom($tokens, $tuple, $options);
+
+        // restore oldStopTokens
+        $tokens->setStopTokens($oldStopTokens);
+
+        if ($this->isQueryParenthesis) {
+
+            if ($tokens->currentTokenAsString() !== ')') {
+                throw new ParseException('Expected query parenthesis ")"', ['line' => $tokens->getCurrentLine()]);
+            }
+
+            $tokens->nextTokens();
+        }
+
+        if ($this->isQueryParenthesis    === false
+           && $this->isMainParenthesis  === true
+           && $tokens->currentTokenAsString() === ')') {
+            $tokens->nextTokens();
+            $this->isQueryParenthesis = true;
+            $this->isMainParenthesis  = false;
+        }
+
+        // If the query is not the primary one, then we do not parse UNION, INTERSECT, EXCEPT
+        if (false === $this->isMainParenthesis && false === $this->isPrimaryQuery) {
+            return $query;
+        }
+
+        if (\in_array($tokens->currentTokenAsString(), ['UNION', 'INTERSECT', 'EXCEPT'], true)) {
+
+            if (false === $query instanceof SelectInterface) {
+                throw new ParseException(
+                    'The UNION expression can only be used with SELECT queries (got: "'
+                    . $query->getQueryAction() . '")', ['line' => $tokens->getCurrentLine()],
+                );
+            }
+
+            $this->parseUnion($tokens, $query);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Parses the clauses after the columns: FROM with joins, WHERE, GROUP BY, ORDER BY, LIMIT and a locking read.
+     *
+     * @throws UnexpectedValue
+     * @throws ParseException
+     * @throws RequiredValueEmpty
+     */
+    private function parseSelectFrom(
+        TokensIteratorInterface $tokens,
+        TupleInterface $tuple,
+        QueryOptionsInterface $options
+    ): QueryInterface {
         $tokens->addStopTokens([QueryInterface::NODE_WHERE,
             QueryInterface::NODE_ORDER_BY,
             QueryInterface::NODE_GROUP_BY,
@@ -156,44 +217,37 @@ class Select extends AqlParserAbstract
             );
         }
 
-        // restore oldStopTokens
-        $tokens->setStopTokens($oldStopTokens);
-
-        if ($this->isQueryParenthesis) {
-
-            if ($tokens->currentTokenAsString() !== ')') {
-                throw new ParseException('Expected query parenthesis ")"', ['line' => $tokens->getCurrentLine()]);
-            }
-
-            $tokens->nextTokens();
-        }
-
-        if ($this->isQueryParenthesis    === false
-           && $this->isMainParenthesis  === true
-           && $tokens->currentTokenAsString() === ')') {
-            $tokens->nextTokens();
-            $this->isQueryParenthesis = true;
-            $this->isMainParenthesis  = false;
-        }
-
-        // If the query is not the primary one, then we do not parse UNION, INTERSECT, EXCEPT
-        if (false === $this->isMainParenthesis && false === $this->isPrimaryQuery) {
-            return $query;
-        }
-
-        if (\in_array($tokens->currentTokenAsString(), ['UNION', 'INTERSECT', 'EXCEPT'], true)) {
-
-            if (false === $query instanceof SelectInterface) {
-                throw new ParseException(
-                    'The UNION expression can only be used with SELECT queries (got: "'
-                    . $query->getQueryAction() . '")', ['line' => $tokens->getCurrentLine()],
-                );
-            }
-
-            $this->parseUnion($tokens, $query);
-        }
-
         return $query;
+    }
+
+    /**
+     * A SELECT without FROM is a row of expressions with optional aliases and nothing else, so any clause after
+     * them is refused here instead of being rendered into SQL that has no table to apply it to.
+     *
+     * @throws ParseException when the SELECT has no expression, `*`, or a clause other than UNION follows
+     */
+    private function parseSelectWithoutFrom(
+        TokensIteratorInterface $tokens,
+        TupleInterface $tuple,
+        QueryOptionsInterface $options
+    ): QueryInterface {
+        if ($tuple->isDefaultColumns() || $tuple->getTupleColumns() === []) {
+            throw new ParseException(
+                'SELECT without FROM needs expressions to compute (got: "'
+                . $tokens->currentTokenAsString() . '")', ['line' => $tokens->getCurrentLine()]
+            );
+        }
+
+        $next                       = $tokens->currentTokenAsString();
+
+        if ($tokens->valid() && !\in_array($next, [')', 'UNION', 'INTERSECT', 'EXCEPT'], true)) {
+            throw new ParseException(
+                'SELECT without FROM takes expressions only: expected the end of the query (got: "'
+                . $next . '")', ['line' => $tokens->getCurrentLine()]
+            );
+        }
+
+        return (new SelectNode(null, $tuple))->setQueryOptions($options);
     }
 
     /**

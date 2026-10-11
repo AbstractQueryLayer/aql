@@ -70,10 +70,12 @@ class Select extends QueryAbstract implements SelectInterface
     protected ?LockWait $lockWait   = null;
 
     /**
+     * A null $from makes a SELECT without FROM: a row of expressions the server computes.
+     *
      * @throws RequiredValueEmpty
      * @throws NodeException
      */
-    public function __construct(JoinInterface|string                 $from,
+    public function __construct(JoinInterface|string|null            $from,
         TupleInterface|array|null            $columns   = null,
         Where|ConditionsInterface|array|null $where     = null,
         ?LimitInterface                       $limit     = null)
@@ -84,7 +86,9 @@ class Select extends QueryAbstract implements SelectInterface
             $from                   = new From(new Subject(\ucfirst($from)));
         }
 
-        $this->setFrom($from);
+        if ($from !== null) {
+            $this->setFrom($from);
+        }
 
         if (\is_array($columns)) {
             $columns                = (new Tuple(...$columns))->markAsDefaultColumns();
