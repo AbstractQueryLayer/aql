@@ -36,7 +36,8 @@ class QueryOptions extends NodeAbstract implements QueryOptionsInterface
         $option                     = $this->findOption($optionName)?->resolveSubstitution();
 
         if ($option instanceof QueryOptionInterface) {
-            return !empty($option->getOptionValue());
+            // Only false and '' switch an option off; 0, 0.0 and '0' are values like any other.
+            return !\in_array($option->getOptionValue(), [false, ''], true);
         }
 
         return false;
