@@ -421,4 +421,11 @@ class SelectTest extends TestCase
             /** @lang aql */ 'SELECT a FROM Test UNION SELECT 0 FROM Test'
         ));
     }
+
+    public function testUnclosedSubqueryAtEndOfInputThrowsParseException(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('SELECT id FROM (SELECT id FROM Test');
+    }
 }

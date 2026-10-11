@@ -208,12 +208,14 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
     }
 
     /**
+     * Line of the current token; 0 for a delimiter token and at the end of the input, which have no line.
+     *
      * @throws ParseException
      */
     #[\Override]
     public function getCurrentLine(): int
     {
-        return $this->currentToken()[2];
+        return (int) $this->currentToken()[2];
     }
 
     /**
