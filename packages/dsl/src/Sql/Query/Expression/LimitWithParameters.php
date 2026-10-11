@@ -8,42 +8,59 @@ use IfCastle\AQL\Dsl\Node\NodeAbstract;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\Variable;
 use IfCastle\AQL\Dsl\Sql\Parameter\ParameterInterface;
+use IfCastle\Exceptions\UnexpectedValue;
 
+/**
+ * LIMIT whose row count and offset are constants or `{name}` parameters.
+ *
+ * The SQL has both numbers as plain integers, never as quoted strings, which MariaDB rejects. It is
+ * `LIMIT offset, count`, or `LIMIT count` when the node is built without an offset: a MariaDB DELETE or UPDATE takes
+ * no offset. A value that is not a non-negative integer raises UnexpectedValue, and so does rendering while a
+ * parameter has no value: dropping the LIMIT would let a DELETE or UPDATE touch every row. A resolved count of
+ * zero renders as `LIMIT 0`, not as no limit.
+ */
 final class LimitWithParameters extends NodeAbstract implements LimitInterface
 {
-    public function __construct(ConstantInterface $limit, ConstantInterface $offset = new Variable(0))
-    {
+    /**
+     * @param bool $withOffset false renders `LIMIT count` and ignores $offset, which is then 0
+     */
+    public function __construct(
+        ConstantInterface $limit,
+        ConstantInterface $offset = new Variable(0),
+        private readonly bool $withOffset = true
+    ) {
         parent::__construct($offset, $limit);
     }
 
+    /**
+     * A parameterized limit is always rendered, so it is never empty.
+     */
     #[\Override]
     public function isNotEmpty(): bool
     {
-        return $this->getOffset() > 0;
+        return true;
     }
 
+    /**
+     * The offset, or 0 while its parameter has no value.
+     *
+     * @throws UnexpectedValue when the value is not a non-negative integer
+     */
     #[\Override]
     public function getOffset(): int
     {
-        $node                       = $this->childNodes[0];
-
-        if ($node instanceof ParameterInterface && false === $node->isParameterResolved()) {
-            return 0;
-        }
-
-        return $node->getConstantValue();
+        return $this->valueOf($this->childNodes[0], 'OFFSET', false);
     }
 
+    /**
+     * The row count, or 0 while its parameter has no value.
+     *
+     * @throws UnexpectedValue when the value is not a non-negative integer
+     */
     #[\Override]
     public function getLimit(): int
     {
-        $node                       = $this->childNodes[1];
-
-        if ($node instanceof ParameterInterface && false === $node->isParameterResolved()) {
-            return 0;
-        }
-
-        return $node->getConstantValue();
+        return $this->valueOf($this->childNodes[1], 'LIMIT', false);
     }
 
     #[\Override]
@@ -70,31 +87,45 @@ final class LimitWithParameters extends NodeAbstract implements LimitInterface
         return $this;
     }
 
-
     #[\Override]
     public function getAql(bool $forResolved = false): string
     {
-        if ($this->getLimit() === 0) {
-            return '';
-        }
+        $limit                      = $this->childNodes[1]->getAql($forResolved);
 
-        return 'LIMIT ' . $this->childNodesToAql(',', $forResolved);
+        return $this->withOffset ? 'LIMIT ' . $this->childNodes[0]->getAql($forResolved) . ', ' . $limit : 'LIMIT ' . $limit;
     }
 
+    /**
+     * @throws UnexpectedValue when a value is not a non-negative integer
+     * @throws \IfCastle\Exceptions\UnexpectedMethodMode when a parameter has no value yet
+     */
     #[\Override]
     protected function generateResult(): mixed
     {
-        if ($this->getLimit() === 0) {
-            return '';
-        }
+        $limit                      = $this->valueOf($this->childNodes[1], 'LIMIT', true);
 
-        $offset                     = $this->childNodes[0]->getResult();
-        $limit                      = $this->childNodes[1]->getResult();
-
-        if ($offset === '') {
+        if (!$this->withOffset) {
             return 'LIMIT ' . $limit;
         }
 
-        return 'LIMIT ' . $this->getOffset() . ', ' . $this->getLimit();
+        return 'LIMIT ' . $this->valueOf($this->childNodes[0], 'OFFSET', true) . ', ' . $limit;
+    }
+
+    /**
+     * @param bool $isRequired false reads a parameter without a value as 0, true fails on it
+     */
+    private function valueOf(ConstantInterface $node, string $clause, bool $isRequired): int
+    {
+        if (!$isRequired && $node instanceof ParameterInterface && false === $node->isParameterResolved()) {
+            return 0;
+        }
+
+        $value                      = $node->getConstantValue();
+
+        if (!\is_int($value) || $value < 0) {
+            throw new UnexpectedValue($clause, $value, 'expected a non-negative integer');
+        }
+
+        return $value;
     }
 }

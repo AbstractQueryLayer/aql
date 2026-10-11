@@ -35,6 +35,21 @@ class DeleteTest extends TestCase
         ));
     }
 
+    public function testDeleteWithOrderByAndLimit(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'DELETE FROM Entity WHERE id = 5 ORDER BY createdAt, id LIMIT 3',
+            /** @lang aql */'DELETE FROM Entity WHERE id = 5 ORDER BY createdAt, id LIMIT 0, 3'
+        ));
+    }
+
+    public function testDeleteWithOrderByAndLimitParameter(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'DELETE FROM Entity WHERE id = {id} ORDER BY createdAt, id LIMIT {n}'
+        ));
+    }
+
     public function testDeleteWithUsing(): void
     {
         $this->executeCase(new ParserCaseDescriptor(

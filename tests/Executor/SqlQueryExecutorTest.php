@@ -441,6 +441,36 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
         );
     }
 
+    public function testLimitParameterRendersAsInteger(): void
+    {
+        $aqlQuery                   = (new AqlParser())->parse('SELECT id FROM Book ORDER BY id LIMIT {n}');
+        $aqlQuery->applyParameters(['n' => 2]);
+
+        $sqlStorageMock             = $this->getSqlStorageMock();
+        $sqlStorageMock->reset();
+        $this->newSqlQueryExecutor()->executeQuery($aqlQuery);
+
+        $this->assertSqlStrings(
+            'SELECT `t0`.`id` FROM `book` as `t0` ORDER BY `t0`.`id` LIMIT 2',
+            $sqlStorageMock->getLastSql() ?? 'no query', 'Sql should be equals',
+        );
+    }
+
+    public function testDeleteWithOrderByAndLimitParameter(): void
+    {
+        $aqlQuery                   = (new AqlParser())->parse('DELETE FROM Book WHERE id = {id} ORDER BY title, id LIMIT {n}');
+        $aqlQuery->applyParameters(['id' => 7, 'n' => 2]);
+
+        $sqlStorageMock             = $this->getSqlStorageMock();
+        $sqlStorageMock->reset();
+        $this->newSqlQueryExecutor()->executeQuery($aqlQuery);
+
+        $this->assertSqlStrings(
+            'DELETE FROM `book` as `t0` WHERE `t0`.`id` = \'7\' ORDER BY `t0`.`title`, `t0`.`id` LIMIT 2',
+            $sqlStorageMock->getLastSql() ?? 'no query', 'Sql should be equals',
+        );
+    }
+
     public function testQueryWithParametersInCycle(): void
     {
         $aqlQuery                   = Select::entity('Book')

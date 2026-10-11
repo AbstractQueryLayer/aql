@@ -182,6 +182,13 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testWhereOrderByLimitParameter(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT * FROM Test WHERE id = 123 ORDER BY name LIMIT {n}'
+        ));
+    }
+
     public function testJoin(): void
     {
         $this->executeCase(new ParserCaseDescriptor(

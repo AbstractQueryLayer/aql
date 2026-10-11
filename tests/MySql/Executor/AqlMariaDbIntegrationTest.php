@@ -20,6 +20,7 @@ use IfCastle\AQL\Storage\StorageCollection;
 use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\TestCases\TestCaseWithDiContainer;
 use IfCastle\DI\ContainerBuilder;
+use IfCastle\Exceptions\UnexpectedValue;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 use function Async\await;
@@ -44,6 +45,9 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
         $this->pdo->exec('CREATE TABLE ' . self::TABLE . ' (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(64) NOT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_event');
+        $this->pdo->exec('CREATE TABLE aql_round_trip_event (id INT AUTO_INCREMENT PRIMARY KEY, ownerId INT NOT NULL,'
+            . ' createdAt INT NOT NULL) ENGINE=InnoDB');
         $this->pdo->exec('CREATE TABLE aql_round_trip_link (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
         $this->mySql = new SqlRecordingMySql([
             'dsn' => MariaDb::dsn(),
@@ -75,6 +79,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
     {
         parent::tearDown();
         $this->mySql->dispose();
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_event');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
     }
@@ -308,6 +313,95 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
             $this->mySql->lastSql
         );
         $this->assertSame(['worker-1'], $this->pdo->query('SELECT value FROM ' . self::TABLE)->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * The shape of a per-owner row cap: the oldest rows of one owner go first, and a tie on the creation time is
+     * broken by the key.
+     */
+    public function testDeleteOrderByLimitParameterRemovesTheOldestRowsOfOneOwner(): void
+    {
+        $ids = $this->insertEvents([[1, 50], [1, 10], [1, 30], [1, 10], [1, 20], [2, 5], [2, 6]]);
+
+        $delete = (new AqlParser())->parse(
+            'DELETE FROM AqlRoundTripEvent WHERE ownerId = {id} ORDER BY createdAt, id LIMIT {n}'
+        );
+        $delete->applyParameters(['id' => 1, 'n' => 3]);
+
+        $this->assertSame(3, $this->aqlExecutor->executeAql($delete)->affected());
+        $this->assertSame(
+            'DELETE FROM `aql_round_trip_event` WHERE `aql_round_trip_event`.`ownerId` = 1'
+            . ' ORDER BY `aql_round_trip_event`.`createdAt`, `aql_round_trip_event`.`id` LIMIT 3',
+            $this->mySql->lastSql
+        );
+
+        // Created at 10, 10 (both ties go by id) and 20 are gone; 30 and 50 of owner 1 and both rows of owner 2 stay.
+        $this->assertSame(
+            [$ids[0], $ids[2], $ids[5], $ids[6]],
+            \array_map('intval', $this->pdo->query('SELECT id FROM aql_round_trip_event ORDER BY id')
+                ->fetchAll(\PDO::FETCH_COLUMN))
+        );
+    }
+
+    public function testDeleteWithoutLimitValueDeletesNothing(): void
+    {
+        $this->insertEvents([[1, 10], [1, 20]]);
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTripEvent WHERE ownerId = 1 ORDER BY id LIMIT {n}');
+
+        try {
+            $this->aqlExecutor->executeAql($delete);
+            $this->fail('The DELETE ran with an unbound LIMIT parameter');
+        } catch (\Throwable) {
+            $this->assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM aql_round_trip_event')->fetchColumn());
+        }
+    }
+
+    public function testSelectLimitParameterReturnsThatManyRows(): void
+    {
+        $this->insertEvents([[1, 50], [1, 10], [1, 30], [1, 20]]);
+
+        $select = (new AqlParser())->parse('SELECT createdAt FROM AqlRoundTripEvent ORDER BY createdAt LIMIT {n}');
+
+        foreach ([2, 3] as $count) {
+            $select->applyParameters(['n' => $count]);
+            $rows = $this->aqlExecutor->executeAql($select)->finalize()->toArray();
+
+            $this->assertSame([10, 20, 30, 50][$count - 1], (int) \end($rows)['createdAt']);
+            $this->assertCount($count, $rows);
+        }
+    }
+
+    public function testLimitParameterRejectsANonIntegerValue(): void
+    {
+        $this->insertEvents([[1, 10], [1, 20]]);
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTripEvent WHERE ownerId = 1 LIMIT {n}');
+        $delete->applyParameters(['n' => '1']);
+
+        try {
+            $this->aqlExecutor->executeAql($delete);
+            $this->fail('A string LIMIT value was accepted');
+        } catch (UnexpectedValue) {
+            $this->assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM aql_round_trip_event')->fetchColumn());
+        }
+    }
+
+    /**
+     * @param list<array{0: int, 1: int}> $events owner id and creation time of each row
+     * @return list<int> the generated ids, in the order of $events
+     */
+    private function insertEvents(array $events): array
+    {
+        $insert = $this->pdo->prepare('INSERT INTO aql_round_trip_event (ownerId, createdAt) VALUES (?, ?)');
+        $ids = [];
+
+        foreach ($events as [$ownerId, $createdAt]) {
+            $insert->execute([$ownerId, $createdAt]);
+            $ids[] = (int) $this->pdo->lastInsertId();
+        }
+
+        return $ids;
     }
 
     public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
