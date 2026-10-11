@@ -13,7 +13,6 @@ parameters:
 		- packages/migration-tool/src
 		- packages/mysql/src
 		- packages/pdodriver/src
-		- packages/postaction/src
 		- packages/postgresql/src
 		- packages/redis/src
 		- packages/result/src
@@ -22,7 +21,6 @@ parameters:
 		- packages/sqlite/src
 		- packages/storage/src
 		- packages/storagepool/src
-		- packages/telemetry/src
 		- packages/transaction/src
 	tips:
 		treatPhpDocTypesAsCertain: false
