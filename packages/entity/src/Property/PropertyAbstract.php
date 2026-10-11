@@ -1124,7 +1124,7 @@ class PropertyAbstract implements PropertyInterface
     protected function handleBefore(PropertyContextInterface $context, string $contextName): void
     {
         if ($this->isSerializable) {
-            $this->handleSerializableBefore($context);
+            $this->handleSerializableBefore($context, $contextName);
         }
 
         if ($context->getColumn() !== null && $context->needDefinitionsForResult()) {
@@ -1132,11 +1132,11 @@ class PropertyAbstract implements PropertyInterface
         }
     }
 
-    protected function handleSerializableBefore(PropertyContextInterface $context): void
+    protected function handleSerializableBefore(PropertyContextInterface $context, string $contextName): void
     {
         $currentNode                = $context->getCurrentNode();
 
-        switch ($context->getContextName()) {
+        switch ($contextName) {
             case NodeContextInterface::CONTEXT_TUPLE:
 
                 //
@@ -1146,8 +1146,10 @@ class PropertyAbstract implements PropertyInterface
                 // to process the result, we need to find out the key in the results array
                 //
 
-                if ($currentNode instanceof TupleColumnInterface) {
-                    $context->addUnSerializedColumn($currentNode, $this);
+                $tupleColumn        = $currentNode instanceof TupleColumnInterface ? $currentNode : $context->getTupleColumn();
+
+                if ($tupleColumn !== null) {
+                    $context->addUnSerializedColumn($tupleColumn, $this);
                 }
 
                 break;

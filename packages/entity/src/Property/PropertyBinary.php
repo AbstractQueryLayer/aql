@@ -10,7 +10,10 @@ use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\InExpression;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\ValueListInterface;
+use IfCastle\AQL\Executor\Context\NodeContextInterface;
 use IfCastle\AQL\Executor\Context\PropertyContextInterface;
+use IfCastle\AQL\Executor\Exceptions\PropertySerializationException;
+use IfCastle\AQL\Executor\Plan\ExecutionContextInterface;
 
 /**
  * A fixed-length column of raw bytes, BINARY(n).
@@ -18,7 +21,7 @@ use IfCastle\AQL\Executor\Context\PropertyContextInterface;
  * The values given for the column are written into SQL as binary literals of the storage, so a value may hold any
  * bytes, NUL and sequences invalid in the connection charset included. Covered: the right side of an operation
  * (`column = v`, `SET column = v`, `column IN (v1, v2)`) and the column's values in `(…) VALUES (…)`. A value on the
- * left side (`v = column`) stays a text literal. Values are read back as PHP strings.
+ * left side (`v = column`) stays a text literal. Values selected as a column are read back as PHP strings.
  */
 class PropertyBinary extends PropertyAbstract
 {
@@ -37,11 +40,42 @@ class PropertyBinary extends PropertyAbstract
     {
         parent::handleBefore($context, $contextName);
 
+        if ($contextName === NodeContextInterface::CONTEXT_TUPLE) {
+            $tupleColumn            = $context->getTupleColumn();
+
+            if ($tupleColumn !== null) {
+                $context->addUnSerializedColumn($tupleColumn, $this);
+            }
+
+            return;
+        }
+
         foreach ($this->valuesOf($context->getCurrentNode()) as $value) {
             if ($value instanceof Constant) {
                 $value->asBinary();
             }
         }
+    }
+
+    /**
+     * Returns a column value read from the storage as a string: PDO pgsql reads bytea as a stream.
+     *
+     * @throws PropertySerializationException when the stream cannot be read
+     */
+    #[\Override]
+    public function propertyUnSerialize($value, ?ExecutionContextInterface $context = null): mixed
+    {
+        if (false === \is_resource($value)) {
+            return $value;
+        }
+
+        $bytes                      = \stream_get_contents($value);
+
+        if ($bytes === false) {
+            throw new PropertySerializationException($this, false, $value, 'string');
+        }
+
+        return $bytes;
     }
 
     /**
