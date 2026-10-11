@@ -53,7 +53,7 @@ class Tuple extends NodeAbstract implements TupleInterface
 
             $aql                    = $childNode?->getAql($forResolved);
 
-            if (!empty($aql)) {
+            if (self::isNotBlank($aql)) {
                 $results[]          = $aql;
             }
         }
@@ -63,7 +63,7 @@ class Tuple extends NodeAbstract implements TupleInterface
         foreach ($this->getHiddenColumns() as $hiddenColumn) {
             $aql                = $hiddenColumn?->getAql($forResolved);
 
-            if (!empty($aql)) {
+            if (self::isNotBlank($aql)) {
                 $hiddenResults[] = $aql;
             }
         }
@@ -309,7 +309,7 @@ class Tuple extends NodeAbstract implements TupleInterface
         foreach ($this->getHiddenColumns() as $hiddenColumn) {
             $sql                = $hiddenColumn?->getResult();
 
-            if (!empty($sql)) {
+            if (self::isNotBlank($sql)) {
                 $hiddenResults[] = $sql;
             }
         }

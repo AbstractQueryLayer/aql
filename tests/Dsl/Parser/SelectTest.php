@@ -397,4 +397,28 @@ class SelectTest extends TestCase
 
         $this->parseSql('SELECT id FROM Test FOR SHARE');
     }
+
+    public function testColumnOfConstantZeroIsKept(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT a, 0 FROM Test',
+            /** @lang aql */ 'SELECT a, 0 FROM Test'
+        ));
+    }
+
+    public function testOnlyColumnOfConstantZeroIsKept(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT 0 FROM Test',
+            /** @lang aql */ 'SELECT 0 FROM Test'
+        ));
+    }
+
+    public function testUnionKeepsAColumnOfConstantZero(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT a FROM Test UNION SELECT 0 FROM Test',
+            /** @lang aql */ 'SELECT a FROM Test UNION SELECT 0 FROM Test'
+        ));
+    }
 }

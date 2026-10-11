@@ -306,7 +306,7 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
         foreach ($values as $tuple) {
             $aql                    = $tuple->getAql($forResolved);
 
-            if (!empty($aql)) {
+            if (self::isNotBlank($aql)) {
                 $results[]          = '(' . $aql . ')';
             }
         }

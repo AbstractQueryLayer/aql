@@ -41,4 +41,14 @@ class WhereTest extends TestCase
 
         $this->parseSql('WHERE expiresAt > NOW() - INTERVAL 2 FORTNIGHT');
     }
+
+    public function testWhereKeepsAConditionOfConstantZero(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE property = 5 AND 0'));
+    }
+
+    public function testWhereOfOnlyConstantZeroIsKept(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE 0'));
+    }
 }

@@ -552,7 +552,7 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
      * A rendered part counts as present unless it is null, an empty string, an empty array or false.
      * The number 0 and the string '0' are present: they are the SQL constant 0, not a missing argument.
      */
-    private static function isNotBlank(mixed $part): bool
+    protected static function isNotBlank(mixed $part): bool
     {
         return $part === 0 || $part === '0' || !empty($part);
     }

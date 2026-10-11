@@ -448,7 +448,7 @@ class Join extends NodeAbstract implements JoinInterface
 
             $sql                    = $join->getResult();
 
-            if (!empty($sql)) {
+            if (self::isNotBlank($sql)) {
                 $result[]           = $sql;
             }
         }
@@ -476,7 +476,7 @@ class Join extends NodeAbstract implements JoinInterface
 
             $sql                    = $join->getResult();
 
-            if (!empty($sql)) {
+            if (self::isNotBlank($sql)) {
                 $result[]           = $sql;
             }
         }

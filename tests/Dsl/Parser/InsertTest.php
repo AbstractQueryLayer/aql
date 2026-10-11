@@ -101,4 +101,11 @@ class InsertTest extends TestCase
             . ' count = IF(start + INTERVAL {s} SECOND <= UTC_TIMESTAMP(6), 1, count + 1)'
         ));
     }
+
+    public function testInsertKeepsASingleZeroValue(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'INSERT INTO Entity (a) VALUES (0)'
+        ));
+    }
 }

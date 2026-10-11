@@ -158,7 +158,7 @@ class Select extends QueryAbstract implements SelectInterface
             if ($childNode instanceof NodeInterface && $childNode instanceof UnionInterface === false) {
                 $result             = $childNode->getResult();
 
-                if (!empty($result)) {
+                if (self::isNotBlank($result)) {
                     $results[]      = $result;
                 }
             }

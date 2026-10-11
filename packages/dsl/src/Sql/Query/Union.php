@@ -103,7 +103,7 @@ class Union extends NodeAbstract implements UnionInterface
             if ($childNode instanceof NodeInterface) {
                 $result             = $childNode->getResult();
 
-                if (!empty($result)) {
+                if (self::isNotBlank($result)) {
                     $results[]      = $result;
                 }
             }

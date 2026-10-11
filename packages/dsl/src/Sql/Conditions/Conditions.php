@@ -295,7 +295,7 @@ class Conditions extends NodeAbstract implements ConditionsInterface
         foreach ($this->childNodes as $expression) {
             $aql                    = $forResolved ? $expression->resolveNode()->getAql($forResolved) : $expression->getAql($forResolved);
 
-            if (!empty($aql)) {
+            if (self::isNotBlank($aql)) {
 
                 if ($expression instanceof ConditionsInterface) {
                     $aql            = '(' . $aql . ')';
@@ -332,7 +332,7 @@ class Conditions extends NodeAbstract implements ConditionsInterface
 
             $result                 = $condition->getResult();
 
-            if (empty($result)) {
+            if (!self::isNotBlank($result)) {
                 continue;
             }
 

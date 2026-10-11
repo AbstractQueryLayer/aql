@@ -103,7 +103,7 @@ class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
             foreach ($this->getTableOptions() as $tableOption) {
                 $option             = $tableOption->getResult();
 
-                if (!empty($option)) {
+                if (self::isNotBlank($option)) {
                     $tableOptions[] = $option;
                 }
             }
@@ -123,7 +123,7 @@ class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
             foreach ($this->getDefinitions() as $definition) {
                 $result             = $definition->getResult();
 
-                if (!empty($result)) {
+                if (self::isNotBlank($result)) {
                     $definitions[]  = $result;
                 }
             }
