@@ -28,6 +28,8 @@ use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class Select extends QueryAbstract implements SelectInterface
 {
+    final public const string LOCK_MODE = 'lock';
+
     /**
      * @throws RequiredValueEmpty
      * @throws NodeException
@@ -217,9 +219,19 @@ class Select extends QueryAbstract implements SelectInterface
     #[\Override]
     public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
     {
-        $query                      = new self($array[self::MAIN_ENTITY] ?? null);
+        $query                      = new self($array[self::MAIN_ENTITY] ?? '');
         $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? []);
+
+        $lockMode                   = $array[self::LOCK_MODE] ?? null;
+        $query->lockMode            = $lockMode === null ? null : LockMode::from($lockMode);
+
         return $query;
+    }
+
+    #[\Override]
+    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
+    {
+        return parent::toArray($validator) + [self::LOCK_MODE => $this->lockMode?->value];
     }
 
     #[\Override]

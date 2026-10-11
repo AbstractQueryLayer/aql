@@ -469,7 +469,11 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
-        return [self::NODE_NAME => $this->nodeName, self::CHILD_NODES => ArrayTyped::serializeList($validator, ...$this->childNodes)];
+        return [
+            self::NODE_NAME         => $this->nodeName,
+            // An unused slot is null and has nothing to serialise.
+            self::CHILD_NODES       => ArrayTyped::serializeList($validator, ...\array_filter($this->childNodes)),
+        ];
     }
 
     #[\Override]

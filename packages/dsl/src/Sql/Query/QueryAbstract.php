@@ -132,7 +132,7 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
         return [
             self::ACTION            => $this->queryAction,
             self::MAIN_ENTITY       => $this->mainEntityName,
-            self::CHILD_NODES       => ArrayTyped::serializeList($validator, ...$this->childNodes),
+            self::CHILD_NODES       => ArrayTyped::serializeList($validator, ...\array_filter($this->childNodes)),
         ];
     }
 
