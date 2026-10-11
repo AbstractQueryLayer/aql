@@ -204,6 +204,29 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         }
     }
 
+    public function testExcludedEntityKeepsRowsWhenTheSubqueryYieldsNull(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
+        $this->pdo->exec('CREATE TABLE article (id INT PRIMARY KEY, name VARCHAR(64) NOT NULL,'
+            . ' draftRevisionId INT NULL, publishedRevisionId INT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('CREATE TABLE article_revision (id INT PRIMARY KEY, title VARCHAR(64) NOT NULL,'
+            . ' articleId INT NULL, parentId INT NULL) ENGINE=InnoDB');
+
+        try {
+            $this->pdo->exec("INSERT INTO article VALUES (1, 'one', NULL, NULL), (2, 'two', NULL, NULL)");
+            // Revision 3 belongs to no article: NOT IN over its NULL articleId would return no article at all.
+            $this->pdo->exec("INSERT INTO article_revision VALUES (1, 'x', 1, NULL), (2, 'y', 2, NULL), (3, 'x', NULL, NULL)");
+
+            $names = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT a.name FROM Article a WHERE ENTITY EXCLUDE ArticleRevision(title = "x") ORDER BY a.id'
+            ))->finalize()->toArray();
+
+            $this->assertSame([['name' => 'two']], $names);
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
+        }
+    }
+
     public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
     {
         $first = $this->insert($this->aqlExecutor, 1);
