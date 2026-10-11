@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Sql\Query\Expression;
 
 use IfCastle\AQL\Dsl\Node\NodeAbstract;
+use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\Variable;
+use IfCastle\AQL\Dsl\Sql\Parameter\Parameter;
 use IfCastle\AQL\Dsl\Sql\Parameter\ParameterInterface;
 use IfCastle\Exceptions\UnexpectedValue;
+use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
 
 /**
  * LIMIT whose row count and offset are constants or `{name}` parameters.
@@ -21,6 +24,22 @@ use IfCastle\Exceptions\UnexpectedValue;
  */
 final class LimitWithParameters extends NodeAbstract implements LimitInterface
 {
+    final public const string LIMIT = 'l';
+
+    final public const string OFFSET = 'o';
+
+    final public const string WITH_OFFSET = 'w';
+
+    /**
+     * Keys of a serialized count or offset: the parameter name (absent for a constant, null for an unnamed
+     * parameter), the value (absent for a parameter without one) and the variable flag of a constant.
+     */
+    private const string SLOT_NAME = 'p';
+
+    private const string SLOT_VALUE = 'v';
+
+    private const string SLOT_VARIABLE = 'x';
+
     /**
      * @param bool $withOffset false renders `LIMIT count` and ignores $offset, which is then 0
      */
@@ -30,6 +49,30 @@ final class LimitWithParameters extends NodeAbstract implements LimitInterface
         private readonly bool $withOffset = true
     ) {
         parent::__construct($offset, $limit);
+    }
+
+    /**
+     * A parameter is restored by name and value only: its setter, reference and type are not carried.
+     */
+    #[\Override]
+    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
+    {
+        return new self(
+            self::slotFromArray($array[self::LIMIT] ?? []),
+            self::slotFromArray($array[self::OFFSET] ?? []),
+            $array[self::WITH_OFFSET] ?? true
+        );
+    }
+
+    #[\Override]
+    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
+    {
+        return [
+            self::NODE_NAME         => $this->nodeName,
+            self::LIMIT             => self::slotToArray($this->childNodes[1]),
+            self::OFFSET            => self::slotToArray($this->childNodes[0]),
+            self::WITH_OFFSET       => $this->withOffset,
+        ];
     }
 
     /**
@@ -127,5 +170,38 @@ final class LimitWithParameters extends NodeAbstract implements LimitInterface
         }
 
         return $value;
+    }
+
+    private static function slotToArray(ConstantInterface $node): array
+    {
+        if (!$node instanceof ParameterInterface) {
+            return [self::SLOT_VALUE => $node->getConstantValue(), self::SLOT_VARIABLE => $node->isVariable()];
+        }
+
+        $name                       = $node->getParameterName();
+        $slot                       = [self::SLOT_NAME => $name === '' ? null : $name];
+
+        if ($node->isParameterResolved()) {
+            $slot[self::SLOT_VALUE] = $node->getConstantValue();
+        }
+
+        return $slot;
+    }
+
+    private static function slotFromArray(array $slot): ConstantInterface
+    {
+        if (!\array_key_exists(self::SLOT_NAME, $slot)) {
+            $value                  = $slot[self::SLOT_VALUE] ?? 0;
+
+            return ($slot[self::SLOT_VARIABLE] ?? false) ? new Variable($value) : new Constant($value);
+        }
+
+        $parameter                  = new Parameter($slot[self::SLOT_NAME]);
+
+        if (!\array_key_exists(self::SLOT_VALUE, $slot)) {
+            return $parameter;
+        }
+
+        return $parameter->setParameterValue($slot[self::SLOT_VALUE]);
     }
 }

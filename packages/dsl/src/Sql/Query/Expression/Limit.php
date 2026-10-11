@@ -5,15 +5,32 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Sql\Query\Expression;
 
 use IfCastle\AQL\Dsl\Node\NodeAbstract;
+use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
 
 class Limit extends NodeAbstract implements LimitInterface
 {
+    final public const string LIMIT = 'l';
+
+    final public const string OFFSET = 'o';
+
     /**
      * Limit constructor.
      */
     public function __construct(protected int $limit = 0, protected int $offset = 0)
     {
         parent::__construct();
+    }
+
+    #[\Override]
+    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
+    {
+        return new static($array[self::LIMIT] ?? 0, $array[self::OFFSET] ?? 0);
+    }
+
+    #[\Override]
+    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
+    {
+        return parent::toArray($validator) + [self::LIMIT => $this->limit, self::OFFSET => $this->offset];
     }
 
     #[\Override]
