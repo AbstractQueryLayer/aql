@@ -6,12 +6,17 @@ namespace IfCastle\AQL\SQLite\Executor;
 
 use IfCastle\AQL\Dsl\BasicQueryInterface;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
+use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
+use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\AssignmentListInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Limit;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\SubjectInterface;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Executor\Context\NodeContextInterface;
+use IfCastle\AQL\Executor\Exceptions\QueryException;
 use IfCastle\AQL\Executor\SqlQueryExecutor;
 
 class SQLiteQueryExecutor extends SqlQueryExecutor
@@ -29,11 +34,80 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
                 $node->asValueSyntax();
             }
         } elseif ($query instanceof QueryInterface && $query->isModifying()) {
-            // SQLite does not support LIMIT in UPDATE queries
-            $query->setLimit(new Limit());
+            $this->refuseUnsupportedRowSelection($query, $context);
         }
 
         parent::postHandleQuery($query, $context);
+    }
+
+    /**
+     * SQLite takes no LIMIT or ORDER BY in UPDATE and DELETE, so the query runs without them. That is safe only when
+     * the dropped clause selected nothing: `LIMIT 1` over a filter that already names one row by its primary key.
+     * Any other LIMIT or ORDER BY would widen the statement to every matching row, so the query is refused.
+     *
+     * @throws QueryException
+     */
+    private function refuseUnsupportedRowSelection(QueryInterface $query, NodeContextInterface $context): void
+    {
+        $limit                      = $query->getLimit()?->resolveNode();
+
+        $clause                     = match (true) {
+            $limit?->isNotEmpty() === true && false === $this->isOneRowByPrimaryKey($query, $limit, $context)
+                                    => 'LIMIT',
+            $query->getOrderBy()?->resolveNode()->isNotEmpty() === true
+                                    => 'ORDER BY',
+            default                 => null,
+        };
+
+        if ($clause === null) {
+            return;
+        }
+
+        throw new QueryException([
+            'query'                 => $query,
+            'clause'                => $clause,
+            'template'              => 'SQLite does not support {clause} in {query}; the statement is refused'
+                                       . ' because running it without the clause would change other rows',
+        ]);
+    }
+
+    /**
+     * Whether `LIMIT 1` is redundant: the WHERE is an AND of equalities between every primary key column of the
+     * entity and a constant, so at most one row matches.
+     */
+    private function isOneRowByPrimaryKey(
+        QueryInterface $query,
+        LimitInterface $limit,
+        NodeContextInterface $context
+    ): bool
+    {
+        if ($limit instanceof Limit === false || $limit->getLimit() !== 1 || $limit->getOffset() !== 0) {
+            return false;
+        }
+
+        $primaryKey                 = $context->getCurrentEntity()->getPrimaryKey();
+        $where                      = $query->getWhere();
+
+        if ($primaryKey === null || $where instanceof Conditions === false
+            || $where->getType() !== Conditions::TYPE_AND) {
+            return false;
+        }
+
+        $filtered                   = [];
+
+        foreach ($where->getChildNodes() as $condition) {
+            $column                 = $condition instanceof LROperationInterface
+                                      && $condition->getOperation() === LROperationInterface::EQU
+                                      && $condition->getRightNode() instanceof ConstantInterface
+                ? $condition->getLeftNode()
+                : null;
+
+            if ($column instanceof ColumnInterface) {
+                $filtered[$column->getColumnName()] = true;
+            }
+        }
+
+        return \array_diff($primaryKey->getKeyColumns(), \array_keys($filtered)) === [];
     }
 
     #[\Override]
