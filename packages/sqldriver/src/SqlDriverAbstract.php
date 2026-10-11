@@ -465,7 +465,7 @@ abstract class SqlDriverAbstract implements
             QueryInterface::ACTION_UPDATE,
             QueryInterface::ACTION_DELETE,
             QueryInterface::ACTION_REPLACE
-                                    => new SqlQueryExecutor(),
+                                    => $this->newSqlQueryExecutor(),
             default                 => null
         };
 
@@ -474,6 +474,15 @@ abstract class SqlDriverAbstract implements
         }
 
         return $executor;
+    }
+
+    /**
+     * The executor that turns an AQL query into this driver's SQL dialect. A driver whose dialect differs from the
+     * generic one returns its own subclass.
+     */
+    protected function newSqlQueryExecutor(): SqlQueryExecutor
+    {
+        return new SqlQueryExecutor();
     }
 
     #[\Override]

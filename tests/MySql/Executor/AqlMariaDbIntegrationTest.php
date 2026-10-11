@@ -292,6 +292,24 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         }
     }
 
+    /** MariaDB before 11.6 has no alias in a single-table DELETE, so the statement must render without one. */
+    public function testSingleTableDeleteWithWhereRemovesOnlyItsRows(): void
+    {
+        $this->insert($this->aqlExecutor, 1);
+        $this->insert($this->aqlExecutor, 2);
+        $this->insert($this->aqlExecutor, 2);
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTrip WHERE value = {value}');
+        $delete->applyParameters(['value' => 'worker-2']);
+
+        $this->assertSame(2, $this->aqlExecutor->executeAql($delete)->affected());
+        $this->assertSame(
+            'DELETE FROM `aql_round_trip` WHERE `aql_round_trip`.`value` = \'worker-2\'',
+            $this->mySql->lastSql
+        );
+        $this->assertSame(['worker-1'], $this->pdo->query('SELECT value FROM ' . self::TABLE)->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
     public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
     {
         $first = $this->insert($this->aqlExecutor, 1);
