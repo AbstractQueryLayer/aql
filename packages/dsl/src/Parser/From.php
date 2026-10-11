@@ -78,15 +78,7 @@ class From extends Join
                 $joins[]            = (new Join())->parseTokens($tokens);
                 [,$token]           = $tokens->currentToken();
             } else {
-                $join               = new JoinNode('', new SubjectNode(\ucfirst((string) $token)));
-                $tokens->nextToken();
-                $qualifier          = $this->parseQualifier($tokens);
-
-                if ($qualifier !== null) {
-                    $join->setQualifier($qualifier)->setAlias($qualifier);
-                }
-
-                $joins[]            = $join;
+                $joins[]            = $this->parseCommaJoin($tokens, (string) $token);
                 [,$token]           = $tokens->currentToken();
             }
 
@@ -119,6 +111,24 @@ class From extends Join
         }
 
         return $from;
+    }
+
+    /**
+     * Parses `, Entity [[AS] alias]`: a comma join whose kind comes from the relation.
+     *
+     * @throws ParseException
+     */
+    protected function parseCommaJoin(TokensIteratorInterface $tokens, string $entityName): JoinNode
+    {
+        $join                       = new JoinNode('', new SubjectNode(\ucfirst($entityName)));
+        $tokens->nextToken();
+        $qualifier                  = $this->parseQualifier($tokens);
+
+        if ($qualifier !== null) {
+            $join->setQualifier($qualifier)->setAlias($qualifier);
+        }
+
+        return $join;
     }
 
     #[\Override]

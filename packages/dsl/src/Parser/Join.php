@@ -84,17 +84,7 @@ class Join extends AqlParserAbstract
             $tokens->nextToken();
 
             // 3a. Role path: JOIN owner.role
-            if ($tokens->currentTokenAsString() === '.') {
-
-                [$type, $token, $line] = $tokens->nextToken();
-
-                if ($type !== T_STRING) {
-                    throw new ParseException(\sprintf('Expected a role name after \'%s.\' (got \'%s\')', $subjectName, $token), ['line' => $line]);
-                }
-
-                $role               = [$subjectName, $token];
-                $tokens->nextToken();
-            }
+            $role                   = $this->parseRolePath($tokens, $subjectName);
 
             // 4. Subject alias: [AS] alias
             $subjectAlias           = $this->parseQualifier($tokens);
@@ -163,6 +153,32 @@ class Join extends AqlParserAbstract
         $tokens->decreaseRecursionDepth();
 
         return $join;
+    }
+
+    /**
+     * Parses `.role` after an owner alias: `JOIN owner.role` yields [owner, role], a plain subject yields null.
+     *
+     * @return array{0: string, 1: string}|null
+     *
+     * @throws ParseException
+     */
+    protected function parseRolePath(TokensIteratorInterface $tokens, string $owner): ?array
+    {
+        if ($tokens->currentTokenAsString() !== '.') {
+            return null;
+        }
+
+        [$type, $token, $line]      = $tokens->nextToken();
+
+        if ($type !== T_STRING) {
+            throw new ParseException(
+                \sprintf('Expected a role name after \'%s.\' (got \'%s\')', $owner, $token), ['line' => $line]
+            );
+        }
+
+        $tokens->nextToken();
+
+        return [$owner, $token];
     }
 
     public function parseDependentJoins(TokensIterator $tokens): array

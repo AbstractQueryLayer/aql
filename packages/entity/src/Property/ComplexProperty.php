@@ -33,25 +33,10 @@ class ComplexProperty extends PropertyAbstract
         string                                    $integrity = RelationInterface::INTEGRITY_DECLARED,
         array                                     $derivedFrom = []
     ): void {
-        $primaryKey                 = $toEntity->getPrimaryKey();
-        $namingStrategy             = $toEntity->getNamingStrategy();
-
-        if ($primaryKey->isKeySimple()) {
-            $name                   = $propertyName
-                ?? $namingStrategy->generatePropertyName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity);
-            $property               = $toEntity->getProperty($primaryKey->getKeyName())
-                ->cloneAsReference($toEntity->getEntityName())
-                ->setName($name)
-                ->setFieldName($propertyName ?? $namingStrategy->generateColumnName([$toEntity->getEntityName(), $primaryKey->getKeyName()], $toEntity))
-                ->setRelationType($relationType)
-                ->setIsNotNull($isRequired)
-                ->setRelationIntegrity($integrity, $derivedFrom);
-
-            if ($role !== null) {
-                $property->setRelationRole($role);
-            }
-
-            $fromEntity->describeProperty($property);
+        if ($toEntity->getPrimaryKey()->isKeySimple()) {
+            self::describeSimpleReference(
+                $toEntity, $fromEntity, $relationType, $isRequired, $propertyName, $role, $integrity, $derivedFrom
+            );
 
             return;
         }
@@ -64,6 +49,7 @@ class ComplexProperty extends PropertyAbstract
             ]);
         }
 
+        $namingStrategy             = $toEntity->getNamingStrategy();
         $properties                 = [];
 
         foreach ($toKey->getKeyColumns() as $column) {
@@ -79,6 +65,39 @@ class ComplexProperty extends PropertyAbstract
                 ...$properties
             ))->setRelationType($relationType)
         );
+    }
+
+    /**
+     * A reference over the target's one-column primary key: one column property named after the role.
+     *
+     * @param list<string> $derivedFrom
+     */
+    private static function describeSimpleReference(
+        EntityInterface&EntityDescriptorInterface $toEntity,
+        EntityInterface&EntityDescriptorInterface $fromEntity,
+        string                                    $relationType,
+        bool                                      $isRequired,
+        ?string                                   $propertyName,
+        ?string                                   $role,
+        string                                    $integrity,
+        array                                     $derivedFrom
+    ): void {
+        $primaryKey                 = $toEntity->getPrimaryKey();
+        $namingStrategy             = $toEntity->getNamingStrategy();
+        $nameParts                  = [$toEntity->getEntityName(), $primaryKey->getKeyName()];
+        $property                   = $toEntity->getProperty($primaryKey->getKeyName())
+            ->cloneAsReference($toEntity->getEntityName())
+            ->setName($propertyName ?? $namingStrategy->generatePropertyName($nameParts, $toEntity))
+            ->setFieldName($propertyName ?? $namingStrategy->generateColumnName($nameParts, $toEntity))
+            ->setRelationType($relationType)
+            ->setIsNotNull($isRequired)
+            ->setRelationIntegrity($integrity, $derivedFrom);
+
+        if ($role !== null) {
+            $property->setRelationRole($role);
+        }
+
+        $fromEntity->describeProperty($property);
     }
 
     protected bool $isVirtual       = true;
