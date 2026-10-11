@@ -200,7 +200,7 @@ class Tuple extends NodeAbstract implements TupleInterface
         $columnField                = $newColumn->getExpression();
         $alias                      = $newColumn->getAliasOrColumnNameOrNull();
 
-        if (false === $columnField instanceof ColumnInterface || empty($alias)) {
+        if (false === $columnField instanceof ColumnInterface || $alias === null || $alias === '') {
             throw new TransformationException([
                 'template'          => 'TupleColumn should have Column type, but got {type}',
                 'type'              => \get_debug_type($columnField),

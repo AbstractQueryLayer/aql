@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Dsl\Sql\Tuple;
 
+use IfCastle\AQL\Dsl\Sql\Column\Column;
 use PHPUnit\Framework\TestCase;
 
 class TupleTest extends TestCase
@@ -34,5 +35,13 @@ class TupleTest extends TestCase
         $tuple                      = new Tuple();
         $tuple->addTupleColumn($column = $this->createMock(TupleColumnInterface::class), 'alias');
         $this->assertEquals($column, $tuple->findTupleColumn('alias'));
+    }
+
+    public function testColumnNamedZeroIsAddedByAlias(): void
+    {
+        $tuple                      = new Tuple();
+        $tuple->addColumnIfNoExistsByAlias(new TupleColumn(new Column('0')));
+
+        $this->assertCount(1, $tuple->getTupleColumns());
     }
 }
