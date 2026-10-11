@@ -95,8 +95,10 @@ class SqlReadWritePool implements SqlStorageInterface, TransactionAbleInterface,
         // 1. The context indicates that only a WRITER should be used.
         // 2. $sql is not equal to select
         // 3. Writer is under Transaction
+        // 4. The context carries a Transaction: the statement must run on the writer inside it.
         //
         if (($context instanceof ReaderWriterInterface && $context->useOnlyWriter())
+            || ($context instanceof TransactionAwareInterface && $context->getTransaction() !== null)
             || (
                 \strtoupper(\substr($sql, 0, $selectLength)) !== 'SELECT'
                 && \strtoupper(\substr($sql, 0, $withLength)) !== 'WITH'
@@ -108,7 +110,7 @@ class SqlReadWritePool implements SqlStorageInterface, TransactionAbleInterface,
             }
 
             $this->lastUsed     = $this->writer;
-            return $this->writer->executeSql($sql);
+            return $this->writer->executeSql($sql, $context);
         }
 
         if ($this->reader === null) {
@@ -117,7 +119,7 @@ class SqlReadWritePool implements SqlStorageInterface, TransactionAbleInterface,
 
         $this->lastUsed         = $this->reader;
 
-        return $this->reader->executeSql($sql);
+        return $this->reader->executeSql($sql, $context);
     }
 
     /**
