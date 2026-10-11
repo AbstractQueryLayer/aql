@@ -14,6 +14,8 @@ class Constant extends NodeAbstract implements ConstantInterface
 
     protected string|null $placeholder = null;
 
+    protected bool $isBinary        = false;
+
     public function __construct(protected mixed $value = null, protected ?string $type = null)
     {
         parent::__construct();
@@ -85,12 +87,36 @@ class Constant extends NodeAbstract implements ConstantInterface
             return $this->placeholder;
         }
 
-        return $this->returnValue($this->formatValue($this->value));
+        // Not $this->value: a repeated parameter holds its value in the parameter it references.
+        return $this->returnValue($this->formatValue($this->getConstantValue()));
+    }
+
+    /**
+     * Makes the constant render its strings, or the strings of its value list, as binary literals.
+     */
+    public function asBinary(): static
+    {
+        $this->isBinary             = true;
+
+        return $this;
+    }
+
+    public function isBinary(): bool
+    {
+        return $this->isBinary;
     }
 
     protected function formatValue(mixed $value): mixed
     {
-        return $this->value;
+        if (false === $this->isBinary) {
+            return $value;
+        }
+
+        if (\is_array($value)) {
+            return \array_map(static fn(mixed $item): mixed => \is_string($item) ? new BinaryString($item) : $item, $value);
+        }
+
+        return \is_string($value) ? new BinaryString($value) : $value;
     }
 
     /**

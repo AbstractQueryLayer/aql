@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\SqlDriver;
 
 use IfCastle\AQL\Dsl\BasicQueryInterface;
+use IfCastle\AQL\Dsl\Sql\Constant\BinaryString;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Executor\Ddl\DdlExecutorFactoryInterface;
@@ -359,6 +360,10 @@ abstract class SqlDriverAbstract implements
     #[\Override]
     public function quote(mixed $value): string
     {
+        if ($value instanceof BinaryString) {
+            return $this->quoteBinary($value);
+        }
+
         if ($this->isDisconnected()) {
             $this->connect();
         }
@@ -381,6 +386,14 @@ abstract class SqlDriverAbstract implements
     }
 
     abstract protected function realQuote(string $value): string;
+
+    /**
+     * Returns the bytes as a binary literal of the dialect; X'…' by default.
+     */
+    protected function quoteBinary(BinaryString $value): string
+    {
+        return $value->toHexLiteral();
+    }
 
     #[\Override]
     public function escape(string $value): string

@@ -260,6 +260,38 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         }
     }
 
+    public function testBinaryValuesRoundTripByteExact(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_binary_hash');
+        $this->pdo->exec('CREATE TABLE aql_binary_hash (id INT AUTO_INCREMENT PRIMARY KEY, hash BINARY(32) NOT NULL)'
+            . ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+        // 0xFF never occurs in UTF-8, and a lone 0xC3 lead byte is followed by another lead byte.
+        $hash = "\xff\xfe\x00\x80'\\" . \str_repeat("\xc3", 26);
+        $other = \str_repeat("\x00", 31) . "\xff";
+        $this->assertSame(32, \strlen($hash));
+        $this->assertFalse(\mb_check_encoding($hash, 'UTF-8'));
+
+        try {
+            foreach ([$hash, $other] as $value) {
+                $insert = (new AqlParser())->parse('INSERT INTO AqlBinaryHash SET hash = {hash}');
+                $insert->applyParameters(['hash' => $value]);
+                $this->assertSame(1, $this->aqlExecutor->executeAql($insert)->getAffectedRows());
+                $this->assertStringContainsString("X'" . \bin2hex($value) . "'", $this->mySql->lastSql);
+            }
+
+            $stored = $this->pdo->query('SELECT HEX(hash) FROM aql_binary_hash ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN);
+            $this->assertSame(['FFFE0080275C' . \str_repeat('C3', 26), \str_repeat('00', 31) . 'FF'], $stored);
+
+            $select = (new AqlParser())->parse('SELECT hash FROM AqlBinaryHash WHERE hash = {hash}');
+            $select->applyParameters(['hash' => $hash]);
+            $this->assertSame([['hash' => $hash]], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
+            $this->assertStringContainsString("`hash` = X'" . \bin2hex($hash) . "'", $this->mySql->lastSql);
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS aql_binary_hash');
+        }
+    }
+
     public function testNestedAndOrFiltersCannotBypassOtherPredicates(): void
     {
         $first = $this->insert($this->aqlExecutor, 1);

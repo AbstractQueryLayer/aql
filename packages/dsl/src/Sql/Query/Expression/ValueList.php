@@ -345,14 +345,15 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
 
         $strings                    = [];
 
+        // A row is parenthesized as a whole: `(1,2),(3,4)`; a one-column IN lists its values bare: `IN (1, 3)`.
         foreach ($set as $values) {
-            $s                      = [];
+            $row                    = [];
 
             foreach ($values as $value) {
-                $s[]                = $isSingleColumn ? $value->getResult() : '(' . $value->getResult() . ')';
+                $row[]              = $value->getResult();
             }
 
-            $strings[]              = \implode(',', $s);
+            $strings[]              = $isSingleColumn ? \implode(', ', $row) : '(' . \implode(',', $row) . ')';
         }
 
         if ($isValues) {

@@ -684,6 +684,12 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
         }
 
         foreach ($parameters as $parameter) {
+            // An unnamed parameter (Parameter::fromValue) carries its own value; linking two of them by the
+            // empty name would give the second the value of the first.
+            if ($parameter->getParameterName() === '') {
+                continue;
+            }
+
             if (\array_key_exists($parameter->getParameterName(), $this->parameters)
                 && $this->parameters[$parameter->getParameterName()]->get() !== null) {
                 $parameter->referenceTo($this->parameters[$parameter->getParameterName()]->get());

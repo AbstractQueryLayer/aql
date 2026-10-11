@@ -28,6 +28,7 @@ class PropertyToColumn extends PropertyToColumnAbstract
             PropertyInterface::T_FLOAT                                                           => ['FLOAT', $this->property->getMaxLength(), null],
             PropertyInterface::T_UUID                                                            => ['CHAR', 36, null],
             PropertyInterface::T_ULID                                                            => ['CHAR', 26, null],
+            PropertyInterface::T_BINARY                                                          => ['BLOB', null, null],
             PropertyInterface::T_DATE                                                            => ['CHAR', null, null],
             PropertyInterface::T_YEAR, PropertyInterface::T_TIME, PropertyInterface::T_TIMESTAMP => ['INTEGER', null, null],
             PropertyInterface::T_DATETIME                                                        => ['DATETIME', null, null],

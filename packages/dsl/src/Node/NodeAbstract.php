@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Node;
 
 use IfCastle\AQL\Dsl\Node\Exceptions\NodeException;
+use IfCastle\AQL\Dsl\Sql\Constant\BinaryString;
 use IfCastle\AQL\Dsl\Sql\Query\Exceptions\TransformationException;
 use IfCastle\AQL\Dsl\ValueEscaperInterface;
 use IfCastle\DesignPatterns\ExecutionPlan\BeforeAfterExecutor;
@@ -575,6 +576,10 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
 
         if ($context instanceof ValueEscaperInterface) {
             return $context->quote($name);
+        }
+
+        if ($name instanceof BinaryString) {
+            return $name->toHexLiteral();
         }
 
         return '\'' . \addslashes((string) $name) . '\'';

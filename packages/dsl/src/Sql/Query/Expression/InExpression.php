@@ -58,4 +58,19 @@ class InExpression extends NodeAbstract
 
         return '(' . $results . ')';
     }
+
+    /**
+     * A subquery renders its own parentheses; a value list gets them here, with its values separated by commas.
+     */
+    #[\Override]
+    protected function generateResult(): mixed
+    {
+        $results                    = $this->generateResultForChildNodes();
+
+        if ($this->isSubquery || $results === []) {
+            return \implode(' ', $results);
+        }
+
+        return '(' . \implode(', ', $results) . ')';
+    }
 }

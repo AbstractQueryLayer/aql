@@ -23,7 +23,7 @@ trait ConstantTrait
             return $value ? 'TRUE' : 'FALSE';
         }
 
-        if (\is_scalar($value)) {
+        if (\is_scalar($value) || $value instanceof BinaryString) {
             return $this->quote($value);
         }
 

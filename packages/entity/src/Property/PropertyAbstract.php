@@ -28,6 +28,7 @@ use IfCastle\AQL\Executor\Helpers\ContextHelper;
 use IfCastle\AQL\Executor\Plan\ExecutionContextInterface;
 use IfCastle\DI\ContainerInterface;
 use IfCastle\TypeDefinitions\DefinitionMutableInterface;
+use IfCastle\TypeDefinitions\TypeBinary;
 use IfCastle\TypeDefinitions\TypeBool;
 use IfCastle\TypeDefinitions\TypeDate;
 use IfCastle\TypeDefinitions\TypeDateTime;
@@ -270,6 +271,7 @@ class PropertyAbstract implements PropertyInterface
             self::T_STRING, self::T_TEXT => new TypeString($this->name, false, !$this->isNotNull),
             self::T_UUID            => new TypeUuid($this->name, false, !$this->isNotNull),
             self::T_ULID            => new TypeUlid($this->name, false, !$this->isNotNull),
+            self::T_BINARY          => new TypeBinary($this->name, false, !$this->isNotNull),
             self::T_BIG_INT,
             self::T_INT             => new TypeInteger($this->name, false, !$this->isNotNull),
             self::T_FLOAT           => new TypeFloat($this->name, false, !$this->isNotNull),

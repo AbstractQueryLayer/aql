@@ -44,11 +44,9 @@ class InExpression extends AqlParserAbstract
             return new InExpressionNode($query);
         }
 
-        $stopTokens                 = [')'];
-
         $results                    = [];
 
-        while ($tokens->valid() && !\array_key_exists(\strtolower($tokens->currentTokenAsString()), $stopTokens)) {
+        while ($tokens->valid() && $tokens->currentTokenAsString() !== ')') {
 
             $results[]              = (new Constant())->parseTokens($tokens);
 

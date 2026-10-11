@@ -63,6 +63,11 @@ interface PropertyInterface extends AccessByGroupsMutableInterface, AspectsByGro
     public const string T_ULID = 'ulid';
 
     /**
+     * Raw bytes, written into SQL as a binary literal.
+     */
+    public const string T_BINARY = 'binary';
+
+    /**
      * @var string
      */
     public const string T_DATE = 'date';

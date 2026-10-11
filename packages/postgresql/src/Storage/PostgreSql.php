@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\PostgreSql\Storage;
 
+use IfCastle\AQL\Dsl\Sql\Constant\BinaryString;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Executor\Context\NodeContextInterface;
@@ -22,6 +23,18 @@ class PostgreSql extends PDOAbstract implements FunctionHandlerInterface
     public function escape(string $value): string
     {
         return '"' . $value . '"';
+    }
+
+    /**
+     * X'…' is a bit string in PostgreSQL, so bytea takes its hex input format instead. The backslash is literal
+     * under standard_conforming_strings, on by default since PostgreSQL 9.1.
+     *
+     * @see https://www.postgresql.org/docs/current/datatype-binary.html
+     */
+    #[\Override]
+    protected function quoteBinary(BinaryString $value): string
+    {
+        return '\'\\x' . \bin2hex($value->bytes) . '\'::bytea';
     }
 
     #[\Override]
