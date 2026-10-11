@@ -147,6 +147,11 @@ class Select extends AqlParserAbstract
 
         if ($query instanceof SelectInterface) {
             $query->setLockMode($lockMode);
+        } elseif ($lockMode !== null) {
+            throw new ParseException(
+                $lockMode->value . ' needs a SELECT node, the parser built ' . $query::class,
+                ['line' => $tokens->getCurrentLine()]
+            );
         }
 
         // restore oldStopTokens
@@ -207,12 +212,11 @@ class Select extends AqlParserAbstract
         }
 
         foreach (\explode(' ', $mode->value) as $word) {
-            [, $token, $line]       = $tokens->currentToken();
+            [, $token]              = $tokens->currentToken();
 
-            // At the end of the input the iterator has no current line, so the line comes from the token.
             if (\strtoupper((string) $token) !== $word) {
                 throw new ParseException(
-                    'Expected ' . $mode->value . ' (got: "' . $token . '")', ['line' => (int) $line]
+                    'Expected ' . $mode->value . ' (got: "' . $token . '")', ['line' => $tokens->getCurrentLine()]
                 );
             }
 

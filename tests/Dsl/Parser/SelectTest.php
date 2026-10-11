@@ -5,6 +5,13 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Parser;
 
 use IfCastle\AQL\Dsl\Node\NodeInterface;
+use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Delete;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Where as WhereNode;
+use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
+use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
 
 class SelectTest extends TestCase
 {
@@ -396,6 +403,25 @@ class SelectTest extends TestCase
         $this->expectException(Exceptions\ParseException::class);
 
         $this->parseSql('SELECT id FROM Test FOR SHARE');
+    }
+
+    public function testParsedLockOnANodeThatIsNotASelectIsRejected(): void
+    {
+        $parser                     = new class extends Select {
+            #[\Override]
+            protected function newSelectNode(JoinInterface|string $from,
+                TupleInterface|array|null                $tuple     = null,
+                WhereNode|ConditionsInterface|array|null $where     = null,
+                ?LimitInterface                           $limit     = null): QueryInterface
+            {
+                return new Delete($from);
+            }
+        };
+
+        $this->expectException(Exceptions\ParseException::class);
+        $this->expectExceptionMessage('FOR UPDATE');
+
+        $parser->parseTokens(AqlParser::createTokenIterator('SELECT id FROM Test FOR UPDATE'));
     }
 
     public function testColumnOfConstantZeroIsKept(): void
