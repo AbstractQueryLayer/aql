@@ -257,6 +257,14 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testParametersInJoinOnAndWhere(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT * FROM T t JOIN O o ON (o.id = {id} AND o.x = 1) WHERE t.id < {after} AND t.y = 2',
+            /** @lang aql */ 'SELECT * FROM T AS t INNER JOIN O AS o ON (o.id = {id} AND o.x = 1) WHERE t.id < {after} AND t.y = 2'
+        ));
+    }
+
     public function testWhereEntity(): void
     {
         $this->executeCase(new ParserCaseDescriptor(

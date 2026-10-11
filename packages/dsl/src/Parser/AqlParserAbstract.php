@@ -67,6 +67,8 @@ abstract class AqlParserAbstract implements ParserInterface
                 );
             }
 
+            $tokens->nextToken();
+
             return $parameter;
         }
 
