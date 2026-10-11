@@ -13,6 +13,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
 use IfCastle\AQL\Dsl\Sql\Query\Subquery;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
+use IfCastle\AQL\Executor\Exceptions\QueryException;
 use IfCastle\AQL\Executor\Transaction\WithCompensatingTransaction;
 use IfCastle\AQL\Executor\Transaction\WithTransaction;
 use IfCastle\AQL\MySql\MariaDb;
@@ -588,8 +589,8 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
     /**
      * The lock-wait timeout of the second connection is one second, so a blocked UPDATE fails fast with error 1205.
      * That the AQL query ran inside the transaction follows from the controls: the same locking read in autocommit
-     * releases its lock at once, and an ordinary read in the transaction holds none, so only a locking read inside the
-     * transaction can make the second connection wait.
+     * is refused by the executor (its lock would end with the statement), and an ordinary read in the transaction
+     * holds none, so only a locking read inside the transaction can make the second connection wait.
      */
     public function testForUpdateInsideATransactionBlocksAnotherConnectionUntilCommit(): void
     {
@@ -603,8 +604,17 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
             $this->assertSame(1, $other->exec('UPDATE ' . self::TABLE . ' SET value = "plain" WHERE id = ' . $id));
         });
 
-        // The same locking read outside a transaction releases its lock when the statement ends.
-        $this->assertSame([['id' => $id]], $this->lockingSelect($this->aqlExecutor, $id, ' FOR UPDATE'));
+        // The same locking read outside a transaction would release its lock when the statement ends: it is refused.
+        $lastSql = $this->mySql->lastSql;
+
+        try {
+            $this->lockingSelect($this->aqlExecutor, $id, ' FOR UPDATE');
+            $this->fail('A locking read outside a transaction was executed');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('needs a transaction', $exception->getMessage());
+        }
+
+        $this->assertSame($lastSql, $this->mySql->lastSql);
         $this->assertSame(1, $other->exec('UPDATE ' . self::TABLE . ' SET value = "autocommit" WHERE id = ' . $id));
 
         $transactional->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
@@ -631,7 +641,9 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $id = $this->insert($this->aqlExecutor, 1);
         $other = $this->secondConnection();
 
-        (new WithTransaction($this->aqlExecutor))->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
+        $transactional = new WithTransaction($this->aqlExecutor);
+
+        $transactional->run(function (AqlExecutorInterface $executor) use ($id, $other): void {
             $this->assertSame([['id' => $id]], $this->lockingSelect($executor, $id, ' LOCK IN SHARE MODE'));
             $this->assertStringEndsWith(' LOCK IN SHARE MODE', $this->mySql->lastSql);
 
@@ -658,7 +670,11 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         );
         $select->applyParameters(['id' => $id, 'n' => 1]);
 
-        $this->assertSame([['id' => $id]], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
+        $rows = (new WithTransaction($this->aqlExecutor))->run(
+            static fn(AqlExecutorInterface $executor): array => $executor->executeAql($select)->finalize()->toArray()
+        );
+
+        $this->assertSame([['id' => $id]], $rows);
         $this->assertStringEndsWith(' ORDER BY `t0`.`id` LIMIT 1 FOR UPDATE', $this->mySql->lastSql);
     }
 

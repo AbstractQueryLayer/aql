@@ -30,6 +30,8 @@ class Select extends QueryAbstract implements SelectInterface
 {
     final public const string LOCK_MODE = 'lock';
 
+    private const string FOR_SHARE_CLAUSE = ' FOR SHARE';
+
     /**
      * @throws RequiredValueEmpty
      * @throws NodeException
@@ -62,8 +64,6 @@ class Select extends QueryAbstract implements SelectInterface
     protected ?string $unionOption  = null;
 
     protected ?LockMode $lockMode   = null;
-
-    protected bool $shareAsForShare = false;
 
     /**
      * @throws RequiredValueEmpty
@@ -119,7 +119,7 @@ class Select extends QueryAbstract implements SelectInterface
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . $results . $this->lockClause(false);
+        $query                      = \strtoupper($this->queryAction) . ' ' . $results . $this->lockClause();
 
         if ($union->isEmpty()) {
 
@@ -175,14 +175,21 @@ class Select extends QueryAbstract implements SelectInterface
 
     protected function generateResult(): mixed
     {
+        return $this->generateSql($this->lockClause());
+    }
+
+    /**
+     * The SQL text with the given locking-read clause, a leading space included, at the end of the SELECT.
+     */
+    private function generateSql(string $lockClause): string
+    {
         $results                    = $this->generateResultForChildNodes();
 
         if ($results === []) {
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . \implode(' ', $results)
-                                      . $this->lockClause(true);
+        $query                      = \strtoupper($this->queryAction) . ' ' . \implode(' ', $results) . $lockClause;
 
         $union                      = $this->getUnion();
 
@@ -277,11 +284,13 @@ class Select extends QueryAbstract implements SelectInterface
     }
 
     #[\Override]
-    public function renderShareAsForShare(): static
+    public function getResultWithForShare(): string
     {
-        $this->shareAsForShare      = true;
+        if ($this->lockMode !== LockMode::SHARE) {
+            return $this->getResultAsString();
+        }
 
-        return $this;
+        return $this->generateSql(self::FOR_SHARE_CLAUSE);
     }
 
     #[\Override]
@@ -348,19 +357,11 @@ class Select extends QueryAbstract implements SelectInterface
 
     /**
      * The locking-read clause with its leading space, or an empty string for an ordinary read.
-     * The AQL form is always the MariaDB one, which the AQL parser reads back; the SQL form follows the dialect.
+     * It is the MariaDB form, which the AQL parser reads back.
      */
-    private function lockClause(bool $forSql): string
+    private function lockClause(): string
     {
-        if ($this->lockMode === null) {
-            return '';
-        }
-
-        if ($forSql && $this->lockMode === LockMode::SHARE && $this->shareAsForShare) {
-            return ' FOR SHARE';
-        }
-
-        return ' ' . $this->lockMode->value;
+        return $this->lockMode === null ? '' : ' ' . $this->lockMode->value;
     }
 
     protected function getParentUnion(): UnionInterface|null

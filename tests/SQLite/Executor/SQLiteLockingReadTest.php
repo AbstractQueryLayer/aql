@@ -14,7 +14,7 @@ use IfCastle\AQL\Executor\Exceptions\QueryException;
 use IfCastle\AQL\TestCases\TestCaseWithSqlMemoryDb;
 use PHPUnit\Framework\Attributes\DataProvider;
 
-/** SQLite has no row locks: a locking read is refused, never run as a plain read. */
+/** SQLite has no row-level locks: a locking read is refused, never run as a plain read. */
 final class SQLiteLockingReadTest extends TestCaseWithSqlMemoryDb
 {
     #[\Override]
@@ -60,6 +60,28 @@ final class SQLiteLockingReadTest extends TestCaseWithSqlMemoryDb
         } catch (QueryException $exception) {
             $this->assertStringContainsString($clause, $exception->getMessage());
         }
+    }
+
+    public static function misplacedLocks(): array
+    {
+        return [
+            'union member'          => ['SELECT name FROM Locked UNION SELECT name FROM Locked FOR UPDATE'],
+            'subquery in a filter'  => [
+                'SELECT name FROM Locked WHERE id IN (SELECT id FROM Locked LOCK IN SHARE MODE)',
+            ],
+        ];
+    }
+
+    /** A lock below the top-level SELECT must not slip past the refusal, which looks at the top-level query. */
+    #[DataProvider('misplacedLocks')]
+    public function testLockOutsideTheTopLevelSelectIsRefused(string $aql): void
+    {
+        $query                      = (new AqlParser())->parse($aql);
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('top-level');
+
+        $this->getAqlExecutor()->executeAql($query);
     }
 
     public function testOrdinaryReadStillRuns(): void

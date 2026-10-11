@@ -25,24 +25,25 @@ class SelectLockTest extends TestCase
         $this->assertStringEndsWith(' LIMIT 3 FOR UPDATE', $this->resultOf($select));
     }
 
-    public function testLockInShareModeRendersAndPostgreSqlFormIsSelectable(): void
+    public function testLockInShareModeKeepsItsFormWhileForShareIsRenderedOnRequest(): void
     {
         $select = Select::from('Test')->lockInShareMode();
 
         $this->assertStringEndsWith(' LOCK IN SHARE MODE', $this->resultOf($select));
+        $this->assertStringEndsWith(' FOR SHARE', $select->getResultWithForShare());
 
-        $select->renderShareAsForShare();
-
-        $this->assertStringEndsWith(' FOR SHARE', $this->resultOf($select));
+        $this->assertStringEndsWith(' LOCK IN SHARE MODE', $this->resultOf($select));
         $this->assertSame('SELECT * FROM Test LOCK IN SHARE MODE', $select->getAql());
     }
 
-    public function testForUpdateIsUnaffectedByTheShareForm(): void
+    public function testForUpdateAndOrdinaryReadAreUnaffectedByTheShareForm(): void
     {
-        $select = Select::from('Test')->forUpdate();
-        $select->renderShareAsForShare();
+        $forUpdate = Select::from('Test')->forUpdate();
+        $ordinary = Select::from('Test');
 
-        $this->assertStringEndsWith(' FOR UPDATE', $this->resultOf($select));
+        $this->assertSame($this->resultOf($forUpdate), $forUpdate->getResultWithForShare());
+        $this->assertStringEndsWith(' FOR UPDATE', $forUpdate->getResultWithForShare());
+        $this->assertSame($this->resultOf($ordinary), $ordinary->getResultWithForShare());
     }
 
     public function testLockSurvivesClone(): void

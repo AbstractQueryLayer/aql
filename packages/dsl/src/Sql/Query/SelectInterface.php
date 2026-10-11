@@ -27,7 +27,8 @@ interface SelectInterface extends QueryInterface
 
     /**
      * Makes the query a locking read with an exclusive lock: `SELECT ... FOR UPDATE`.
-     * The lock lasts until the transaction the query runs in ends; outside a transaction it is released at once.
+     * The lock lasts until the transaction the query runs in ends. The executors refuse a locking read outside a
+     * transaction, anywhere but the top-level SELECT, and for a query that needs secondary queries.
      */
     public function forUpdate(): static;
 
@@ -37,10 +38,11 @@ interface SelectInterface extends QueryInterface
     public function lockInShareMode(): static;
 
     /**
-     * Renders a shared lock as `FOR SHARE`, the form PostgreSQL knows instead of `LOCK IN SHARE MODE`.
-     * The AQL form of the query does not change.
+     * The SQL text with a shared lock written as `FOR SHARE`, the form PostgreSQL knows instead of
+     * `LOCK IN SHARE MODE`. Any other query gives the same text as getResultAsString().
+     * The query itself does not change: its AQL and its ordinary result keep the `LOCK IN SHARE MODE` form.
      */
-    public function renderShareAsForShare(): static;
+    public function getResultWithForShare(): string;
 
     public function getUnionType(): ?UnionEnum;
 
