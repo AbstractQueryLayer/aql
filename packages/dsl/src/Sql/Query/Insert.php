@@ -103,6 +103,13 @@ class Insert extends QueryAbstract implements InsertInterface
         return $this;
     }
 
+    /** The target table; a SELECT that supplies the rows is a source, not the subject of the insert. */
+    #[\Override]
+    public function findMainSubject(): ?SubjectInterface
+    {
+        return $this->getFrom()?->getSubject();
+    }
+
     #[\Override]
     public function getAql(bool $forResolved = false): string
     {

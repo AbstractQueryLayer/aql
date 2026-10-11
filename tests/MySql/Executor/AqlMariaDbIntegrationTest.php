@@ -90,6 +90,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_event');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_lease');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_label');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
     }
 
@@ -1118,6 +1119,65 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         }
 
         return ['throw', $id];
+    }
+
+    public function testInsertSelectCopiesTheSelectedRowsWithAParameterInTheSelectList(): void
+    {
+        $first = $this->insert($this->aqlExecutor, 1);
+        $this->insert($this->aqlExecutor, 2);
+        $third = $this->insert($this->aqlExecutor, 3);
+        $query = (new AqlParser())->parse('INSERT INTO AqlRoundTripLink (roundTripId, label)'
+            . ' SELECT id, {label} FROM AqlRoundTrip WHERE id <> {skip} ORDER BY id DESC');
+        $query->applyParameters(['label' => 'copied', 'skip' => $first + 1]);
+
+        $this->assertSame(2, $this->aqlExecutor->executeAql($query)->getAffectedRows());
+        $this->assertSame([[$third, 'copied'], [$first, 'copied']],
+            $this->pdo->query('SELECT roundTripId, label FROM aql_round_trip_link ORDER BY id')->fetchAll(\PDO::FETCH_NUM));
+    }
+
+    public function testInsertSelectWithinOneTableReturnsTheIdOfTheNewRow(): void
+    {
+        $this->insert($this->aqlExecutor, 1);
+        $source = $this->insert($this->aqlExecutor, 2);
+        $query = (new AqlParser())->parse('INSERT INTO AqlRoundTrip (value) SELECT value FROM AqlRoundTrip WHERE id = {id}');
+        $query->applyParameters(['id' => $source]);
+        $key = $this->aqlExecutor->executeAql($query)->getLastPrimaryKey();
+
+        $this->assertIsArray($key);
+        $this->assertSame($source + 1, (int) $key['id']);
+        $this->assertSame([['id' => $source + 1, 'value' => 'worker-2']], $this->select($this->aqlExecutor, $source + 1));
+    }
+
+    public function testInsertSelectIntoACompositeKeyFiresTheTriggerForEveryRow(): void
+    {
+        $this->pdo->exec('CREATE TABLE aql_round_trip_label (roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL,'
+            . ' PRIMARY KEY (roundTripId, label)) ENGINE=InnoDB');
+        // Refuses label "b" only for the row valued worker-3, so a copy there fails on its second row.
+        $this->pdo->exec("CREATE TRIGGER aql_round_trip_label_bi BEFORE INSERT ON aql_round_trip_label FOR EACH ROW"
+            . " BEGIN IF NEW.label = 'b' AND NEW.roundTripId = (SELECT id FROM aql_round_trip WHERE value = 'worker-3')"
+            . " THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'refused label'; END IF; END");
+        $from = $this->insert($this->aqlExecutor, 1);
+        $to = $this->insert($this->aqlExecutor, 2);
+        $refused = $this->insert($this->aqlExecutor, 3);
+        $this->pdo->exec("INSERT INTO aql_round_trip_label VALUES ($from, 'a'), ($from, 'b')");
+        $copy = 'INSERT INTO AqlRoundTripLabel (roundTripId, label)'
+            . ' SELECT {to}, label FROM AqlRoundTripLabel WHERE roundTripId = {from} ORDER BY label';
+
+        $query = (new AqlParser())->parse($copy);
+        $query->applyParameters(['to' => $to, 'from' => $from]);
+        $this->assertSame(2, $this->aqlExecutor->executeAql($query)->getAffectedRows());
+
+        $query = (new AqlParser())->parse($copy);
+        $query->applyParameters(['to' => $refused, 'from' => $from]);
+        try {
+            $this->aqlExecutor->executeAql($query);
+            $this->fail('The trigger did not refuse the second row');
+        } catch (\IfCastle\AQL\Storage\Exceptions\StorageException) {
+        }
+
+        $this->assertSame([[$from, 'a'], [$from, 'b'], [$to, 'a'], [$to, 'b']],
+            $this->pdo->query('SELECT roundTripId, label FROM aql_round_trip_label ORDER BY roundTripId, label')
+                ->fetchAll(\PDO::FETCH_NUM));
     }
 
     private function insert(AqlExecutorInterface $executor, int $worker): int

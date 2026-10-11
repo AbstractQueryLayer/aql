@@ -345,6 +345,11 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
 
         $fields                     = $isSingleColumn ? $strings[0] : '(' . \implode(',', $strings) . ')';
 
+        // Columns alone: the rows come from INSERT … SELECT.
+        if ($set === []) {
+            return $fields;
+        }
+
         $strings                    = [];
 
         // A row is parenthesized as a whole: `(1,2),(3,4)`; a one-column IN lists its values bare: `IN (1, 3)`.
