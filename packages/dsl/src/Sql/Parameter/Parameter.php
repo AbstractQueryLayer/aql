@@ -37,7 +37,8 @@ class Parameter extends Constant implements ParameterInterface
             return $reference->isValueList();
         }
 
-        return $this->isValueList;
+        // A parameter parsed from {name} learns that it is a list only from the value applied to it.
+        return $this->isValueList || ($this->isResolved && \is_array($this->value));
     }
 
     /**

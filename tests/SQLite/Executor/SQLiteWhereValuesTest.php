@@ -56,6 +56,19 @@ final class SQLiteWhereValuesTest extends TestCaseWithSqlMemoryDb
         $this->assertSame([2], $this->selectIds((new AqlParser())->parse('SELECT id FROM Pair WHERE id IN (0, 2) ORDER BY id')));
     }
 
+    public function testInListFromOneParameterWithAnArrayValue(): void
+    {
+        $this->createPairs();
+
+        $query                      = (new AqlParser())->parse('SELECT id FROM Pair WHERE id IN ({ids}) ORDER BY id');
+        $query->applyParameters(['ids' => [1, 3]]);
+        $strings                    = (new AqlParser())->parse('SELECT id FROM Pair WHERE second IN ({values}) ORDER BY id');
+        $strings->applyParameters(['values' => ['y', 'z']]);
+
+        $this->assertSame([1, 3], $this->selectIds($query));
+        $this->assertSame([1, 3], $this->selectIds($strings));
+    }
+
     /** Rendered as NULL, a forgotten value would silently match nothing. */
     public function testParameterWithoutValueFailsTheQuery(): void
     {

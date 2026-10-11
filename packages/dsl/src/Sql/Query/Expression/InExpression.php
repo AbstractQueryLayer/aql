@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Sql\Query\Expression;
 
 use IfCastle\AQL\Dsl\Node\NodeAbstract;
+use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
 
 /**
@@ -69,6 +70,13 @@ class InExpression extends NodeAbstract
 
         if ($this->isSubquery || $results === []) {
             return \implode(' ', $results);
+        }
+
+        // IN ({ids}) with a list applied to {ids}: the list renders its own parentheses.
+        $only                       = \count($this->childNodes) === 1 ? \reset($this->childNodes) : null;
+
+        if ($only instanceof ConstantInterface && $only->isValueList()) {
+            return $results[\array_key_first($results)];
         }
 
         return '(' . \implode(', ', $results) . ')';
