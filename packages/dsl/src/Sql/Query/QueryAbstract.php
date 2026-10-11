@@ -407,7 +407,12 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
     #[\Override]
     public function where(string|NodeInterface $left, bool|int|string|NodeInterface|null $right): static
     {
-        $this->getWhere()?->equal($left, $right);
+        if ($right === null) {
+            $this->getWhere()?->isNull($left);
+        } else {
+            $this->getWhere()?->equal($left, $right);
+        }
+
         return $this;
     }
 

@@ -46,6 +46,14 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testFunctionKeepsAZeroArgument(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT COALESCE(id, 0) as a FROM Test',
+            /** @lang aql */ 'SELECT COALESCE(id, 0) as "a" FROM Test'
+        ));
+    }
+
     public function testTupleWithAliases(): void
     {
         $this->executeCase(new ParserCaseDescriptor(

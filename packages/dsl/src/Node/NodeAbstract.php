@@ -505,7 +505,7 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
 
             $aql                    = $forResolved ? $node?->resolveNode()->getAql($forResolved) : $node?->getAql($forResolved);
 
-            if (!empty($aql)) {
+            if (self::isNotBlank($aql)) {
                 $results[]          = $aql;
             }
         }
@@ -539,13 +539,22 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
             if ($childNode instanceof NodeInterface) {
                 $result             = $childNode->getResult();
 
-                if (!empty($result)) {
+                if (self::isNotBlank($result)) {
                     $results[]      = $result;
                 }
             }
         }
 
         return $results;
+    }
+
+    /**
+     * A rendered part counts as present unless it is null, an empty string, an empty array or false.
+     * The number 0 and the string '0' are present: they are the SQL constant 0, not a missing argument.
+     */
+    private static function isNotBlank(mixed $part): bool
+    {
+        return $part === 0 || $part === '0' || !empty($part);
     }
 
     /**

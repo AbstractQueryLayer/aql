@@ -48,6 +48,10 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_event');
         $this->pdo->exec('CREATE TABLE aql_round_trip_event (id INT AUTO_INCREMENT PRIMARY KEY, ownerId INT NOT NULL,'
             . ' createdAt INT NOT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_lease');
+        $this->pdo->exec('CREATE TABLE aql_round_trip_lease (id INT AUTO_INCREMENT PRIMARY KEY, ownerId INT NOT NULL,'
+            . ' expiresAt DATETIME(6) NOT NULL, windowStart DATETIME(6) NOT NULL, attempts INT NOT NULL DEFAULT 0,'
+            . ' bonus INT NULL) ENGINE=InnoDB');
         $this->pdo->exec('CREATE TABLE aql_round_trip_link (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
         $this->mySql = new SqlRecordingMySql([
             'dsn' => MariaDb::dsn(),
@@ -80,6 +84,7 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         parent::tearDown();
         $this->mySql->dispose();
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_event');
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_lease');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_link');
         $this->pdo->exec('DROP TABLE IF EXISTS ' . self::TABLE);
     }
@@ -384,6 +389,70 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
             $this->fail('A string LIMIT value was accepted');
         } catch (UnexpectedValue) {
             $this->assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM aql_round_trip_event')->fetchColumn());
+        }
+    }
+
+    public function testUtcTimestampSelectsRowsByTheServerClock(): void
+    {
+        $this->insertLeases([[1, '-1 hour'], [2, '+1 hour'], [3, '+2 hours']]);
+
+        foreach (['UTC_TIMESTAMP(6)', 'UTC_TIMESTAMP()'] as $call) {
+            $select = (new AqlParser())->parse(
+                'SELECT ownerId FROM AqlRoundTripLease WHERE expiresAt > ' . $call . ' ORDER BY ownerId'
+            );
+
+            $this->assertSame(
+                [2, 3],
+                \array_map('intval', \array_column($this->aqlExecutor->executeAql($select)->finalize()->toArray(), 'ownerId')),
+                $call
+            );
+            $this->assertStringContainsString('> ' . $call, $this->mySql->lastSql);
+        }
+    }
+
+    public function testWhereWithNullFindsRowsWithoutAValue(): void
+    {
+        $this->insertLeases([[1, '+1 hour', null], [2, '+1 hour', 5], [3, '+1 hour', null]]);
+
+        $select = (new AqlParser())->parse('SELECT ownerId FROM AqlRoundTripLease ORDER BY ownerId');
+        $select->setWhere(new Where());
+        $select->where('bonus', null);
+
+        $this->assertSame(
+            [1, 3],
+            \array_map('intval', \array_column($this->aqlExecutor->executeAql($select)->finalize()->toArray(), 'ownerId'))
+        );
+        $this->assertStringContainsString('`bonus` IS NULL', $this->mySql->lastSql);
+    }
+
+    public function testCoalesceKeepsItsZeroFallback(): void
+    {
+        $this->insertLeases([[1, '+1 hour', null], [2, '+1 hour', 5]]);
+
+        $select = (new AqlParser())->parse(
+            'SELECT ownerId, COALESCE(bonus, 0) AS bonus FROM AqlRoundTripLease ORDER BY ownerId'
+        );
+        $rows = $this->aqlExecutor->executeAql($select)->finalize()->toArray();
+
+        $this->assertSame([[1, 0], [2, 5]], \array_map(
+            static fn(array $row): array => [(int) $row['ownerId'], (int) $row['bonus']],
+            $rows
+        ));
+        $this->assertStringContainsString('COALESCE(`t0`.`bonus`, 0)', $this->mySql->lastSql);
+    }
+
+    /**
+     * @param list<array{0: int, 1: string, 2?: int|null}> $leases owner id, expiry as a relative time string
+     *                                                            and the optional bonus of each row
+     */
+    private function insertLeases(array $leases): void
+    {
+        $insert = $this->pdo->prepare('INSERT INTO aql_round_trip_lease (ownerId, expiresAt, windowStart, bonus)'
+            . ' VALUES (?, ?, ?, ?)');
+
+        foreach ($leases as $lease) {
+            $expiresAt = (new \DateTimeImmutable($lease[1], new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+            $insert->execute([$lease[0], $expiresAt, $expiresAt, $lease[2] ?? null]);
         }
     }
 
