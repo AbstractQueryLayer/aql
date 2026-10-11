@@ -669,6 +669,101 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         return $executor->executeAql($select)->finalize()->toArray();
     }
 
+    public function testOnDuplicateKeyUpdateWithValuesKeepsOneRowWithTheSecondValues(): void
+    {
+        foreach ([[1, 'first'], [2, 'second']] as [$bonus, $label]) {
+            $upsert = (new AqlParser())->parse(
+                'INSERT INTO AqlRoundTripLease (ownerId, expiresAt, windowStart, attempts, bonus)'
+                . ' VALUES ({owner}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), {attempts}, {bonus})'
+                . ' ON DUPLICATE KEY UPDATE attempts = VALUES(attempts), bonus = VALUES(bonus)'
+            );
+            $upsert->applyParameters(['owner' => 9, 'attempts' => $bonus * 10, 'bonus' => $bonus]);
+            $this->aqlExecutor->executeAql($upsert);
+        }
+
+        $this->assertStringEndsWith(
+            ' ON DUPLICATE KEY UPDATE `attempts` = VALUES(`attempts`), `bonus` = VALUES(`bonus`)',
+            $this->mySql->lastSql
+        );
+
+        $rows = $this->pdo->query('SELECT ownerId, attempts, bonus FROM aql_round_trip_lease')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->assertSame([['ownerId' => 9, 'attempts' => 20, 'bonus' => 2]], $rows);
+    }
+
+    /** In the update list a column is the existing row, and VALUES(column) is the value the INSERT offered. */
+    public function testOnDuplicateKeyUpdateReadsTheExistingRowAndTheOfferedValue(): void
+    {
+        $this->insertLeases([[4, '+1 hour', 100, '+1 hour', 7]]);
+
+        $upsert = (new AqlParser())->parse(
+            'INSERT INTO AqlRoundTripLease (ownerId, expiresAt, windowStart, attempts, bonus)'
+            . ' VALUES ({owner}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), {attempts}, {bonus})'
+            . ' ON DUPLICATE KEY UPDATE attempts = attempts + VALUES(attempts), bonus = bonus + {bonus}'
+        );
+        $upsert->applyParameters(['owner' => 4, 'attempts' => 5, 'bonus' => 1]);
+        $this->aqlExecutor->executeAql($upsert);
+
+        $row = $this->pdo->query('SELECT attempts, bonus FROM aql_round_trip_lease')->fetch(\PDO::FETCH_ASSOC);
+
+        $this->assertSame(['attempts' => 12, 'bonus' => 101], $row);
+    }
+
+    /** The update list renders its columns bare, so an entity-qualified column runs the same as an unqualified one. */
+    public function testOnDuplicateKeyUpdateAcceptsEntityQualifiedColumns(): void
+    {
+        $this->insertLeases([[1, '+1 hour', null, '+1 hour', 10]]);
+
+        $upsert = (new AqlParser())->parse(
+            'INSERT INTO AqlRoundTripLease (ownerId, expiresAt, windowStart, attempts)'
+            . ' VALUES (1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 1) ON DUPLICATE KEY UPDATE'
+            . ' AqlRoundTripLease.attempts = AqlRoundTripLease.attempts + VALUES(AqlRoundTripLease.attempts)'
+        );
+        $this->aqlExecutor->executeAql($upsert);
+
+        $this->assertStringEndsWith(
+            ' ON DUPLICATE KEY UPDATE `attempts` = `attempts` + VALUES(`attempts`)',
+            $this->mySql->lastSql
+        );
+        $this->assertSame(11, (int) $this->pdo->query('SELECT attempts FROM aql_round_trip_lease')->fetchColumn());
+    }
+
+    /** The counter of a time window: 1, then 2 inside the window, then 1 again once the window is over. */
+    public function testOnDuplicateKeyUpdateCountsInsideTheWindowAndRestartsAfterIt(): void
+    {
+        $upsert = static function (): object {
+            $query = (new AqlParser())->parse(
+                'INSERT INTO AqlRoundTripLease (ownerId, expiresAt, windowStart, attempts)'
+                . ' VALUES ({owner}, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 1) ON DUPLICATE KEY UPDATE'
+                . ' attempts = IF(windowStart + INTERVAL {seconds} SECOND <= UTC_TIMESTAMP(6), 1, attempts + 1),'
+                . ' windowStart = IF(windowStart + INTERVAL {seconds} SECOND <= UTC_TIMESTAMP(6),'
+                . ' UTC_TIMESTAMP(6), windowStart)'
+            );
+            $query->applyParameters(['owner' => 3, 'seconds' => 60]);
+
+            return $query;
+        };
+        $state = fn(): array => $this->pdo->query('SELECT attempts, windowStart FROM aql_round_trip_lease')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->aqlExecutor->executeAql($upsert());
+        $first = $state();
+        $this->aqlExecutor->executeAql($upsert());
+        $second = $state();
+
+        $this->assertCount(1, $second);
+        $this->assertSame([1, 2], [$first[0]['attempts'], $second[0]['attempts']]);
+        $this->assertSame($first[0]['windowStart'], $second[0]['windowStart']);
+
+        $this->pdo->exec('UPDATE aql_round_trip_lease SET windowStart = UTC_TIMESTAMP(6) - INTERVAL 61 SECOND');
+        $this->aqlExecutor->executeAql($upsert());
+        $third = $state();
+
+        $this->assertSame(1, $third[0]['attempts']);
+        $this->assertEqualsWithDelta($this->serverUtcNow(), $this->microtime($third[0]['windowStart']), 5.0);
+    }
+
     /** @return list<int> */
     private function ownerIds(array $rows): array
     {
