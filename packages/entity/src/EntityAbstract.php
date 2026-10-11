@@ -121,10 +121,16 @@ abstract class EntityAbstract implements
     protected array $relations      = [];
 
     /**
-     * The same relations by right entity and name, for lookups by entity (rule R6).
+     * The same relations by right entity and name, for lookups by entity (rule R6); without those joined by role only.
      * @var array<string, array<string, RelationInterface>>
      */
     protected array $relationsByTarget = [];
+
+    /**
+     * Roles of describeRole(), built after the relations: their target must be fully built first.
+     * @var list<array{string, string, array<string, string>, string, list<string>}>
+     */
+    protected array $pendingRoles   = [];
 
     /**
      * @var ModifierInterface[]
@@ -769,6 +775,24 @@ abstract class EntityAbstract implements
     }
 
     #[\Override]
+    public function describeRole(
+        string $role,
+        string $toEntity,
+        array  $pairs,
+        string $integrity,
+        array  $derivedFrom = []
+    ): static {
+        if ($this->buildAsRaw) {
+            return $this;
+        }
+
+        $this->throwOutOfInitialization();
+        $this->pendingRoles[]       = [$role, $toEntity, $pairs, $integrity, $derivedFrom];
+
+        return $this;
+    }
+
+    #[\Override]
     public function describeCrossReference(
         (EntityDescriptorInterface&EntityInterface)|string $toEntity,
         ?string                                             $throughEntity   = null,
@@ -871,7 +895,10 @@ abstract class EntityAbstract implements
         }
 
         $this->relations[$key]      = $relation;
-        $this->relationsByTarget[$relation->getRightEntityName()][$key] = $relation;
+
+        if (!$relation->isJoinedByRoleOnly()) {
+            $this->relationsByTarget[$relation->getRightEntityName()][$key] = $relation;
+        }
 
         return $this;
     }
@@ -1057,6 +1084,12 @@ abstract class EntityAbstract implements
         foreach ($this->properties as $property) {
             $property->handleAfterRelationDefinition($this, $this->getDiContainer());
         }
+
+        foreach ($this->pendingRoles as [$role, $toEntity, $pairs, $integrity, $derivedFrom]) {
+            $this->getEntityBuilder()->buildRole($this, $role, $toEntity, $pairs, $integrity, $derivedFrom);
+        }
+
+        $this->pendingRoles         = [];
     }
 
     protected function buildConstraints(): void {}

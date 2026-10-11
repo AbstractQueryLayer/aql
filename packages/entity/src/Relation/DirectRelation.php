@@ -62,6 +62,7 @@ class DirectRelation extends RelationAbstract implements DirectRelationInterface
         $reversed->isConsistent     = $this->isConsistent;
         $reversed->integrity        = $this->integrity;
         $reversed->derivedFrom      = $this->derivedFrom;
+        $reversed->isJoinedByRoleOnly = $this->isJoinedByRoleOnly;
 
         if ($this->conditions !== null) {
             $reversed->conditions   = $this->conditions->reverseConditions();
@@ -105,9 +106,11 @@ class DirectRelation extends RelationAbstract implements DirectRelationInterface
         // Expression like this:
         // (key1, key2, ...) = (foreign_key1, foreign_key2, ...)
         //
+        $right                      = $this->rightEntityName;
+        $left                       = $this->leftEntityName;
         $conditions->equal(
-            new ColumnList(...\array_map(fn(string $column) => new Column($column, $this->rightEntityName), $leftColumns)),
-            new ColumnList(...\array_map(fn(string $column) => new Column($column, $this->leftEntityName, true), $rightColumns))
+            new ColumnList(...\array_map(static fn(string $column) => new Column($column, $right), $rightColumns)),
+            new ColumnList(...\array_map(static fn(string $column) => new Column($column, $left, true), $leftColumns))
         );
 
         return $conditions;

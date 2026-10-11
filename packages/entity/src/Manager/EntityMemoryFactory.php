@@ -8,6 +8,7 @@ use IfCastle\AQL\Entity\BlankEntity;
 use IfCastle\AQL\Entity\Builder\EntityBuilderInterface;
 use IfCastle\AQL\Entity\EntityDescriptorInterface;
 use IfCastle\AQL\Entity\EntityInterface;
+use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
 use IfCastle\AQL\Executor\Exceptions\EntityNotFound;
 use IfCastle\DI\AutoResolverInterface;
 use IfCastle\DI\ContainerInterface;
@@ -41,6 +42,12 @@ class EntityMemoryFactory implements
     protected array $typicalEntities    = [];
 
     /**
+     * Names of the entities whose full build is running, in the order their builds started.
+     * @var array<string, true>
+     */
+    protected array $building           = [];
+
+    /**
      *
      * @throws  BaseException
      * @throws  EntityNotFound
@@ -67,8 +74,10 @@ class EntityMemoryFactory implements
 
         $entity                     = $this->loadEntity($entityName, $isRaw);
 
-        if (false === $entity->wasBuilt()) {
-            $this->entityBuilder->buildEntity($entity, $isRaw);
+        if (false === $entity->wasBuilt() && $isRaw) {
+            $this->entityBuilder->buildEntity($entity, true);
+        } elseif (false === $entity->wasBuilt()) {
+            $this->buildRefusingCycle($entity, $entityName);
         }
 
         if (false === $isRaw) {
@@ -80,6 +89,32 @@ class EntityMemoryFactory implements
         }
 
         return $entity;
+    }
+
+    /**
+     * Builds $entity fully unless a full build of the same entity is already running: an entity is stored only after
+     * its build, so a second full request from inside it would build another instance, and so on without end.
+     *
+     * @throws EntityDescriptorException when a full build of $entityName is already running
+     */
+    protected function buildRefusingCycle(EntityInterface & EntityDescriptorInterface $entity, string $entityName): void
+    {
+        if (\array_key_exists($entityName, $this->building)) {
+            throw new EntityDescriptorException([
+                'template'          => 'Entity {entity} is needed fully built while it is being built: '
+                    . 'its roles form a cycle ({chain})',
+                'entity'            => $entityName,
+                'chain'             => \implode(' -> ', [...\array_keys($this->building), $entityName]),
+            ]);
+        }
+
+        $this->building[$entityName] = true;
+
+        try {
+            $this->entityBuilder->buildEntity($entity);
+        } finally {
+            unset($this->building[$entityName]);
+        }
     }
 
     /**

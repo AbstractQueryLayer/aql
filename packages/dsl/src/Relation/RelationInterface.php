@@ -228,6 +228,12 @@ interface RelationInterface extends NodeInterface
      */
     public function getDerivedFrom(): array;
 
+    /**
+     * TRUE when the relation is joined only by its name (`JOIN alias.role`): lookups by entity name (a comma join,
+     * `JOIN Entity`, a tuple column, `WHERE ENTITY`) never choose it.
+     */
+    public function isJoinedByRoleOnly(): bool;
+
     public function getRelationType(): string;
 
     /**

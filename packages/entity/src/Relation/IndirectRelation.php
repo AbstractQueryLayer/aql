@@ -43,6 +43,7 @@ class IndirectRelation extends RelationAbstract implements IndirectRelationInter
         $relation->isLeastOnce      = $this->isLeastOnce;
         $relation->integrity        = $this->integrity;
         $relation->derivedFrom      = $this->derivedFrom;
+        $relation->isJoinedByRoleOnly = $this->isJoinedByRoleOnly;
 
         if ($this->conditions !== null) {
             $relation->conditions   = $this->conditions->reverseConditions();

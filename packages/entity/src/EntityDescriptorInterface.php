@@ -82,6 +82,34 @@ interface EntityDescriptorInterface extends NamingStrategyAwareInterface, PostAc
     ): static;
 
     /**
+     * Describes a role over one or more column pairs: a relation named $role from this entity to $toEntity whose
+     * join predicate equates every pair (C2, C9, C22 of dev/design/aql-relations.md in the lib repository).
+     *
+     * The role is joined only by its name (`JOIN alias.role`) and is never required: a query that needs an inner
+     * join writes `JOIN`. It is to-one when the target columns contain the target's primary or a unique key, and
+     * to-many otherwise. Both entities must be in one storage. The target is built fully first, so the target must
+     * not reach back to this entity through roles of its own.
+     *
+     * @param string                $role        begins with a lowercase letter
+     * @param array<string, string> $pairs       own column => target column, in key order; one pair or more
+     * @param string                $integrity   INTEGRITY_IMPLIED or INTEGRITY_LOGICAL; a declared composite
+     *                                           foreign key is not supported yet
+     * @param list<string>          $derivedFrom constraint names, required for INTEGRITY_IMPLIED
+     *
+     * @return $this
+     * @throws EntityDescriptorException when the entity is built, if the name, a column, the target or the integrity
+     *                                   does not fit, another role already joins these pairs to the target, or the
+     *                                   target's roles lead back to this entity
+     */
+    public function describeRole(
+        string $role,
+        string $toEntity,
+        array  $pairs,
+        string $integrity,
+        array  $derivedFrom = []
+    ): static;
+
+    /**
      * Describes a cross-reference relationship between entities.
      * please see: https://en.wikipedia.org/wiki/Associative_entity.
      *

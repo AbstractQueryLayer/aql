@@ -229,6 +229,42 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
     }
 
     /**
+     * A to-many role over two column pairs joins only the pages of the volume's published issue: pages of its other
+     * issues and pages of another volume in the same issue number stay out, and a volume without one keeps its row.
+     */
+    public function testCompositeRoleJoinsOnlyRowsMatchingEveryPair(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS volume, volume_page');
+        $this->pdo->exec('CREATE TABLE volume (id INT PRIMARY KEY, name VARCHAR(64) NOT NULL,'
+            . ' publishedIssueId INT NULL, firstPageNo INT NULL) ENGINE=InnoDB');
+        $this->pdo->exec('CREATE TABLE volume_page (issueId INT NOT NULL, volumeId INT NOT NULL, pageNo INT NOT NULL,'
+            . ' title VARCHAR(64) NOT NULL, PRIMARY KEY (issueId, volumeId, pageNo)) ENGINE=InnoDB');
+
+        try {
+            $this->pdo->exec("INSERT INTO volume VALUES (1, 'one', 10, 1), (2, 'two', 11, NULL),"
+                . " (3, 'three', NULL, NULL)");
+            $this->pdo->exec("INSERT INTO volume_page VALUES (10, 1, 1, 'one-10-1'), (10, 1, 2, 'one-10-2'),"
+                . " (9, 1, 1, 'one-9-1'), (10, 2, 1, 'two-10-1'), (11, 2, 1, 'two-11-1')");
+
+            $rows = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT v.name, p.title FROM Volume v LEFT JOIN v.publishedPages p ORDER BY v.id, p.pageNo'
+            ))->finalize()->toArray();
+
+            $this->assertSame([
+                ['name' => 'one', 'title' => 'one-10-1'],
+                ['name' => 'one', 'title' => 'one-10-2'],
+                ['name' => 'two', 'title' => 'two-11-1'],
+                ['name' => 'three', 'title' => null],
+            ], $rows);
+
+            $plan = $this->pdo->query('EXPLAIN ' . $this->mySql->lastSql)->fetchAll(\PDO::FETCH_ASSOC);
+            $this->assertSame(['ref', 'PRIMARY'], [$plan[1]['type'], $plan[1]['key']], \json_encode($plan));
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS volume, volume_page');
+        }
+    }
+
+    /**
      * The shape of the lib catalogue page (S25 Q3): an equality on the first column of (column, id) and a backward
      * range on id; on the full table the optimizer prefers PRIMARY there, which the hint overrides.
      */

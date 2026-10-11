@@ -76,6 +76,11 @@ abstract class RelationAbstract extends NodeAbstract implements RelationInterfac
     protected array $derivedFrom    = [];
 
     /**
+     * @see isJoinedByRoleOnly
+     */
+    protected bool $isJoinedByRoleOnly = false;
+
+    /**
      * Additional conditions.
      */
     protected ?ConditionsInterface $conditions = null;
@@ -144,6 +149,21 @@ abstract class RelationAbstract extends NodeAbstract implements RelationInterfac
         $this->integrity            = $integrity;
         $this->derivedFrom          = $derivedFrom;
 
+        return $this;
+    }
+
+    #[\Override]
+    public function isJoinedByRoleOnly(): bool
+    {
+        return $this->isJoinedByRoleOnly;
+    }
+
+    /**
+     * Hides the relation from lookups by entity name: it is joined only as `alias.role`.
+     */
+    public function asJoinedByRoleOnly(): static
+    {
+        $this->isJoinedByRoleOnly   = true;
         return $this;
     }
 

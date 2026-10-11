@@ -7,6 +7,7 @@ namespace IfCastle\AQL\Entity\Builder;
 use IfCastle\AQL\Dsl\Relation\RelationInterface;
 use IfCastle\AQL\Entity\EntityDescriptorInterface;
 use IfCastle\AQL\Entity\EntityInterface;
+use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
 
 interface EntityBuilderInterface
 {
@@ -24,6 +25,23 @@ interface EntityBuilderInterface
         ?string                                               $role = null,
         string                                               $integrity = RelationInterface::INTEGRITY_DECLARED,
         array                                                $derivedFrom = []
+    ): void;
+
+    /**
+     * Builds the relation of EntityDescriptorInterface::describeRole() and describes it on $fromEntity.
+     *
+     * @param array<string, string> $pairs
+     * @param list<string>          $derivedFrom
+     *
+     * @throws EntityDescriptorException
+     */
+    public function buildRole(
+        EntityDescriptorInterface & EntityInterface $fromEntity,
+        string                                      $role,
+        string                                      $toEntity,
+        array                                       $pairs,
+        string                                      $integrity,
+        array                                       $derivedFrom
     ): void;
 
     public function buildCrossReference(

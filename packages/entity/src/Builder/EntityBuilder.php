@@ -11,6 +11,7 @@ use IfCastle\AQL\Entity\EntityBuildPlanInterface;
 use IfCastle\AQL\Entity\EntityDescriptorInterface;
 use IfCastle\AQL\Entity\EntityInterface;
 use IfCastle\AQL\Entity\Exceptions\EntityDescriptorException;
+use IfCastle\AQL\Entity\Key\Key;
 use IfCastle\AQL\Entity\Manager\EntityFactoryInterface;
 use IfCastle\AQL\Entity\Manager\EntityStorageInterface;
 use IfCastle\AQL\Entity\Property\ComplexProperty;
@@ -83,6 +84,159 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
             $integrity,
             $derivedFrom
         );
+    }
+
+    #[\Override]
+    public function buildRole(
+        EntityDescriptorInterface & EntityInterface $fromEntity,
+        string                                      $role,
+        string                                      $toEntity,
+        array                                       $pairs,
+        string                                      $integrity,
+        array                                       $derivedFrom
+    ): void {
+        // PHP turns a numeric column name used as a key into an integer.
+        $columns                    = \array_map(strval(...), \array_keys($pairs));
+        $targetColumns              = \array_values($pairs);
+
+        $this->checkRoleDeclaration($fromEntity, $role, $toEntity, $columns, $integrity);
+        // Fully built: the target's own reference columns are needed, and a raw build skips them.
+        $target                     = $this->entityFactory->getEntity($toEntity);
+        $this->checkRoleTarget($fromEntity, $role, $target, $columns, $targetColumns);
+
+        $relation                   = (new DirectRelation(
+            $fromEntity->getEntityName(),
+            new Key(...$columns),
+            $target->getEntityName(),
+            new Key(...$targetColumns),
+            self::containsUniqueKey($target, $targetColumns)
+                ? RelationInterface::REFERENCE : RelationInterface::COLLECTION
+        ))->setRelationName($role)
+            ->setIntegrity($integrity, $derivedFrom)
+            ->setIsRequired(false)
+            ->asJoinedByRoleOnly();
+
+        $fromEntity->describeRelation($relation);
+    }
+
+    /**
+     * @param list<string> $columns own columns of the role
+     *
+     * @throws EntityDescriptorException
+     */
+    protected function checkRoleDeclaration(
+        EntityInterface $fromEntity,
+        string          $role,
+        string          $toEntity,
+        array           $columns,
+        string          $integrity
+    ): void {
+        $failure                    = match (true) {
+            $integrity === RelationInterface::INTEGRITY_DECLARED
+                => 'a declared composite foreign key is not supported yet; describe it as implied',
+            $columns === []         => 'it has no column pairs',
+            // An entity-name lookup reads a relation named like the entity first (EntityAbstract::findRelation).
+            !\ctype_lower($role[0] ?? '') => 'a role name begins with a lowercase letter',
+            $fromEntity->getProperty($role, false) !== null => 'it repeats a property name',
+            default                 => null,
+        };
+
+        if ($failure !== null) {
+            $this->throwOnRole($fromEntity, $role, $toEntity, $failure);
+        }
+
+        foreach ($columns as $column) {
+            if ($fromEntity->getProperty($column, false) === null) {
+                $this->throwOnRole($fromEntity, $role, $toEntity, 'the entity has no column ' . $column);
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $columns       own columns of the role
+     * @param list<string> $targetColumns columns of $target, in pair order
+     *
+     * @throws EntityDescriptorException
+     */
+    protected function checkRoleTarget(
+        EntityInterface $fromEntity,
+        string          $role,
+        EntityInterface $target,
+        array           $columns,
+        array           $targetColumns
+    ): void {
+        $toEntity                   = $target->getEntityName();
+
+        foreach ($targetColumns as $column) {
+            if ($target->getProperty($column, false) === null) {
+                $this->throwOnRole($fromEntity, $role, $toEntity, 'the target has no column ' . $column);
+            }
+        }
+
+        if ($fromEntity->getStorageName() !== $target->getStorageName()) {
+            $this->throwOnRole($fromEntity, $role, $toEntity, 'the entities are in different storages');
+        }
+
+        $pairs                      = self::sortedPairs($columns, $targetColumns);
+
+        foreach ($fromEntity->getRelations() as $name => $relation) {
+            if (!$relation instanceof DirectRelationInterface || $relation->getRightEntityName() !== $toEntity) {
+                continue;
+            }
+
+            $joined                 = self::sortedPairs(
+                $relation->getLeftKey()->getKeyColumns(), $relation->getRightKey()->getKeyColumns()
+            );
+
+            if ($joined === $pairs) {
+                $this->throwOnRole($fromEntity, $role, $toEntity, 'role ' . $name . ' already joins these columns');
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $columns
+     * @param list<string> $targetColumns
+     * @return list<string> "column=targetColumn", sorted: the order of pairs does not change the join
+     */
+    protected static function sortedPairs(array $columns, array $targetColumns): array
+    {
+        $pairs                      = \array_map(
+            static fn(string $column, string $target): string => $column . '=' . $target, $columns, $targetColumns
+        );
+        \sort($pairs);
+
+        return $pairs;
+    }
+
+    /**
+     * True when $columns contain every column of the entity's primary key or of one of its unique keys.
+     *
+     * @param list<string> $columns
+     */
+    protected static function containsUniqueKey(EntityInterface $entity, array $columns): bool
+    {
+        foreach ($entity->getKeys() as $key) {
+            if (($key->isPrimary() || $key->isUnique()) && \array_diff($key->getKeyColumns(), $columns) === []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @throws EntityDescriptorException
+     */
+    protected function throwOnRole(EntityInterface $fromEntity, string $role, string $toEntity, string $failure): never
+    {
+        throw new EntityDescriptorException([
+            'template'              => 'Role {entity}.{role} to {target} cannot be built: {failure}',
+            'entity'                => $fromEntity->getEntityName(),
+            'role'                  => $role,
+            'target'                => $toEntity,
+            'failure'               => $failure,
+        ]);
     }
 
     /**
@@ -301,13 +455,15 @@ class EntityBuilder implements EntityBuilderInterface, DisposableInterface
     }
 
     /**
-     * An inherited relation keeps the parent's role and integrity: the child's inherited reference property then
-     * finds its relation by role and adds no second one.
+     * An inherited relation keeps the parent's role, integrity and whether it is joined by role only: the child's
+     * inherited reference property then finds its relation by role and adds no second one.
      */
     protected function keepRole(RelationInterface $inherited, RelationAbstract $relation): RelationAbstract
     {
-        return $relation->setRelationName($inherited->getRelationName())
+        $relation->setRelationName($inherited->getRelationName())
             ->setIntegrity($inherited->getIntegrity(), $inherited->getDerivedFrom());
+
+        return $inherited->isJoinedByRoleOnly() ? $relation->asJoinedByRoleOnly() : $relation;
     }
 
     #[\Override]
