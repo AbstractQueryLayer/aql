@@ -136,6 +136,50 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 'SELECT * FROM Book LEFT JOIN BookSection',
                 'SELECT * FROM `book` as `t0` LEFT JOIN `book_section` as `t1` ON (`t1`.`id` = `t0`.`bookSectionId`)',
             ],
+            'ON is added to the role predicate' => [
+                'SELECT a.id FROM Article a JOIN a.publishedRevision p ON (p.title = "x")',
+                'SELECT `t0`.`id` FROM `article` as `t0`
+                INNER JOIN `article_revision` as `t1`
+                ON (`t1`.`id` = `t0`.`publishedRevisionId` AND `t1`.`title` = \'x\')',
+            ],
+            'ON with OR keeps its group next to the role predicate' => [
+                'SELECT a.id FROM Article a LEFT JOIN a.draftRevision d ON (d.title = "x" OR d.title = "y")',
+                'SELECT `t0`.`id` FROM `article` as `t0` LEFT JOIN `article_revision` as `t1`
+                ON (`t1`.`id` = `t0`.`draftRevisionId` AND (`t1`.`title` = \'x\' OR `t1`.`title` = \'y\'))',
+            ],
+            'ON with one bracketed group on a role join' => [
+                'SELECT a.id FROM Article a LEFT JOIN a.draftRevision d ON ((d.title = "x" OR d.id = 1))',
+                'SELECT `t0`.`id` FROM `article` as `t0` LEFT JOIN `article_revision` as `t1`
+                ON (`t1`.`id` = `t0`.`draftRevisionId` AND (`t1`.`title` = \'x\' OR `t1`.`id` = \'1\'))',
+            ],
+            'ON and dependent joins of an inherited role move to its last hop' => [
+                'SELECT a.badge FROM SpecialArticle a LEFT JOIN a.publishedRevision p ON (p.title = "x") {
+                    LEFT JOIN p.parent pp
+                }',
+                'SELECT `t2`.`badge` FROM `special_article` as `t2`
+                INNER JOIN `article` as `t0` ON (`t0`.`id` = `t2`.`articleId`)
+                LEFT JOIN `article_revision` as `t1`
+                ON (`t1`.`id` = `t0`.`publishedRevisionId` AND `t1`.`title` = \'x\')
+                LEFT JOIN `article_revision` as `t3` ON (`t3`.`id` = `t1`.`parentId`)',
+            ],
+            'ad hoc join looks up no relation' => [
+                'SELECT b.title FROM Book b JOIN BookSection s ON (s.title = b.title)',
+                'SELECT `t0`.`title` FROM `book` as `t0`
+                INNER JOIN `book_section` as `t1` ON (`t1`.`title` = `t0`.`title`)',
+            ],
+            'ad hoc theta self join' => [
+                'SELECT r.title, n.title AS nextTitle FROM ArticleRevision r
+                LEFT JOIN ArticleRevision n ON (n.articleId = r.articleId AND n.id > r.id)',
+                'SELECT `t0`.`title`, `t1`.`title` as `nextTitle` FROM `article_revision` as `t0`
+                LEFT JOIN `article_revision` as `t1`
+                ON (`t1`.`articleId` = `t0`.`articleId` AND `t1`.`id` > `t0`.`id`)',
+            ],
+            'role join after an ad hoc join' => [
+                'SELECT p.title FROM Article a JOIN ArticleRevision r ON (r.articleId = a.id) JOIN r.parent p',
+                'SELECT `t2`.`title` FROM `article` as `t0`
+                INNER JOIN `article_revision` as `t1` ON (`t1`.`articleId` = `t0`.`id`)
+                INNER JOIN `article_revision` as `t2` ON (`t2`.`id` = `t1`.`parentId`)',
+            ],
         ];
     }
 
@@ -197,6 +241,16 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 'SELECT * FROM Book offset',
                 ParseException::class,
                 'OFFSET',
+            ],
+            'ad hoc join across storages' => [
+                'SELECT * FROM Book b JOIN BookFiles f ON (f.bookId = b.id)',
+                QueryException::class,
+                'across storages',
+            ],
+            'ON on a role join across storages' => [
+                'SELECT * FROM BookFiles f JOIN f.book b ON (b.title = "x")',
+                QueryException::class,
+                'across storages',
             ],
             'repeated alias' => [
                 'SELECT * FROM ArticleRevision r JOIN r.parent r',

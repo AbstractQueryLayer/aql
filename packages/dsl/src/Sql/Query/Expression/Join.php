@@ -87,21 +87,10 @@ class Join extends NodeAbstract implements JoinInterface
             $aql                    .= ' AS ' . $this->qualifier;
         }
 
-        $relations                  = $this->childNodes[self::NODE_RELATION]?->getAql($forResolved);
-        $conditions                 = $this->childNodes[self::NODE_CONDITIONS]?->getAql($forResolved);
-        $on                         = [];
-
-        if ($relations !== null && $relations !== '') {
-            $on[]                   = $relations;
-        }
-
-        if ($conditions !== null && $conditions !== '') {
-            $on[]                   = $conditions;
-        }
-
-        if ($on !== []) {
-            $aql                    .= ' ON (' . \implode(' AND ', $on) . ')';
-        }
+        $aql                        .= $this->joinOn(
+            (string) $this->childNodes[self::NODE_RELATION]?->getAql($forResolved),
+            (string) $this->childNodes[self::NODE_CONDITIONS]?->getAql($forResolved)
+        );
 
         $dependentJoins             = [];
 
@@ -384,17 +373,10 @@ class Join extends NodeAbstract implements JoinInterface
             return $this->childNodes[self::NODE_SUBJECT]->getResult() . $joins;
         }
 
-        $relations                  = '';
-
-        if ($this->childNodes[self::NODE_RELATION] !== null) {
-            $relations              = $this->childNodes[self::NODE_RELATION]->getResult();
-
-            if (!empty($relations)) {
-                $relations          = ' ON (' . $relations . ')';
-            }
-        }
-
-        $result                     = $this->childNodes[self::NODE_SUBJECT]->getResult() . $relations;
+        $result                     = $this->childNodes[self::NODE_SUBJECT]->getResult() . $this->joinOn(
+            (string) $this->childNodes[self::NODE_RELATION]?->getResult(),
+            (string) $this->childNodes[self::NODE_CONDITIONS]?->getResult()
+        );
         $childJoins                 = $this->generateJoins();
 
         if ($childJoins !== '') {
@@ -406,6 +388,36 @@ class Join extends NodeAbstract implements JoinInterface
         }
 
         return $type . ' ' . $result;
+    }
+
+    /**
+     * The ON clause: the relation's predicate AND the conditions written in the query, or an empty string when the
+     * join has neither.
+     */
+    private function joinOn(string $relation, string $written): string
+    {
+        if ($relation === '' || $written === '') {
+            $on                     = $relation . $written;
+        } else {
+            $on                     = $relation . ' AND '
+                                    . ($this->isSingleOperation() ? $written : '(' . $written . ')');
+        }
+
+        return $on === '' ? '' : ' ON (' . $on . ')';
+    }
+
+    /**
+     * True when the written conditions render as one comparison, which binds tighter than the AND joining it to
+     * the relation; a sole nested group renders without brackets and may hold an OR.
+     */
+    private function isSingleOperation(): bool
+    {
+        $operations                 = \array_filter(
+            $this->childNodes[self::NODE_CONDITIONS]->getChildNodes(),
+            static fn(mixed $node): bool => $node instanceof NodeInterface
+        );
+
+        return \count($operations) === 1 && !\reset($operations) instanceof ConditionsInterface;
     }
 
     /**

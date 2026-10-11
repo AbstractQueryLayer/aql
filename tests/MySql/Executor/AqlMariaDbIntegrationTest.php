@@ -172,6 +172,33 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
             ))->finalize()->toArray();
 
             $this->assertSame([['title' => 'third', 'parentTitle' => 'second', 'grandparentTitle' => 'first']], $ancestors);
+
+            $later = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT r.title, n.title AS laterTitle FROM ArticleRevision r'
+                . ' LEFT JOIN ArticleRevision n ON (n.articleId = r.articleId AND n.id > r.id) ORDER BY r.id, n.id'
+            ))->finalize()->toArray();
+
+            $this->assertSame([
+                ['title' => 'first', 'laterTitle' => 'second'],
+                ['title' => 'first', 'laterTitle' => 'third'],
+                ['title' => 'second', 'laterTitle' => 'third'],
+                ['title' => 'third', 'laterTitle' => null],
+            ], $later);
+
+            // The ON predicate of a LEFT role join filters the joined rows, never the articles.
+            $filtered = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT a.name, p.title FROM Article a'
+                . ' LEFT JOIN a.publishedRevision p ON (p.title = "second") ORDER BY a.id'
+            ))->finalize()->toArray();
+
+            $this->assertSame([['name' => 'one', 'title' => 'second'], ['name' => 'two', 'title' => null]], $filtered);
+
+            $none = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                'SELECT a.name, p.title FROM Article a'
+                . ' LEFT JOIN a.publishedRevision p ON (p.title = "first") ORDER BY a.id'
+            ))->finalize()->toArray();
+
+            $this->assertSame([['name' => 'one', 'title' => null], ['name' => 'two', 'title' => null]], $none);
         } finally {
             $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
         }
