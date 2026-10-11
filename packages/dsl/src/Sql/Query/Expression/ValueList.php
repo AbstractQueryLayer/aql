@@ -107,7 +107,8 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
             foreach ($offsets as $key => $offset) {
                 $childNodes         = $set->getChildNodes();
 
-                if (\array_key_exists($offset, $childNodes)) {
+                // A column absent from the list, such as an auto-increment key, has no value in any row.
+                if ($offset !== null && \array_key_exists($offset, $childNodes)) {
                     $results[$key][] = $childNodes[$offset];
                 }
             }
@@ -134,7 +135,8 @@ class ValueList extends NodeAbstract implements OperationInterface, ValueListInt
             foreach ($offsets as $key => $offset) {
                 $childNodes         = $set->getChildNodes();
 
-                if (\array_key_exists($offset, $childNodes)) {
+                // A column absent from the list, such as an auto-increment key, has no value in any row.
+                if ($offset !== null && \array_key_exists($offset, $childNodes)) {
                     $results[$key]  = $childNodes[$offset];
                 }
 

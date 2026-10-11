@@ -99,6 +99,17 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame([['id' => $id, 'value' => 'worker-1']], $this->select($this->aqlExecutor, $id));
     }
 
+    public function testInsertValuesWithoutTheKeyReturnsTheGeneratedId(): void
+    {
+        $query = (new AqlParser())->parse('INSERT INTO AqlRoundTrip (value) VALUES ({value})');
+        $query->applyParameters(['value' => 'by-values']);
+        $key = $this->aqlExecutor->executeAql($query)->getLastPrimaryKey();
+
+        $this->assertIsArray($key);
+        $this->assertSame([['id' => (int) $key['id'], 'value' => 'by-values']],
+            $this->select($this->aqlExecutor, (int) $key['id']));
+    }
+
     public function testAggregateFunctionArgumentsReachMariaDb(): void
     {
         $ids = [
