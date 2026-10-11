@@ -104,8 +104,14 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 INNER JOIN `book` as `t0` ON (`t0`.`id` = `t2`.`bookId`)
                 INNER JOIN `book_section` as `t1` ON (`t1`.`id` = `t0`.`bookSectionId`)',
             ],
-            'inherited one of two roles' => [
+            'inherited one of two roles keeps the written JOIN' => [
                 'SELECT s.badge, p.title FROM SpecialArticle s JOIN s.publishedRevision p',
+                'SELECT `t2`.`badge`, `t1`.`title` FROM `special_article` as `t2`
+                INNER JOIN `article` as `t0` ON (`t0`.`id` = `t2`.`articleId`)
+                INNER JOIN `article_revision` as `t1` ON (`t1`.`id` = `t0`.`publishedRevisionId`)',
+            ],
+            'inherited role keeps the written LEFT JOIN' => [
+                'SELECT s.badge, p.title FROM SpecialArticle s LEFT JOIN s.publishedRevision p',
                 'SELECT `t2`.`badge`, `t1`.`title` FROM `special_article` as `t2`
                 INNER JOIN `article` as `t0` ON (`t0`.`id` = `t2`.`articleId`)
                 LEFT JOIN `article_revision` as `t1` ON (`t1`.`id` = `t0`.`publishedRevisionId`)',
