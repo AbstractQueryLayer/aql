@@ -579,6 +579,22 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertStringContainsString('`t0`.`value` COLLATE utf8mb4_nopad_bin = ', $this->mySql->lastSql);
     }
 
+    public function testEmptyValueListDeletesNothingWithInAndSelectsEverythingWithNotIn(): void
+    {
+        $ids = [$this->insert($this->aqlExecutor, 1), $this->insert($this->aqlExecutor, 2)];
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTrip WHERE id IN ({ids})');
+        $delete->applyParameters(['ids' => []]);
+        $this->aqlExecutor->executeAql($delete);
+        $select = (new AqlParser())->parse('SELECT id FROM AqlRoundTrip WHERE id NOT IN ({ids}) ORDER BY id');
+        $select->applyParameters(['ids' => []]);
+
+        $this->assertSame(
+            $ids,
+            \array_map(intval(...), \array_column($this->aqlExecutor->executeAql($select)->finalize()->toArray(), 'id'))
+        );
+    }
+
     public function testSelectColumnAndUpdateSetAcceptIntervalAndArithmetic(): void
     {
         $this->insertLeases([[1, '+1 hour', 5], [2, '+1 hour', 5]]);

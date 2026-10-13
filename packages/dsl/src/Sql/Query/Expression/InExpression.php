@@ -44,6 +44,25 @@ class InExpression extends NodeAbstract
         }
     }
 
+    /**
+     * TRUE for a value list that holds no value, such as `IN ({ids})` with [] applied: it renders as nothing, so the
+     * enclosing comparison renders a constant predicate instead (LROperation).
+     */
+    public function isEmptyValueList(): bool
+    {
+        if ($this->isSubquery) {
+            return false;
+        }
+
+        foreach ($this->childNodes as $node) {
+            if (false === $node instanceof ConstantInterface || !$node->isValueList() || $node->getConstantValue() !== []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     #[\Override]
     public function getAql(bool $forResolved = false): string
     {

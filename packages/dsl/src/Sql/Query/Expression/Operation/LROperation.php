@@ -10,6 +10,7 @@ use IfCastle\AQL\Dsl\Sql\Column\Column;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\ColumnListInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\InExpression;
 
 /**
  * Class LROperator.
@@ -180,6 +181,13 @@ class LROperation extends NodeAbstract implements LROperationInterface
     {
         $left                       = $this->childNodes[self::LEFT]->getResult();
         $right                      = $this->childNodes[self::RIGHT]->getResult();
+
+        // An empty list renders as nothing, and a dropped condition would match every row: x IN () is false for
+        // every row, x NOT IN () true.
+        if ($left !== '' && $right === ''
+            && $this->childNodes[self::RIGHT] instanceof InExpression && $this->childNodes[self::RIGHT]->isEmptyValueList()) {
+            return \strtoupper($this->operation) === 'NOT IN' ? '1 = 1' : '1 = 0';
+        }
 
         if ($left === '' || $right === '') {
             return '';

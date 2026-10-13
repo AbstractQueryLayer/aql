@@ -69,6 +69,20 @@ final class SQLiteWhereValuesTest extends TestCaseWithSqlMemoryDb
         $this->assertSame([1, 3], $this->selectIds($strings));
     }
 
+    /** An empty list is a valid predicate: IN matches no row, NOT IN every row; a dropped condition would match all. */
+    public function testEmptyValueListMatchesNoRowInAndEveryRowNotIn(): void
+    {
+        $this->createPairs();
+
+        $in                         = (new AqlParser())->parse('SELECT id FROM Pair WHERE id IN ({ids}) ORDER BY id');
+        $in->applyParameters(['ids' => []]);
+        $notIn                      = (new AqlParser())->parse('SELECT id FROM Pair WHERE id NOT IN ({ids}) ORDER BY id');
+        $notIn->applyParameters(['ids' => []]);
+
+        $this->assertSame([], $this->selectIds($in));
+        $this->assertSame([1, 2, 3], $this->selectIds($notIn));
+    }
+
     /** Rendered as NULL, a forgotten value would silently match nothing. */
     public function testParameterWithoutValueFailsTheQuery(): void
     {
