@@ -124,22 +124,7 @@ class Select extends AqlParserAbstract
         // restore oldStopTokens
         $tokens->setStopTokens($oldStopTokens);
 
-        if ($this->isQueryParenthesis) {
-
-            if ($tokens->currentTokenAsString() !== ')') {
-                throw new ParseException('Expected query parenthesis ")"', ['line' => $tokens->getCurrentLine()]);
-            }
-
-            $tokens->nextTokens();
-        }
-
-        if ($this->isQueryParenthesis    === false
-           && $this->isMainParenthesis  === true
-           && $tokens->currentTokenAsString() === ')') {
-            $tokens->nextTokens();
-            $this->isQueryParenthesis = true;
-            $this->isMainParenthesis  = false;
-        }
+        $this->parseClosingParenthesis($tokens);
 
         // If the query is not the primary one, then we do not parse UNION, INTERSECT, EXCEPT
         if (false === $this->isMainParenthesis && false === $this->isPrimaryQuery) {
@@ -159,6 +144,32 @@ class Select extends AqlParserAbstract
         }
 
         return $query;
+    }
+
+    /**
+     * Consumes the `)` that closes a parenthesised query: required when the query opened with one, optional when
+     * only the main expression did.
+     *
+     * @throws ParseException
+     */
+    private function parseClosingParenthesis(TokensIteratorInterface $tokens): void
+    {
+        if ($this->isQueryParenthesis) {
+
+            if ($tokens->currentTokenAsString() !== ')') {
+                throw new ParseException('Expected query parenthesis ")"', ['line' => $tokens->getCurrentLine()]);
+            }
+
+            $tokens->nextTokens();
+        }
+
+        if ($this->isQueryParenthesis    === false
+           && $this->isMainParenthesis  === true
+           && $tokens->currentTokenAsString() === ')') {
+            $tokens->nextTokens();
+            $this->isQueryParenthesis = true;
+            $this->isMainParenthesis  = false;
+        }
     }
 
     /**
@@ -188,9 +199,6 @@ class Select extends AqlParserAbstract
         $orderBy                    = (new OrderBy())->parseTokens($tokens);
         // 6. Limit
         $limit                      = (new Limit())->parseTokens($tokens);
-        // 7. Locking read: the last clause of the SELECT
-        $lockMode                   = $this->parseLockMode($tokens);
-        $lockWait                   = $lockMode === null ? null : $this->parseLockWait($tokens);
 
         // Build a query
 
@@ -208,6 +216,20 @@ class Select extends AqlParserAbstract
 
         $query->setGroupBy($groupBy);
 
+        // 7. Locking read: the last clause of the SELECT
+        $this->parseLockingRead($tokens, $query);
+
+        return $query;
+    }
+
+    /**
+     * @throws ParseException when a locking read follows a query the parser did not build as a SELECT node
+     */
+    private function parseLockingRead(TokensIteratorInterface $tokens, QueryInterface $query): void
+    {
+        $lockMode                   = $this->parseLockMode($tokens);
+        $lockWait                   = $lockMode === null ? null : $this->parseLockWait($tokens);
+
         if ($query instanceof SelectInterface) {
             $query->setLockMode($lockMode)->setLockWait($lockWait);
         } elseif ($lockMode !== null) {
@@ -216,8 +238,6 @@ class Select extends AqlParserAbstract
                 ['line' => $tokens->getCurrentLine()]
             );
         }
-
-        return $query;
     }
 
     /**

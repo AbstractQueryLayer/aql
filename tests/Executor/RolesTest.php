@@ -93,6 +93,12 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 'SELECT id, a.name FROM Article AS a WHERE name = "x"',
                 'SELECT `t0`.`id`, `t0`.`name` FROM `article` as `t0` WHERE `t0`.`name` = \'x\'',
             ],
+        ];
+    }
+
+    public static function entityJoins(): array
+    {
+        return [
             'entity join with an alias' => [
                 'SELECT b.title FROM Book b JOIN BookSection s WHERE s.title = "x"',
                 'SELECT `t0`.`title` FROM `book` as `t0`
@@ -122,6 +128,12 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 INNER JOIN `book` as `t2` ON (`t2`.`id` = `t0`.`bookId`)
                 INNER JOIN `book_section` as `t1` ON (`t1`.`id` = `t2`.`bookSectionId`)',
             ],
+        ];
+    }
+
+    public static function subqueryAndJoinKindJoins(): array
+    {
+        return [
             'alias inside a subquery' => [
                 'SELECT title FROM BookSection WHERE id IN (SELECT bookSectionId FROM Book b WHERE b.title = "x")',
                 'SELECT `t0`.`title` FROM `book_section` as `t0` WHERE `t0`.`id` IN
@@ -147,6 +159,12 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 'SELECT * FROM Book LEFT JOIN BookSection',
                 'SELECT * FROM `book` as `t0` LEFT JOIN `book_section` as `t1` ON (`t1`.`id` = `t0`.`bookSectionId`)',
             ],
+        ];
+    }
+
+    public static function joinConditions(): array
+    {
+        return [
             'ON is added to the role predicate' => [
                 'SELECT a.id FROM Article a JOIN a.publishedRevision p ON (p.title = "x")',
                 'SELECT `t0`.`id` FROM `article` as `t0`
@@ -195,6 +213,9 @@ final class RolesTest extends SqlQueryExecutorTestCase
     }
 
     #[DataProvider('roleJoins')]
+    #[DataProvider('entityJoins')]
+    #[DataProvider('subqueryAndJoinKindJoins')]
+    #[DataProvider('joinConditions')]
     public function testRoleJoin(string $aql, string $sql): void
     {
         $this->executeCase(new SqlQueryCaseDescriptor($aql, $sql));
@@ -238,6 +259,12 @@ final class RolesTest extends SqlQueryExecutorTestCase
                 EntityDescriptorException::class,
                 'Novel, Novel.mainWriter',
             ],
+        ];
+    }
+
+    public static function rejectedNames(): array
+    {
+        return [
             'entity name of an aliased occurrence' => [
                 'SELECT * FROM Article AS a WHERE Article.name = "x"',
                 QueryException::class,
@@ -272,6 +299,7 @@ final class RolesTest extends SqlQueryExecutorTestCase
     }
 
     #[DataProvider('rejectedQueries')]
+    #[DataProvider('rejectedNames')]
     public function testRejectedQuery(string $aql, string $exception, string $message): void
     {
         $this->expectException($exception);
