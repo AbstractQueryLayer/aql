@@ -559,6 +559,26 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         );
     }
 
+    public function testNoPadBinaryCollationTellsCaseAccentsAndTrailingSpacesApart(): void
+    {
+        $insert = $this->pdo->prepare('INSERT INTO ' . self::TABLE . ' (value) VALUES (?)');
+
+        foreach (['Moon', 'moon', 'Moön', 'Moon '] as $value) {
+            $insert->execute([$value]);
+        }
+
+        $select = (new AqlParser())->parse(
+            'SELECT value FROM AqlRoundTrip WHERE value COLLATE utf8mb4_nopad_bin = {title}'
+        );
+        $select->applyParameters(['title' => 'Moon']);
+
+        $this->assertSame(
+            [['value' => 'Moon']],
+            $this->aqlExecutor->executeAql($select)->finalize()->toArray()
+        );
+        $this->assertStringContainsString('`t0`.`value` COLLATE utf8mb4_nopad_bin = ', $this->mySql->lastSql);
+    }
+
     public function testSelectColumnAndUpdateSetAcceptIntervalAndArithmetic(): void
     {
         $this->insertLeases([[1, '+1 hour', 5], [2, '+1 hour', 5]]);

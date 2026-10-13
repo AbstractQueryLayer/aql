@@ -6,6 +6,9 @@ namespace IfCastle\AQL\Dsl\Parser;
 
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
+use IfCastle\AQL\Dsl\Sql\Column\Column;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Collate;
+use IfCastle\Exceptions\UnexpectedValue;
 
 class WhereTest extends TestCase
 {
@@ -32,6 +35,26 @@ class WhereTest extends TestCase
         $this->executeCase(new ParserCaseDescriptor(
             'WHERE expiresAt > UTC_TIMESTAMP(6) - INTERVAL 2 HOUR AND level - 1 >= 0'
         ));
+    }
+
+    public function testWhereComparesUnderAnExplicitCollation(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE title COLLATE utf8mb4_nopad_bin = {t}'));
+    }
+
+    public function testWhereRejectsAQuotedCollationName(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Expected a collation name after COLLATE');
+
+        $this->parseSql("WHERE title COLLATE 'utf8mb4_bin' = {t}");
+    }
+
+    public function testCollationNameOutsideLettersDigitsAndUnderscoresIsRefused(): void
+    {
+        $this->expectException(UnexpectedValue::class);
+
+        new Collate(new Column('title'), 'utf8mb4_bin; DROP TABLE x');
     }
 
     public function testWhereRejectsAnUnknownIntervalUnit(): void

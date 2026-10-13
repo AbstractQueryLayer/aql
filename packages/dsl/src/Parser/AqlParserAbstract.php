@@ -12,6 +12,7 @@ use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantNull;
 use IfCastle\AQL\Dsl\Sql\Parameter\Parameter;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Arithmetic;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Collate;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\TimeInterval;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\TimeIntervalEnum;
 use IfCastle\Exceptions\UnexpectedValue;
@@ -190,7 +191,7 @@ abstract class AqlParserAbstract implements ParserInterface
      */
     protected function parseExpression(TokensIteratorInterface $tokens, bool $isAllowSubqueries = false): NodeInterface
     {
-        $expression                 = $this->parseOperand($tokens, $isAllowSubqueries);
+        $expression                 = $this->parseCollation($tokens, $this->parseOperand($tokens, $isAllowSubqueries));
 
         while (true) {
             $operator               = $tokens->currentTokenAsString();
@@ -203,10 +204,34 @@ abstract class AqlParserAbstract implements ParserInterface
 
             $term                   = $tokens->currentTokenAsString() === 'INTERVAL'
                 ? $this->parseTimeInterval($tokens)
-                : $this->parseOperand($tokens);
+                : $this->parseCollation($tokens, $this->parseOperand($tokens));
 
             $expression             = new Arithmetic($expression, $operator, $term);
         }
+    }
+
+    /**
+     * Wrap the operand just parsed in `COLLATE name` when that follows it; COLLATE binds tighter than + and -.
+     *
+     * @throws ParseException|UnexpectedValue
+     */
+    private function parseCollation(TokensIteratorInterface $tokens, NodeInterface $operand): NodeInterface
+    {
+        if (\strtoupper($tokens->currentTokenAsString()) !== 'COLLATE') {
+            return $operand;
+        }
+
+        [$type, $collation, $line]  = $tokens->nextToken();
+
+        if ($type !== T_STRING) {
+            throw new ParseException(
+                \sprintf('Expected a collation name after COLLATE (got \'%s\')', $collation), ['line' => $line]
+            );
+        }
+
+        $tokens->nextToken();
+
+        return new Collate($operand, (string) $collation);
     }
 
     /**
