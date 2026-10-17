@@ -8,13 +8,11 @@ use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
 
 class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
 {
-    protected static array $knowsKeys       = [
-        T_FUNCTION, T_AS, T_ARRAY, T_BREAK, T_ABSTRACT,
-        T_CONST, T_CONTINUE, T_DEFAULT, T_DECLARE, T_DO, T_WHILE,
-        T_ECHO, T_EMPTY, T_EXIT, T_EXTENDS, T_FINAL, T_FINALLY,
-        T_GLOBAL, T_GOTO, T_IF, T_INTERFACE, T_NEW, T_NAMESPACE,
-        T_PRIVATE, T_PUBLIC, T_PROTECTED, T_RETURN,
-    ];
+    /**
+     * PHP keyword tokens that stay operators in AQL. Every other keyword whose text is an identifier (match, list,
+     * class, static, fn, use, for …) is a plain word: AQL is tokenised by PHP, but its names are not PHP's.
+     */
+    protected static array $operatorKeywords = [T_LOGICAL_AND, T_LOGICAL_OR, T_LOGICAL_XOR];
 
     protected static array $ignoredTokens   = [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT];
 
@@ -39,6 +37,23 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
         \array_shift($tokens);
 
         parent::__construct($tokens);
+    }
+
+    /**
+     * Whether the token is a PHP keyword: an identifier that PHP gives this type wherever it stands. Text inside
+     * backquotes or a string is an identifier too, but its type comes from where it stands, so it is no keyword.
+     */
+    private static function isKeyword(int $type, string $text): bool
+    {
+        static $keywords            = [];
+
+        if (\preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $text) !== 1) {
+            return false;
+        }
+
+        $keywords[$text]            ??= \token_get_all('<?php ' . $text)[1][0] ?? null;
+
+        return $keywords[$text] === $type;
     }
 
     #[\Override]
@@ -111,8 +126,9 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
             throw new ParseException('Invalid token "{token}"', ['token' => $token[1]]);
         }
 
-        // normalize type to T_STRING
-        if (\in_array($token[0], self::$knowsKeys, true)) {
+        // A PHP keyword is a word in AQL: its type becomes T_STRING
+        if ($token[0] !== T_STRING && !\in_array($token[0], self::$operatorKeywords, true)
+            && self::isKeyword($token[0], $token[1])) {
             $token[0]               = T_STRING;
         }
 
