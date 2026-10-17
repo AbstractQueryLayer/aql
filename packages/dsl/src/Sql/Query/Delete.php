@@ -58,6 +58,14 @@ class Delete extends QueryAbstract
     }
 
     #[\Override]
+    protected function generateResult(): mixed
+    {
+        $this->refuseUnconditional();
+
+        return parent::generateResult();
+    }
+
+    #[\Override]
     public function isModifying(): bool
     {
         return true;

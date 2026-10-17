@@ -56,6 +56,9 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
 
     protected array|null $parameters    = null;
 
+    /** An UPDATE or DELETE without a condition renders only when this is set (unconditional()). */
+    protected bool $unconditional   = false;
+
     public function __construct()
     {
         parent::__construct();
@@ -764,6 +767,27 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
             self::NODE_HAVING       => null,
             self::NODE_LIMIT        => null,
         ];
+    }
+
+    /** Lets an UPDATE or DELETE without a condition touch every row; without it such a query refuses to render. */
+    public function unconditional(): static
+    {
+        $this->unconditional        = true;
+
+        return $this;
+    }
+
+    /** @throws TransformationException when the query modifies rows without a condition and was not asked to */
+    protected function refuseUnconditional(): void
+    {
+        if (!$this->unconditional && ($this->getWhere()?->countOfOperations() ?? 0) === 0) {
+            throw new TransformationException([
+                'template'          => '{action} without WHERE would change every row of {entity};'
+                                       . ' call unconditional() if that is intended',
+                'action'            => \strtoupper($this->queryAction),
+                'entity'            => $this->mainEntityName ?? $this->getFrom()?->getSubject()?->getSubjectName(),
+            ]);
+        }
     }
 
     #[\Override]
