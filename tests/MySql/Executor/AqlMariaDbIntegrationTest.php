@@ -300,6 +300,31 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         }
     }
 
+    public function testUnionOfOrderedLimitedBranchesRunsAsOneStatement(): void
+    {
+        $this->pdo->exec('DROP TABLE IF EXISTS article');
+        $this->pdo->exec('CREATE TABLE article (id INT PRIMARY KEY, name VARCHAR(64) NOT NULL,'
+            . ' draftRevisionId INT NULL, publishedRevisionId INT NULL,'
+            . ' KEY idx_article_draft (draftRevisionId, id)) ENGINE=InnoDB');
+
+        try {
+            $this->pdo->exec("INSERT INTO article VALUES (1, 'one', 1, NULL), (2, 'two', 2, NULL),"
+                . " (3, 'three', 1, NULL), (4, 'four', 1, NULL), (5, 'five', 2, NULL)");
+
+            // Each branch reads the two newest rows of its key; the union keeps the two newest of those.
+            $rows = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+                '(SELECT a.id FROM Article a WHERE a.draftRevisionId = 1 ORDER BY a.id DESC LIMIT 2)'
+                . ' UNION (SELECT a.id FROM Article a WHERE a.draftRevisionId = 2 ORDER BY a.id DESC LIMIT 2)'
+                . ' ORDER BY id DESC LIMIT 2'
+            ))->finalize()->toArray();
+
+            $this->assertSame([5, 4], \array_map('intval', \array_column($rows, 'id')), (string) $this->mySql->lastSql);
+            $this->assertSame(1, \substr_count((string) $this->mySql->lastSql, 'UNION'), (string) $this->mySql->lastSql);
+        } finally {
+            $this->pdo->exec('DROP TABLE IF EXISTS article');
+        }
+    }
+
     public function testExcludedEntityKeepsRowsWhenTheSubqueryYieldsNull(): void
     {
         $this->pdo->exec('DROP TABLE IF EXISTS article, article_revision');
