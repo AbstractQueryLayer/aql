@@ -1,0 +1,47 @@
+{
+  "name": "ifcastle/aql-opensearch",
+  "description": "OpenSearch storage for AQL: SELECT with full-text functions rendered to the search API (prototype)",
+  "keywords": [
+    "aql",
+    "query",
+    "language",
+    "storage",
+    "opensearch"
+  ],
+  "type": "ifcastle-aql-package",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Edmond Dantes",
+      "email": "edmondifthen@proton.me"
+    }
+  ],
+  "require": {
+    "php": ">=8.5",
+    "ifcastle/aql-dsl": "*",
+    "ifcastle/aql-entity": "*",
+    "ifcastle/aql-executor": "*",
+    "ifcastle/aql-result": "*",
+    "ifcastle/aql-storage": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "IfCastle\\AQL\\OpenSearch\\": [
+        "src/"
+      ]
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "IfCastle\\AQL\\OpenSearch\\": "tests/"
+    }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.2"
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "0.8.x-dev"
+    }
+  }
+}
