@@ -873,6 +873,19 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $other->query("SELECT RELEASE_LOCK('" . $name . "')")->fetchAll();
     }
 
+    /** JSON_VALUE reads one value of a JSON parameter by a path the query builds; a missing key reads NULL. */
+    public function testJsonValueReadsAParameterByAComputedPath(): void
+    {
+        $this->assertSame(
+            [['value' => '4294967295', 'missing' => null]],
+            $this->selectWithoutFrom(
+                'SELECT JSON_VALUE({name}, CONCAT(\'$."\', 7, \'"\')) AS value,'
+                . ' JSON_VALUE({name}, \'$."8"\') AS missing',
+                '{"6": 1, "7": 4294967295}'
+            )
+        );
+    }
+
     public function testDatabaseFunctionReturnsTheConnectedDatabase(): void
     {
         $this->assertSame(
