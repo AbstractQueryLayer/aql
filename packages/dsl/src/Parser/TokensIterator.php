@@ -207,6 +207,39 @@ class TokensIterator extends \ArrayIterator implements TokensIteratorInterface
         return false;
     }
 
+    /**
+     * @throws ParseException
+     */
+    #[\Override]
+    public function isParenthesisedList(): bool
+    {
+        if ($this->currentTokenAsString() !== '(') {
+            return false;
+        }
+
+        $position                   = $this->key();
+        $depth                      = 0;
+        $isList                     = false;
+
+        // Delimiters are bare strings; strings, names and numbers are arrays and cannot hold a delimiter.
+        for (; $this->valid(); $this->next()) {
+            $token                  = $this->current();
+
+            if ($token === '(') {
+                $depth++;
+            } elseif ($token === ')' && --$depth === 0) {
+                break;
+            } elseif ($token === ',' && $depth === 1) {
+                $isList             = true;
+                break;
+            }
+        }
+
+        $this->seek($position);
+
+        return $isList;
+    }
+
     #[\Override]
     public function nextToken(): array
     {

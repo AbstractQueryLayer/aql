@@ -604,6 +604,32 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertStringContainsString('`t0`.`value` COLLATE utf8mb4_nopad_bin = ', $this->mySql->lastSql);
     }
 
+    public function testRowOfColumnsInRowsOfValuesMatchesOnlyWholePairs(): void
+    {
+        $ids = $this->insertEvents([[1, 10], [1, 20], [2, 10], [2, 6]]);
+
+        // (1, 6) pairs owner 1 with the time of owner 2: no row has both.
+        $select = (new AqlParser())->parse('SELECT id FROM AqlRoundTripEvent'
+            . ' WHERE (ownerId, createdAt) IN ((1, 10), ({owner}, {at}), (1, 6)) ORDER BY id');
+        $select->applyParameters(['owner' => 2, 'at' => 6]);
+        $rows = $this->aqlExecutor->executeAql($select)->finalize()->toArray();
+
+        $this->assertSame([$ids[0], $ids[3]], \array_map(intval(...), \array_column($rows, 'id')));
+        $this->assertStringContainsString(') IN ((1,10), (2,6), (1,6))', $this->mySql->lastSql);
+    }
+
+    public function testInListParameterWithoutParenthesesDeletesTheListedRows(): void
+    {
+        $ids = $this->insertEvents([[1, 10], [2, 20], [3, 30]]);
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTripEvent WHERE ownerId IN {owners}');
+        $delete->applyParameters(['owners' => [1, 3]]);
+
+        $this->assertSame(2, $this->aqlExecutor->executeAql($delete)->affected());
+        $this->assertSame([$ids[1]], \array_map(intval(...),
+            $this->pdo->query('SELECT id FROM aql_round_trip_event')->fetchAll(\PDO::FETCH_COLUMN)));
+    }
+
     public function testEmptyValueListDeletesNothingWithInAndSelectsEverythingWithNotIn(): void
     {
         $ids = [$this->insert($this->aqlExecutor, 1), $this->insert($this->aqlExecutor, 2)];

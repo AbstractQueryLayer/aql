@@ -74,4 +74,51 @@ class WhereTest extends TestCase
     {
         $this->executeCase(new ParserCaseDescriptor('WHERE 0'));
     }
+
+    public function testWhereInListParameterWithoutParentheses(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE kind IN {kinds} AND id NOT IN {ids}',
+            'WHERE kind IN ({kinds}) AND id NOT IN ({ids})'));
+    }
+
+    public function testWhereRowOfColumnsInRowsOfValues(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            'WHERE (ownerId, Event.createdAt) IN ((1, {at}), ({owner}, "x")) AND (a, b) NOT IN ((2, 3))'
+        ));
+    }
+
+    public function testWhereParenthesisedConditionWithACommaInAFunctionStaysAGroup(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE (COALESCE(a, 0) = 1 OR b = 2) AND c = 3'));
+    }
+
+    public function testWhereRowInsideAGroupOfConditions(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE ((a, b) IN ((1, 2)) OR c = 3) AND d = 4'));
+    }
+
+    public function testWhereRowRejectsARowOfValuesOfAnotherWidth(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('A row of 2 columns got a row of 3 values');
+
+        $this->parseSql('WHERE (a, b) IN ((1, 2), (1, 2, 3))');
+    }
+
+    public function testWhereRowRejectsAnythingButColumns(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('A row before IN lists columns');
+
+        $this->parseSql('WHERE (a, 1) IN ((1, 2))');
+    }
+
+    public function testWhereRowNeedsIn(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Expected IN or NOT IN after a row of columns');
+
+        $this->parseSql('WHERE (a, b) = (1, 2)');
+    }
 }

@@ -24,6 +24,15 @@ class InExpression extends AqlParserAbstract
             return new InExpressionNode((new Subquery())->parseTheExpression($tokens->nextTokens()));
         }
 
+        // IN {list}: the parameter's value list renders its own parentheses.
+        if ($tokens->currentTokenAsString() === '{') {
+            $parameter              = (new Constant())->parseTokens($tokens);
+
+            $tokens->decreaseRecursionDepth();
+
+            return new InExpressionNode([$parameter]);
+        }
+
         if ($tokens->currentTokenAsString() !== '(') {
             throw new ParseException(\sprintf('Expected operator \'(\' for IN (...), got \'%s\'', $tokens->currentTokenAsString()));
         }

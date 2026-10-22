@@ -31,6 +31,12 @@ interface TokensIteratorInterface
 
     public function checkAndConsumeToken(string $token): bool;
 
+    /**
+     * Whether the current token opens a parenthesised list: a `(` with a comma at its own level before its `)`, as in
+     * `(a, b)`. A group such as `(f(a, b) = 1)` holds commas only deeper. The position does not move.
+     */
+    public function isParenthesisedList(): bool;
+
     public function nextToken(): array;
 
     public function getCurrentLine(): int;

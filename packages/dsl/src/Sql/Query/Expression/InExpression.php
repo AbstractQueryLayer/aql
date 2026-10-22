@@ -12,6 +12,8 @@ use IfCastle\AQL\Dsl\Sql\Query\SubqueryInterface;
  * Expressions:
  * [NOT] IN (constant1, ...)
  * or
+ * [NOT] IN {list}
+ * or
  * [NOT] IN (SELECT * FROM...)
  * or
  * [NOT] IN THE EntityName

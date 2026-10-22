@@ -69,6 +69,39 @@ final class SQLiteWhereValuesTest extends TestCaseWithSqlMemoryDb
         $this->assertSame([1, 3], $this->selectIds($strings));
     }
 
+    public function testInListParameterWithoutParentheses(): void
+    {
+        $this->createPairs();
+
+        $in                         = (new AqlParser())->parse('SELECT id FROM Pair WHERE id IN {ids} ORDER BY id');
+        $in->applyParameters(['ids' => [1, 3]]);
+        $notIn                      = (new AqlParser())->parse('SELECT id FROM Pair WHERE second NOT IN {v}');
+        $notIn->applyParameters(['v' => ['y']]);
+        $empty                      = (new AqlParser())->parse('SELECT id FROM Pair WHERE id IN {ids} ORDER BY id');
+        $empty->applyParameters(['ids' => []]);
+
+        $this->assertSame([1, 3], $this->selectIds($in));
+        $this->assertSame([2, 3], $this->selectIds($notIn));
+        $this->assertSame([], $this->selectIds($empty));
+    }
+
+    /** Only whole pairs match: ('z', 'x') is row 2, ('x', 'y') row 1; ('x', 'x') mixes rows 1 and 2. */
+    public function testRowOfColumnsInRowsOfValues(): void
+    {
+        $this->createPairs();
+
+        $in                         = (new AqlParser())->parse(
+            'SELECT id FROM Pair WHERE (first, second) IN (("z", {second}), ("x", "y"), ("x", "x")) ORDER BY id'
+        );
+        $in->applyParameters(['second' => 'x']);
+        $notIn                      = (new AqlParser())->parse(
+            'SELECT id FROM Pair WHERE (first, second) NOT IN (("z", "z")) ORDER BY id'
+        );
+
+        $this->assertSame([1, 2], $this->selectIds($in));
+        $this->assertSame([1, 2], $this->selectIds($notIn));
+    }
+
     /** An empty list is a valid predicate: IN matches no row, NOT IN every row; a dropped condition would match all. */
     public function testEmptyValueListMatchesNoRowInAndEveryRowNotIn(): void
     {

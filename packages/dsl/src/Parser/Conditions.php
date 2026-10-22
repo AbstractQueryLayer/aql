@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Dsl\Parser;
 
+use IfCastle\AQL\Dsl\Node\NodeInterface;
+use IfCastle\AQL\Dsl\Parser\Constant as ConstantParser;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
+use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\Conditions\Conditions as ConditionsNode;
 use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
 use IfCastle\AQL\Dsl\Sql\Conditions\JoinConditions;
 use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\SingleOperation;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\ValueList;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\WhereEntity as WhereEntityNode;
 
 class Conditions extends AqlParserAbstract
@@ -84,8 +88,11 @@ class Conditions extends AqlParserAbstract
             // operand comparison_operator SOME (subquery)
             // operand comparison_operator ALL (subquery)
 
-            // Case when left side is sub-conditions
-            if ($token === '(') {
+            // Case when left side is a row of columns: (a, b) IN (...)
+            if ($tokens->isParenthesisedList()) {
+                $condition          = $this->parseRowIn($tokens);
+            } elseif ($token === '(') {
+                // Case when left side is sub-conditions
                 // sub conditions case
                 $condition          = $this->parseConditions($tokens->nextTokens());
 
@@ -168,6 +175,77 @@ class Conditions extends AqlParserAbstract
         $tokens->decreaseRecursionDepth();
 
         return $expression;
+    }
+
+    /**
+     * Parses `(column, ...) [NOT] IN ((value, ...), ...)`: a row matches when it equals one of the rows of values.
+     *
+     * @throws ParseException when the row holds anything but columns, IN is missing, or a row of values has another
+     *     width
+     */
+    protected function parseRowIn(TokensIteratorInterface $tokens): ValueList
+    {
+        // A delimiter has no line: take the line of the first column.
+        $line                       = $tokens->nextTokens()->getCurrentLine();
+        $columns                    = [];
+
+        do {
+            $column                 = $this->parseOperand($tokens);
+
+            if (false === $column instanceof ColumnInterface) {
+                throw new ParseException('A row before IN lists columns', ['line' => $line]);
+            }
+
+            $columns[]              = $column;
+        } while ($tokens->checkAndConsumeToken(','));
+
+        $tokens->assertTokenIs(')');
+        $valueList                  = new ValueList(...$columns);
+
+        if ($tokens->checkAndConsumeToken('NOT') && $tokens->checkAndConsumeToken('IN')) {
+            $valueList->asNotIn();
+        } elseif ($tokens->checkAndConsumeToken('IN')) {
+            $valueList->asIn();
+        } else {
+            throw new ParseException('Expected IN or NOT IN after a row of columns', ['line' => $line]);
+        }
+
+        $tokens->assertTokenIs('(');
+
+        do {
+            $values                 = $this->parseValueRow($tokens);
+
+            if (\count($values) !== \count($columns)) {
+                throw new ParseException(
+                    \sprintf('A row of %d columns got a row of %d values', \count($columns), \count($values)),
+                    ['line' => $line]
+                );
+            }
+
+            $valueList->appendValueList($values);
+        } while ($tokens->checkAndConsumeToken(','));
+
+        $tokens->assertTokenIs(')');
+
+        return $valueList;
+    }
+
+    /**
+     * @return list<NodeInterface> the constants and parameters of one `(value, ...)`
+     * @throws ParseException
+     */
+    protected function parseValueRow(TokensIteratorInterface $tokens): array
+    {
+        $tokens->assertTokenIs('(');
+        $values                     = [];
+
+        do {
+            $values[]               = (new ConstantParser())->parseTokens($tokens);
+        } while ($tokens->checkAndConsumeToken(','));
+
+        $tokens->assertTokenIs(')');
+
+        return $values;
     }
 
     protected function newConditionsNode(string $typeConditions): ConditionsInterface
