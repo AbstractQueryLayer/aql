@@ -23,6 +23,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\InExpression;
  */
 class LROperation extends NodeAbstract implements LROperationInterface
 {
+
     public function __construct(NodeInterface|string $left, protected string $operation, NodeInterface $right)
     {
         parent::__construct();
@@ -189,10 +190,39 @@ class LROperation extends NodeAbstract implements LROperationInterface
             return \strtoupper($this->operation) === 'NOT IN' ? '1 = 1' : '1 = 0';
         }
 
+        $list                       = $this->rightValueList();
+
+        if ($left !== '' && $list !== null && $this->operation === self::EQU) {
+            return $this->generateListMembership($left, $right, $list);
+        }
+
         if ($left === '' || $right === '') {
             return '';
         }
 
         return $left . ' ' . $this->operation . ' ' . $right;
+    }
+
+    /**
+     * The right side when it is a list of values, such as the keys a plan read from another storage; otherwise null.
+     */
+    protected function rightValueList(): ?ConstantInterface
+    {
+        $right                      = $this->childNodes[self::RIGHT]->resolveSubstitution();
+
+        return $right instanceof ConstantInterface && $right->isValueList() ? $right : null;
+    }
+
+    /**
+     * `x = (1, 2)` is an error in SQL: equality with a list means membership in it, and an empty list matches no row.
+     * Only equality: `x <> (1, NULL)` as NOT IN would match no row at all, so other comparisons keep their form.
+     */
+    protected function generateListMembership(string $left, string $right, ConstantInterface $list): string
+    {
+        if ($list->getConstantValue() === [] || $right === '') {
+            return '1 = 0';
+        }
+
+        return $left . ' IN ' . $right;
     }
 }

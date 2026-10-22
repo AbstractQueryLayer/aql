@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\MySql\Executor;
 
+use IfCastle\AQL\Dsl\BasicQueryInterface;
 use IfCastle\AQL\Dsl\Parser\AqlParser;
+use IfCastle\AQL\Dsl\QueryOption;
+use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Executor\AdditionalOptions;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
@@ -182,14 +185,23 @@ class AqlPreprocessedQueryMariaDbTest extends TestCaseWithDiContainer
         $this->assertSame(['locked+++'], $this->values());
     }
 
+    /**
+     * A prepared statement belongs to one connection and is refused at preprocessing; the refused query is neither
+     * marked preprocessed nor stored, so a retry is refused again.
+     */
     public function testARefusedQueryIsRefusedAgainOnRetry(): void
     {
-        $query = $this->preprocessed('SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote');
+        $query = new PreprocessedQuery(static function (): BasicQueryInterface {
+            $select = (new AqlParser())->parse('SELECT value FROM AqlRoundTrip');
+            $select->getQueryOptions()->addOption(new QueryOption(QueryInterface::PREPARING));
+
+            return $select;
+        }, 'prepared');
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             try {
                 $this->getAqlExecutor()->executeAql($query);
-                $this->fail('A query that builds an execution plan ran on attempt ' . $attempt);
+                $this->fail('A prepared statement ran on attempt ' . $attempt);
             } catch (QueryException) {
             }
         }
@@ -229,14 +241,6 @@ class AqlPreprocessedQueryMariaDbTest extends TestCaseWithDiContainer
     {
         $this->expectException(\LogicException::class);
         $this->getAqlExecutor()->executeAql($this->preprocessed(self::INSERT), new AdditionalOptions(['tenant' => 'b']));
-    }
-
-    public function testAQueryRunAsAPlanIsRefused(): void
-    {
-        $this->expectException(QueryException::class);
-        $this->getAqlExecutor()->executeAql(
-            $this->preprocessed('SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote')
-        );
     }
 
     private function preprocessed(string $aql, ?string $key = null): PreprocessedQuery

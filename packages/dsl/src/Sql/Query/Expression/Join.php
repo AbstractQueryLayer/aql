@@ -370,8 +370,9 @@ class Join extends NodeAbstract implements JoinInterface
         if ($this->onlySubject) {
             $joins                  = $this->generateJoins();
 
+            // Each join carries its own JOIN keyword: `UPDATE a AS t0 INNER JOIN b AS t1 ON …`, no comma before it.
             if ($joins !== '' && $joins !== '0') {
-                $joins              = ',' . $joins;
+                $joins              = ' ' . \ltrim($joins);
             }
 
             return $this->childNodes[self::NODE_SUBJECT]->getResult() . $joins;

@@ -309,6 +309,21 @@ class NodeHelper
         return null;
     }
 
+    /**
+     * A copy of the node and its children to be normalized again in another query: the copy of a node that was being
+     * normalized in its own query would otherwise be skipped there and render nothing.
+     */
+    public static function copyToTransformAgain(NodeInterface $node): NodeInterface
+    {
+        $copy                       = (clone $node)->needTransform();
+
+        foreach (new \RecursiveIteratorIterator(new NodeRecursiveIterator($copy), \RecursiveIteratorIterator::SELF_FIRST) as $child) {
+            $child->needTransform();
+        }
+
+        return $copy;
+    }
+
     public static function getNearestAql(NodeInterface $node, int $deep = 3): string
     {
         $count                      = 0;

@@ -261,7 +261,7 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
     {
         $this->executeCase(new SqlQueryCaseDescriptor(
             /** @lang aql */ 'UPDATE Book, BookSection SET price = 19.99 WHERE id = 123',
-            /** @lang aql */ 'UPDATE `book` as `t0`, '
+            /** @lang aql */ 'UPDATE `book` as `t0` '
             . 'INNER JOIN `book_section` as `t1` ON (`t1`.`id` = `t0`.`bookSectionId`)
             SET `t0`.`price` = \'19.99\' WHERE `t0`.`id` = \'123\'',
         ));
@@ -397,6 +397,10 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
         ));
     }
 
+    /**
+     * A WHERE on Book, kept in another storage than BookFiles: Book is read first with that WHERE, and BookFiles is
+     * restricted to the ids read.
+     */
     public function testSelectWithSeveralStorages(): void
     {
         $plan                       = new PlanCaseDescriptor(/** @lang aql */ 'SELECT * FROM BookFiles
@@ -404,19 +408,18 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
             WHERE Book.title = "The Great Gatsby"',
         );
 
-        $plan->addStoredResult(/** @lang aql */'SELECT *, [[BookFiles.bookId]] FROM BookFiles
-        {query: SELECT * FROM Book WHERE (Book.id = BookFiles.bookId) AND Book.title = "The Great Gatsby"}', [
-            ['id' => 1, 'title' => 'File1', 'created_at' => '2001-01-01 00:00:00', 'updated_at' => null, '@0' => 1],
-            ['id' => 2, 'title' => 'File2', 'created_at' => '2002-02-02 00:00:00', 'updated_at' => null, '@0' => 2],
-        ], SomeStorageMock::NAME);
-
-        $plan->addStoredResult(/** @lang aql */'SELECT * FROM `book` as `t0`',
+        $plan->addStoredResult(/** @lang aql */'SELECT *, `t0`.`id` FROM `book` as `t0` WHERE `t0`.`title` = \'The Great Gatsby\'',
             [
-                ['id' => 1, 'name' => 'Author1', 'created_at' => '2023-01-01 00:00:00', '@0' => 1],
-                ['id' => 2, 'name' => 'Author2', 'created_at' => '2023-01-02 00:00:00', '@0' => 2],
-                ['id' => 3, 'name' => 'Author3', 'created_at' => '2023-01-03 00:00:00', '@0' => 3],
+                ['id' => 1, 'title' => 'The Great Gatsby'],
             ],
         );
+
+        // The other storage prints the AQL it got: the keys read from Book replace Book.id when it runs.
+        $plan->addStoredResult(/** @lang aql */'SELECT * FROM BookFiles
+        {query: SELECT *, [[Book.id]] FROM Book WHERE Book.title = "The Great Gatsby"} WHERE (BookFiles.bookId = Book.id)', [
+            ['id' => 1, 'title' => 'File1', 'created_at' => '2001-01-01 00:00:00', 'updated_at' => null],
+            ['id' => 2, 'title' => 'File2', 'created_at' => '2002-02-02 00:00:00', 'updated_at' => null],
+        ], SomeStorageMock::NAME);
 
         $plan->expectedResult       = [
             ['id' => 1, 'title' => 'File1', 'created_at' => '2001-01-01 00:00:00', 'updated_at' => null],
