@@ -194,7 +194,12 @@ abstract class SqlDriverAbstract implements
         return $this->realCreateStatement($sql);
     }
 
-    abstract protected function realExecuteStatement(SqlStatementInterface $statement): ResultInterface;
+    /**
+     * Executes the statement with the values bound to it and the given ones.
+     *
+     * @param array<string, mixed> $parameters values by placeholder, bound after the statement's own and over them
+     */
+    abstract protected function realExecuteStatement(SqlStatementInterface $statement, array $parameters): ResultInterface;
 
     #[\Override]
     public function executeStatement(SqlStatementInterface $statement, array $params = [], ?object $context = null): ResultInterface
@@ -211,7 +216,7 @@ abstract class SqlDriverAbstract implements
         }
 
         try {
-            return $this->realExecuteStatement($statement);
+            return $this->realExecuteStatement($statement, $params);
         } catch (StorageException $exception) {
             $this->noteFailure($exception);
             throw $exception;

@@ -14,6 +14,7 @@ use IfCastle\AQL\Generator\Ddl\EntityToTableInterface;
 use IfCastle\AQL\Result\ResultInterface;
 use IfCastle\AQL\SqlDriver\SqlDriverAbstract;
 use IfCastle\AQL\Storage\Exceptions\ConnectFailed;
+use IfCastle\AQL\Storage\Exceptions\QueryException;
 use IfCastle\AQL\Storage\Exceptions\ServerHasGoneAwayException;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
 use IfCastle\AQL\Storage\SqlStatementInterface;
@@ -76,13 +77,13 @@ class MySql extends SqlDriverAbstract
     #[\Override]
     protected function realCreateStatement(string $sql): SqlStatementInterface
     {
-        // TODO: Implement realCreateStatement() method.
+        throw new QueryException(static::class . ' does not prepare statements', $sql);
     }
 
     #[\Override]
-    protected function realExecuteStatement(SqlStatementInterface $statement): ResultInterface
+    protected function realExecuteStatement(SqlStatementInterface $statement, array $parameters): ResultInterface
     {
-        // TODO: Implement realExecuteStatement() method.
+        throw new QueryException(static::class . ' does not prepare statements', $statement->getQuery());
     }
 
     #[\Override]
