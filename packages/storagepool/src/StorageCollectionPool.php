@@ -6,12 +6,15 @@ namespace IfCastle\AQL\StoragePool;
 
 use IfCastle\AQL\Executor\Context\ContextVariablesInterface;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
+use IfCastle\AQL\Storage\SelfPoolingStorageInterface;
 use IfCastle\AQL\Storage\StorageCollection;
 use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\Storage\StorageCollectionMutableInterface;
 use IfCastle\AQL\Storage\StorageInterface;
+use IfCastle\DesignPatterns\Pool\DecoratorInterface;
 use IfCastle\DI\AutoResolverInterface;
 use IfCastle\DI\ContainerInterface;
+use IfCastle\DI\DisposableInterface;
 use IfCastle\Exceptions\CompositeException;
 use IfCastle\Exceptions\UnexpectedValueType;
 
@@ -19,6 +22,7 @@ use IfCastle\Exceptions\UnexpectedValueType;
  * A storage collection whose storages come from pools. Each execution context holds the storages it found until the
  * context ends or releaseStorages() is called, so the context variables must belong to one coroutine and must not be
  * inherited by the coroutines it starts: two coroutines sharing them would run statements on one connection at once.
+ * A storage that pools its own connections is the exception: every context gets the one instance (addStoragePool()).
  */
 class StorageCollectionPool implements StorageCollectionMutableInterface, AutoResolverInterface, StorageCollectionPoolInterface
 {
@@ -26,6 +30,15 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
      * @var array<string, string|StorageInterface|StoragePoolInterface>
      */
     protected array $storageCollection = [];
+
+    /**
+     * The self-pooling storage each pool lent for good, held by the handle the pool lent it with: holding the handle
+     * keeps the storage counted as borrowed, so the pool never builds a second one, and every collection over the
+     * pool shares it.
+     *
+     * @var \WeakMap<StoragePoolInterface, object>|null
+     */
+    private static ?\WeakMap $sharedLoans = null;
 
     protected ContainerInterface $diContainer;
 
@@ -128,8 +141,40 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
         $this->storageCollection[$storageName] = $storage;
     }
 
+    /**
+     * Adds a pool of storages. The pool lends its first storage here: a storage that pools its own connections serves
+     * every context as one shared instance, so the collection keeps it and never borrows from the pool again; pooling
+     * it again would open a native pool per instance. Any other storage goes back, and each context borrows its own.
+     * A pool with no free storage at this moment is kept as is, and its storages are borrowed per context.
+     *
+     * @throws UnexpectedValueType when the pool lends something other than a storage
+     */
     public function addStoragePool(string $storageName, StoragePoolInterface $storagePool): void
     {
+        self::$sharedLoans          ??= new \WeakMap();
+        $loan                       = self::$sharedLoans[$storagePool] ?? $storagePool->borrow();
+
+        if ($loan === null) {
+            $this->storageCollection[$storageName] = $storagePool;
+            return;
+        }
+
+        $storage                    = $loan instanceof DecoratorInterface ? $loan->getOriginalObject() : $loan;
+
+        if ($storage instanceof SelfPoolingStorageInterface) {
+            self::$sharedLoans[$storagePool] = $loan;
+            $this->storageCollection[$storageName] = $storage;
+            return;
+        }
+
+        if ($loan instanceof DisposableInterface) {
+            $loan->dispose();
+        }
+
+        if (false === $storage instanceof StorageInterface) {
+            throw new UnexpectedValueType('storage.' . $storageName, $storage, StorageInterface::class);
+        }
+
         $this->storageCollection[$storageName] = $storagePool;
     }
 }
