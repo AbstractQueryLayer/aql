@@ -9,6 +9,7 @@ use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\DTO\Exceptions\MappingException;
 use IfCastle\AQL\DTO\RoundTripDto;
+use IfCastle\AQL\DTO\RoundTripLocalNoteForeignKeyDto;
 use IfCastle\AQL\DTO\RoundTripSlotDto;
 use IfCastle\AQL\DTO\RoundTripSlotNullableKeyDto;
 use IfCastle\AQL\DTO\RoundTripSlotPartialKeyDto;
@@ -39,6 +40,7 @@ class AqlDtoCompositeKeyMariaDbTest extends TestCaseWithDiContainer
     protected function setUp(): void
     {
         $this->pdo = MariaDb::pdo();
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_local_note');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_slot');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip');
         $this->pdo->exec('CREATE TABLE aql_round_trip (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(64) NOT NULL)'
@@ -47,6 +49,9 @@ class AqlDtoCompositeKeyMariaDbTest extends TestCaseWithDiContainer
         $this->pdo->exec('CREATE TABLE aql_round_trip_slot (roundTripId INT NOT NULL, position INT NOT NULL,'
             . ' label VARCHAR(64) NOT NULL, PRIMARY KEY (roundTripId, position)) ENGINE=InnoDB');
         $this->pdo->exec("INSERT INTO aql_round_trip_slot VALUES (1, 0, 'first'), (1, 1, 'second'), (2, 1, 'other')");
+        $this->pdo->exec('CREATE TABLE aql_round_trip_local_note (id INT AUTO_INCREMENT PRIMARY KEY,'
+            . ' roundTripId INT NOT NULL, label VARCHAR(64) NOT NULL) ENGINE=InnoDB');
+        $this->pdo->exec("INSERT INTO aql_round_trip_local_note (roundTripId, label) VALUES (1, 'a'), (1, 'b')");
         $this->mySql = new MySql([
             'dsn' => MariaDb::dsn(),
             'username' => MariaDb::user(),
@@ -76,6 +81,7 @@ class AqlDtoCompositeKeyMariaDbTest extends TestCaseWithDiContainer
     {
         parent::tearDown();
         $this->mySql->dispose();
+        $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_local_note');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip_slot');
         $this->pdo->exec('DROP TABLE IF EXISTS aql_round_trip');
     }
@@ -165,6 +171,19 @@ class AqlDtoCompositeKeyMariaDbTest extends TestCaseWithDiContainer
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage("does not fix every key column ('roundTripId, position')");
         $this->aqlExecutor->executeAql($query);
+    }
+
+    public function testAKeyColumnOfAnotherEntityDoesNotCount(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage("does not fix every key column ('id')");
+
+        try {
+            (new RoundTripLocalNoteForeignKeyDto(1, 'renamed'))->update($this->aqlExecutor);
+        } finally {
+            $this->assertSame([['a'], ['b']], $this->pdo
+                ->query('SELECT label FROM aql_round_trip_local_note ORDER BY id')->fetchAll(\PDO::FETCH_NUM));
+        }
     }
 
     public function testAnUnmarkedUpdateWithLimitStillRuns(): void
