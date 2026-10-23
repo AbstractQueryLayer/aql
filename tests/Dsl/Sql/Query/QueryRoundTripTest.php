@@ -8,6 +8,8 @@ use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\AqlParser;
 use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\Sql\Column\Column;
+use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
+use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
 use IfCastle\AQL\Dsl\Sql\Parameter\Parameter;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
 use IfCastle\Exceptions\LogicalException;
@@ -32,6 +34,11 @@ final class QueryRoundTripTest extends TestCase
             . ' GROUP BY id ORDER BY id DESC, name LIMIT 5, 10',
             Select::class,
         ];
+        yield 'select with having' => [
+            'SELECT first, COUNT(*) AS n FROM Test GROUP BY first HAVING COUNT(*) > 1 OR first = "x" ORDER BY first',
+            Select::class,
+        ];
+        yield 'count' => ['COUNT FROM Test WHERE id > {id} LIMIT 5', Count::class];
         yield 'select from a subquery' => [
             'SELECT * FROM (SELECT * FROM Test) as alias INNER JOIN Test2',
             Select::class,
@@ -82,6 +89,17 @@ final class QueryRoundTripTest extends TestCase
         $this->assertInstanceOf($class, $restored);
         $this->assertSame($query->getAql(), $restored->getAql());
         $this->assertEquals(ArrayTyped::serialize($query), ArrayTyped::serialize($restored));
+    }
+
+    /** A plain Conditions given to setHaving() renders after GROUP BY with the HAVING keyword. */
+    public function testPlainConditionsSetAsHavingRenderTheKeyword(): void
+    {
+        $query                      = (new AqlParser())->parse('SELECT id FROM Test GROUP BY id ORDER BY id');
+        $query->setHaving((new Conditions(ConditionsInterface::TYPE_OR))->equal('id', 1)->equal('id', 2));
+
+        $this->assertSame(
+            'SELECT id FROM Test GROUP BY id HAVING (id = {?} OR id = {?}) ORDER BY id', $query->getAql()
+        );
     }
 
     /** @return iterable<string, array{\Closure(): NodeInterface}> */

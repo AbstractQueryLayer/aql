@@ -39,6 +39,9 @@ interface TokensIteratorInterface
 
     public function nextToken(): array;
 
+    /** Whether a token is left at the current position. */
+    public function valid(): bool;
+
     public function getCurrentLine(): int;
 
     public function expectKeywords(string $keywords): static;

@@ -6,6 +6,7 @@ namespace IfCastle\AQL\Dsl\Parser;
 
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
+use IfCastle\AQL\Dsl\Sql\FunctionReference\Count as CountFunction;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReference as FunctionReferenceNode;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
@@ -96,6 +97,18 @@ class FunctionReference extends AqlParserAbstract
         }
 
         $tokens->nextTokens();
+
+        // `*` is not an expression, so COUNT(*) gets the node that renders it.
+        if ($entityName === null && \strtoupper($name) === 'COUNT' && $tokens->currentToken()[1] === '*') {
+
+            if ($tokens->nextTokens()->currentTokenAsString() !== ')') {
+                throw new ParseException('COUNT(*) takes no other argument');
+            }
+
+            $tokens->nextTokens();
+
+            return new CountFunction();
+        }
 
         $parameters                 = [];
 

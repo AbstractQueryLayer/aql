@@ -23,6 +23,27 @@ class WhereTest extends TestCase
         $this->executeCase(new ParserCaseDescriptor('WHERE (property = 5 OR property3 = 6) AND property2 = 7'));
     }
 
+    public function testWhereOr(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor('WHERE a = 1 OR b = 2', 'WHERE (a = 1 OR b = 2)'));
+    }
+
+    public function testWhereAndThenOrIsRefused(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Prohibited use AND with OR without bracket');
+
+        $this->parseSql('WHERE a = 1 AND b = 2 OR c = 3');
+    }
+
+    public function testWhereOrThenAndIsRefused(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Prohibited use AND with OR without bracket');
+
+        $this->parseSql('WHERE a = 1 OR b = 2 AND c = 3');
+    }
+
     public function testWhereWithIntervalOnTheLeft(): void
     {
         $this->executeCase(new ParserCaseDescriptor(

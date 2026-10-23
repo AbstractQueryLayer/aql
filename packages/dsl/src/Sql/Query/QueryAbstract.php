@@ -24,6 +24,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Exceptions\TransformationException;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\AssignmentListInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\DuplicateKeyInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\GroupByInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Having;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Limit;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
@@ -598,9 +599,14 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
         return $this;
     }
 
+    /** Conditions that are not a Having node go into one, which renders the HAVING keyword. */
     #[\Override]
     public function setHaving(ConditionsInterface $conditions): static
     {
+        if (false === $conditions instanceof Having) {
+            $conditions             = (new Having())->apply([$conditions]);
+        }
+
         $this->childNodes[self::NODE_HAVING] = $conditions->setParentNode($this);
 
         return $this;
@@ -742,9 +748,10 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
             self::NODE_FROM_SELECT  => null,
             self::NODE_WHERE        => null,
             self::NODE_GROUP_BY     => null,
+            // HAVING renders in key order, so it stays between GROUP BY and ORDER BY as SQL requires.
+            self::NODE_HAVING       => null,
             self::NODE_ORDER_BY     => null,
             self::NODE_DUPLICATE_KEY => null,
-            self::NODE_HAVING       => null,
             self::NODE_LIMIT        => null,
         ];
     }

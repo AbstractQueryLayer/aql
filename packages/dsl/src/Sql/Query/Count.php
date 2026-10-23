@@ -20,6 +20,19 @@ class Count extends Select
         $this->queryAction          = self::ACTION_COUNT;
     }
 
+    /** `COUNT FROM ...`: the action implies the counted column, so the AQL omits it as the parser expects. */
+    #[\Override]
+    public function getAql(bool $forResolved = false): string
+    {
+        $childNodes                 = $this->childNodes;
+
+        unset($childNodes[self::NODE_TUPLE], $childNodes[self::NODE_UNION]);
+
+        $results                    = $this->nodesToAql($childNodes, ' ', $forResolved);
+
+        return $results === '' ? '' : self::ACTION_COUNT . ' ' . $results;
+    }
+
     #[\Override]
     protected function generateResult(): mixed
     {

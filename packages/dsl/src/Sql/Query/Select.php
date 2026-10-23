@@ -7,10 +7,10 @@ namespace IfCastle\AQL\Dsl\Sql\Query;
 use IfCastle\AQL\Dsl\Node\Exceptions\NodeException;
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Sql\Column\Column;
-use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
 use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\From;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\GroupBy;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Having;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Join;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Limit;
@@ -370,7 +370,7 @@ class Select extends QueryAbstract implements SelectInterface
         $this->childNodes[self::NODE_WHERE]     = (new Where())->setParentNode($this);
         $this->childNodes[self::NODE_GROUP_BY]  = (new GroupBy())->setParentNode($this);
         $this->childNodes[self::NODE_ORDER_BY]  = (new OrderBy())->setParentNode($this);
-        $this->childNodes[self::NODE_HAVING]    = (new Conditions())->setParentNode($this);
+        $this->childNodes[self::NODE_HAVING]    = (new Having())->setParentNode($this);
         $this->childNodes[self::NODE_LIMIT]     = (new Limit())->setParentNode($this);
         $this->childNodes[self::NODE_UNION]     = (new Union())->setParentNode($this);
     }

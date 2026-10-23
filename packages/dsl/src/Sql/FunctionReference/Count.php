@@ -12,4 +12,11 @@ final class Count extends FunctionReference
     {
         parent::__construct('COUNT', new RawSql('*'));
     }
+
+    /** RawSql has no AQL form, so the function writes its `*` itself for the parser to read back. */
+    #[\Override]
+    public function getAql(bool $forResolved = false): string
+    {
+        return 'COUNT(*)';
+    }
 }

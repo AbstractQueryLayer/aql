@@ -10,10 +10,10 @@ use IfCastle\AQL\Dsl\Node\RecursiveIteratorByNodeIterator;
 use IfCastle\AQL\Dsl\Parser\Select as SelectParser;
 use IfCastle\AQL\Dsl\QueryOptions;
 use IfCastle\AQL\Dsl\Sql\Column\Column;
-use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
 use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\From;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\GroupBy;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Having;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Join;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Limit;
@@ -68,8 +68,8 @@ class RecursiveIteratorByNodeIteratorTest extends TestCase
             Column::class . ': column2',
             Constant::class . ': 2',
             GroupBy::class . ': ',
+            Having::class . ': ',
             OrderBy::class . ': ',
-            Conditions::class . ': ',
             Limit::class . ': ',
             Union::class . ': ',
             NodeList::class . ': ',
@@ -106,8 +106,8 @@ class RecursiveIteratorByNodeIteratorTest extends TestCase
             From::class,
             Where::class,
             GroupBy::class,
+            Having::class,
             OrderBy::class,
-            Conditions::class,
             Limit::class,
             Union::class,
         ], $walkedNodes);

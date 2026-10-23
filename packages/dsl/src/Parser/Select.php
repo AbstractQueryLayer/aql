@@ -9,6 +9,7 @@ use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\QueryOptions;
 use IfCastle\AQL\Dsl\QueryOptionsInterface;
 use IfCastle\AQL\Dsl\Sql\Conditions\ConditionsInterface;
+use IfCastle\AQL\Dsl\Sql\Query\Count as CountNode;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\GroupByInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
@@ -66,6 +67,10 @@ class Select extends AqlParserAbstract
     #[\Override]
     public function parseTokens(TokensIteratorInterface $tokens): QueryInterface
     {
+        if ($tokens->currentTokenAsString() === QueryInterface::ACTION_COUNT) {
+            return $this->parseCount($tokens->nextTokens());
+        }
+
         //
         // Expression like: ((SELECT UNION ...) ORDER BY ...)
         //
@@ -173,7 +178,8 @@ class Select extends AqlParserAbstract
     }
 
     /**
-     * Parses the clauses after the columns: FROM with joins, WHERE, GROUP BY, ORDER BY, LIMIT and a locking read.
+     * Parses the clauses after the columns: FROM with joins, WHERE, GROUP BY, HAVING, ORDER BY, LIMIT and a locking
+     * read.
      *
      * @throws UnexpectedValue
      * @throws ParseException
@@ -187,6 +193,7 @@ class Select extends AqlParserAbstract
         $tokens->addStopTokens([QueryInterface::NODE_WHERE,
             QueryInterface::NODE_ORDER_BY,
             QueryInterface::NODE_GROUP_BY,
+            QueryInterface::NODE_HAVING,
             QueryInterface::NODE_LIMIT,
             QueryInterface::NODE_UNION]);
 
@@ -195,6 +202,7 @@ class Select extends AqlParserAbstract
         $where                      = (new Where())->parseTokens($tokens);
         // 4. Group by
         $groupBy                    = (new GroupBy())->parseTokens($tokens);
+        $having                     = (new Having())->parseTokens($tokens);
         // 5. Order By
         $orderBy                    = (new OrderBy())->parseTokens($tokens);
         // 6. Limit
@@ -215,6 +223,8 @@ class Select extends AqlParserAbstract
         $query->setOrderBy($orderBy);
 
         $query->setGroupBy($groupBy);
+
+        $query->setHaving($having);
 
         // 7. Locking read: the last clause of the SELECT
         $this->parseLockingRead($tokens, $query);
@@ -238,6 +248,49 @@ class Select extends AqlParserAbstract
                 ['line' => $tokens->getCurrentLine()]
             );
         }
+    }
+
+    /**
+     * Parses `COUNT FROM entity [joins] [WHERE conditions] [LIMIT n]`, the number of matching rows. GROUP BY, ORDER BY
+     * and a locking read are refused: a count has one row, and the node renders no other clause.
+     *
+     * @throws ParseException when FROM is missing or another clause follows
+     * @throws UnexpectedValue
+     * @throws RequiredValueEmpty
+     */
+    private function parseCount(TokensIteratorInterface $tokens): QueryInterface
+    {
+        if ($tokens->currentTokenAsString() !== QueryInterface::NODE_FROM) {
+            throw new ParseException(
+                'Expected FROM after COUNT (got: "' . $tokens->currentTokenAsString() . '")',
+                ['line' => $tokens->getCurrentLine()]
+            );
+        }
+
+        $oldStopTokens              = $tokens->getStopTokens();
+
+        $tokens->addStopTokens([QueryInterface::NODE_WHERE,
+            QueryInterface::NODE_ORDER_BY,
+            QueryInterface::NODE_GROUP_BY,
+            QueryInterface::NODE_LIMIT,
+            QueryInterface::NODE_UNION]);
+
+        $from                       = (new From())->parseTokens($tokens);
+        $where                      = (new Where())->parseTokens($tokens);
+        $limit                      = (new Limit())->parseTokens($tokens);
+
+        $tokens->setStopTokens($oldStopTokens);
+
+        if ($tokens->valid() && $tokens->currentTokenAsString() !== ')') {
+            throw new ParseException(
+                'COUNT takes FROM, WHERE and LIMIT only: expected the end of the query (got: "'
+                . $tokens->currentTokenAsString() . '")', ['line' => $tokens->getCurrentLine()]
+            );
+        }
+
+        /* @var $from JoinInterface */
+        /* @var $limit LimitInterface */
+        return new CountNode($from, $where, $limit);
     }
 
     /**

@@ -14,11 +14,11 @@ class Where extends Conditions
     {
         // Check current token should be WHERE keyword
         if (\strtoupper($tokens->currentTokenAsString()) === 'WHERE') {
-            $conditions             = $this->parseConditions($tokens->nextTokens(), [], ConditionsInterface::TYPE_AND);
+            $conditions             = $this->parseConditions($tokens->nextTokens());
         } else {
             $conditions             = $this->newConditionsNode(ConditionsInterface::TYPE_AND);
         }
 
-        return (new WhereNode())->apply($conditions->getChildNodes());
+        return (new WhereNode())->apply($this->conjuncts($conditions));
     }
 }

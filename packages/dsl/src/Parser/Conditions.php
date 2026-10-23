@@ -65,14 +65,15 @@ class Conditions extends AqlParserAbstract
     /**
      * @throws ParseException
      */
-    protected function parseConditions(TokensIteratorInterface $tokens, array $conditions = [], string $typeConditions = ''): ConditionsInterface
+    protected function parseConditions(TokensIteratorInterface $tokens): ConditionsInterface
     {
         $tokens->increaseRecursionDepth();
 
         $stopTokens                 = $tokens->getStopTokens();
 
         $line                       = null;
-        $isSubConditions            = $conditions !== [];
+        $conditions                 = [];
+        $typeConditions             = '';
 
         while (true) {
 
@@ -132,16 +133,9 @@ class Conditions extends AqlParserAbstract
 
             $token                  = \strtoupper((string) $token);
 
-            if ($token === ConditionsInterface::TYPE_AND) {
-                if ($isSubConditions && $typeConditions === ConditionsInterface::TYPE_OR) {
-                    break;
-                } elseif ($typeConditions === ConditionsInterface::TYPE_OR) {
-                    $conditions[]       = $this->parseConditions($tokens->nextTokens(), [$condition], $token);
-                } else {
-                    $conditions[]       = $condition;
-                }
-            } elseif ($token === ConditionsInterface::TYPE_OR) {
-                if ($typeConditions === ConditionsInterface::TYPE_AND) {
+            if ($token === ConditionsInterface::TYPE_AND || $token === ConditionsInterface::TYPE_OR) {
+                // AQL gives AND no precedence over OR: a group mixing them needs brackets to say which is meant.
+                if ($typeConditions !== '' && $typeConditions !== $token) {
                     throw new ParseException('Prohibited use AND with OR without bracket', ['line' => $line]);
                 }
 
@@ -246,6 +240,23 @@ class Conditions extends AqlParserAbstract
         $tokens->assertTokenIs(')');
 
         return $values;
+    }
+
+    /**
+     * The operands of $conditions as children of an AND clause such as WHERE or HAVING: the children themselves for
+     * an AND group, the group as the only child for an OR group.
+     *
+     * @return NodeInterface[]
+     */
+    protected function conjuncts(ConditionsInterface $conditions): array
+    {
+        if ($conditions instanceof ConditionsNode
+            && $conditions->getType() === ConditionsInterface::TYPE_OR
+            && $conditions->countOfOperations() > 1) {
+            return [$conditions];
+        }
+
+        return $conditions->getChildNodes();
     }
 
     protected function newConditionsNode(string $typeConditions): ConditionsInterface

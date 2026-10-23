@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace IfCastle\AQL\Dsl\Sql\Query\Expression;
 
 use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
+use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 
 class Having extends Conditions
 {
+    protected string $nodeName      = QueryInterface::NODE_HAVING;
+
     #[\Override]
     public function getAql(bool $forResolved = false): string
     {
@@ -23,7 +26,7 @@ class Having extends Conditions
     #[\Override]
     protected function generateResult(): mixed
     {
-        $result                     = $this->generateResultForChildNodes();
+        $result                     = $this->generateConditionResults();
 
         if ($result === []) {
             return '';

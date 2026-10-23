@@ -174,6 +174,48 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testGroupByHaving(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test GROUP BY id HAVING id > 1 AND COUNT(*) > 0 ORDER BY id LIMIT 5',
+            /** @lang aql */ 'SELECT id FROM Test GROUP BY id HAVING id > 1 AND COUNT(*) > 0 ORDER BY id LIMIT 0, 5'
+        ));
+    }
+
+    public function testHavingWithOr(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test GROUP BY id HAVING id = 1 OR id = 2',
+            /** @lang aql */ 'SELECT id FROM Test GROUP BY id HAVING (id = 1 OR id = 2)'
+        ));
+    }
+
+    public function testCount(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'COUNT FROM Test WHERE id > 1 LIMIT 5',
+            /** @lang aql */ 'COUNT FROM Test WHERE id > 1 LIMIT 0, 5'
+        ));
+    }
+
+    public function testCountWithoutFromIsRefused(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+        $this->expectExceptionMessage('Expected FROM after COUNT (got: "ID")');
+
+        $this->parseSql('COUNT id FROM Test');
+    }
+
+    public function testCountWithGroupByIsRefused(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+        $this->expectExceptionMessage(
+            'COUNT takes FROM, WHERE and LIMIT only: expected the end of the query (got: "GROUP")'
+        );
+
+        $this->parseSql('COUNT FROM Test WHERE id > 1 GROUP BY id');
+    }
+
     public function testOrderBy(): void
     {
         $this->executeCase(new ParserCaseDescriptor(
