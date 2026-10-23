@@ -9,6 +9,7 @@ use IfCastle\AQL\Dsl\Node\ChildNodeMutableInterface;
 use IfCastle\AQL\Dsl\Node\NodeAbstract;
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Node\NodeTransformerIterator;
+use IfCastle\AQL\Dsl\Node\NotSerialized;
 use IfCastle\AQL\Dsl\Node\RecursiveIteratorByNodeIterator;
 use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\QueryOptions;
@@ -36,8 +37,6 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
 use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
 use IfCastle\DesignPatterns\ScopeControl\ScopeMutableTrait;
 use IfCastle\DI\DisposableInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 abstract class QueryAbstract extends NodeAbstract implements QueryInterface
 {
@@ -52,8 +51,10 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
      */
     protected ?string $storage      = null;
 
+    #[NotSerialized]
     protected object|null $queryContext = null;
 
+    #[NotSerialized]
     protected array|null $parameters    = null;
 
     /** An UPDATE or DELETE without a condition renders only when this is set (unconditional()). */
@@ -116,27 +117,6 @@ abstract class QueryAbstract extends NodeAbstract implements QueryInterface
          */
         $this->queryContext         = $context;
         parent::setNodeContext($context);
-    }
-
-    #[\Override]
-    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
-    {
-        $query                      = new static();
-        $query->queryAction         = $array[self::ACTION] ?? '';
-        $query->mainEntityName      = $array[self::MAIN_ENTITY] ?? null;
-        $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? [], $validator);
-
-        return $query;
-    }
-
-    #[\Override]
-    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
-    {
-        return [
-            self::ACTION            => $this->queryAction,
-            self::MAIN_ENTITY       => $this->mainEntityName,
-            self::CHILD_NODES       => ArrayTyped::serializeList($validator, ...\array_filter($this->childNodes)),
-        ];
     }
 
     #[\Override]

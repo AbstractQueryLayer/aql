@@ -20,9 +20,20 @@ class QueryOption extends NodeAbstract implements QueryOptionInterface
         return new self($array[self::OPTION_NAME] ?? '', $array[self::OPTION_VALUE] ?? null, $array[self::OPTION_HIDDEN] ?? false);
     }
 
+    /** A redefined option (QueryOptions::addOption) is written with the value that replaced it. */
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
+        if ($this->isTransformed) {
+            $this->refuseTransformedSerialization();
+        }
+
+        $option                     = $this->resolveNode();
+
+        if ($option !== $this) {
+            return $option->toArray($validator);
+        }
+
         return [
             self::OPTION_NAME       => $this->optionName,
             self::OPTION_VALUE      => $this->optionValue,

@@ -9,8 +9,6 @@ use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableInterface;
 
 interface NodeInterface extends \IteratorAggregate, BeforeAfterExecutorAwareInterface, ArraySerializableInterface
 {
-    final public const string CHILD_NODES = 'c';
-
     final public const string NODE_NAME = 'n';
 
     public function getNodeName(): string;

@@ -12,8 +12,6 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\Assign;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Subject;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
-use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class Update extends QueryAbstract implements UpdateInterface
 {
@@ -43,14 +41,6 @@ class Update extends QueryAbstract implements UpdateInterface
         if ($limit !== null) {
             $this->setLimit($limit);
         }
-    }
-
-    #[\Override]
-    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
-    {
-        $query                      = new self($array[self::MAIN_ENTITY] ?? null);
-        $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? []);
-        return $query;
     }
 
     /**

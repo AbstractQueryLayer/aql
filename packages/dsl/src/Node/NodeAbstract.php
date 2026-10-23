@@ -13,6 +13,7 @@ use IfCastle\DesignPatterns\ExecutionPlan\BeforeAfterExecutorInterface;
 use IfCastle\DesignPatterns\ExecutionPlan\WeakStaticClosureExecutor;
 use IfCastle\DesignPatterns\Handler\WeakStaticHandler;
 use IfCastle\DI\DisposableInterface;
+use IfCastle\Exceptions\LogicalException;
 use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
 use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 use Traversable;
@@ -26,29 +27,37 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
      */
     protected array $childNodes     = [];
 
+    #[NotSerialized]
     protected ?NodeInterface $substitution = null;
 
+    #[NotSerialized]
     protected bool $isTransformed = false;
 
     /**
      * Query context.
      */
+    #[NotSerialized]
     protected \WeakReference|null $context = null;
 
     /**
      * @var callable|null
      */
+    #[NotSerialized]
     protected $resultGenerator;
 
     /**
      * @var mixed|null
      */
+    #[NotSerialized]
     protected mixed $result         = null;
 
+    #[NotSerialized]
     private ?\WeakReference $parentNode = null;
 
+    #[NotSerialized]
     private ?\WeakReference $originalNode = null;
 
+    #[NotSerialized]
     private BeforeAfterExecutorInterface|null $beforeAfterExecutor = null;
 
     /**
@@ -456,24 +465,52 @@ abstract class NodeAbstract implements NodeInterface, DisposableInterface
     }
 
     /**
-     * @param    ArraySerializableValidatorInterface|null    $validator        *
+     * Rebuilds a node written by toArray(), with its subtree; the node and its children are not transformed and
+     * carry no context.
      *
      * @throws \IfCastle\Exceptions\UnSerializeException
      */
     #[\Override]
     public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
     {
-        return new static(...ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? null, $validator));
+        unset($array[ArrayTyped::TYPE]);
+
+        $node                       = NodeState::create(static::class, $array, $validator);
+
+        foreach ($node->childNodes as $childNode) {
+            $childNode?->setParentNode($node);
+        }
+
+        return $node;
     }
 
+    /**
+     * Writes the node and its subtree as plain values (NodeState): a query parsed or built once can be stored and
+     * rebuilt by fromArray() instead of being parsed again.
+     *
+     * The array is a cache, not a durable format: it names the classes and properties of the code that wrote it and
+     * is read only by that code. Parameter values already applied are written with the query. Strings are written
+     * as they are, so a binary value needs an encoding that keeps bytes (serialize(), not JSON).
+     *
+     * @throws LogicalException when the node has been transformed for a run, since it then holds the run's entities
+     *                          and context, or holds a value that cannot be written, such as a closure
+     */
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
-        return [
-            self::NODE_NAME         => $this->nodeName,
-            // An unused slot is null and has nothing to serialise.
-            self::CHILD_NODES       => ArrayTyped::serializeList($validator, ...\array_filter($this->childNodes)),
-        ];
+        $this->refuseTransformedSerialization();
+
+        return NodeState::read($this, $validator);
+    }
+
+    /** @throws LogicalException when the node has been transformed for a run (see toArray()) */
+    protected function refuseTransformedSerialization(): void
+    {
+        if ($this->isTransformed || $this->substitution !== null) {
+            throw new LogicalException(
+                'A transformed node cannot be serialized: ' . static::class . '; serialize the query before it runs'
+            );
+        }
     }
 
     #[\Override]

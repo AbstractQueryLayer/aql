@@ -11,10 +11,6 @@ use IfCastle\DesignPatterns\ScopeControl\ScopeMutableInterface;
 
 interface BasicQueryInterface extends NodeInterface, ScopeMutableInterface
 {
-    final public const string ACTION        = 'a';
-
-    final public const string MAIN_ENTITY   = 'm';
-
     /**
      * Returns name of query action.
      */

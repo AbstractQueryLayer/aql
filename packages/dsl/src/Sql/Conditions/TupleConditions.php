@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\Dsl\Sql\Conditions;
 
+use IfCastle\AQL\Dsl\Node\NotSerialized;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Constant\ConstantTupleInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Exceptions\TransformationException;
@@ -13,8 +14,11 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 
 class TupleConditions extends Conditions implements TupleConditionsInterface
 {
+    /** Columns found among the child nodes on first use; a restored node finds them again. */
+    #[NotSerialized]
     protected array|null $leftColumns = null;
 
+    #[NotSerialized]
     protected array|null $rightColumns = null;
 
     #[\Override]

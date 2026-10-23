@@ -67,6 +67,8 @@ final class LimitWithParameters extends NodeAbstract implements LimitInterface
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
+        $this->refuseTransformedSerialization();
+
         return [
             self::NODE_NAME         => $this->nodeName,
             self::LIMIT             => self::slotToArray($this->childNodes[1]),

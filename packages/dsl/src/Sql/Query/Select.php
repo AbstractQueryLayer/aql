@@ -24,14 +24,9 @@ use IfCastle\AQL\Dsl\Sql\Tuple\TupleColumn;
 use IfCastle\AQL\Dsl\Sql\Tuple\TupleInterface;
 use IfCastle\Exceptions\RequiredValueEmpty;
 use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class Select extends QueryAbstract implements SelectInterface
 {
-    final public const string LOCK_MODE = 'lock';
-
-    final public const string LOCK_WAIT = 'lockWait';
-
     private const string FOR_SHARE_CLAUSE = ' FOR SHARE';
 
     /**
@@ -234,24 +229,14 @@ class Select extends QueryAbstract implements SelectInterface
     #[\Override]
     public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
     {
-        $query                      = new self($array[self::MAIN_ENTITY] ?? '');
-        $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? []);
+        $query                      = parent::fromArray($array, $validator);
 
-        $lockMode                   = $array[self::LOCK_MODE] ?? null;
-        $query->lockMode            = $lockMode === null ? null : LockMode::from($lockMode);
-        $lockWait                   = $array[self::LOCK_WAIT] ?? null;
         // A wait without a lock mode renders nothing and is dropped, as setLockMode(null) drops it.
-        $query->lockWait            = $lockWait === null || $query->lockMode === null
-                                    ? null : LockWait::from($lockWait);
+        if ($query->lockMode === null) {
+            $query->lockWait        = null;
+        }
 
         return $query;
-    }
-
-    #[\Override]
-    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
-    {
-        return parent::toArray($validator)
-            + [self::LOCK_MODE => $this->lockMode?->value, self::LOCK_WAIT => $this->lockWait?->value];
     }
 
     #[\Override]

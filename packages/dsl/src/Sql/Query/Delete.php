@@ -10,8 +10,6 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Subject;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Where;
-use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class Delete extends QueryAbstract
 {
@@ -41,14 +39,6 @@ class Delete extends QueryAbstract
         if ($limit !== null) {
             $this->setLimit($limit);
         }
-    }
-
-    #[\Override]
-    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
-    {
-        $query                      = new self($array[self::MAIN_ENTITY] ?? null);
-        $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? []);
-        return $query;
     }
 
     #[\Override]

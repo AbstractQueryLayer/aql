@@ -12,8 +12,6 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\Assign;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Subject;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\SubjectInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\ValueListInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class Insert extends QueryAbstract implements InsertInterface
 {
@@ -51,14 +49,6 @@ class Insert extends QueryAbstract implements InsertInterface
 
             $this->setAssigmentList($assignments);
         }
-    }
-
-    #[\Override]
-    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
-    {
-        $query                      = new self($array[self::MAIN_ENTITY] ?? null);
-        $query->childNodes          = ArrayTyped::unserializeList($array[self::CHILD_NODES] ?? []);
-        return $query;
     }
 
     #[\Override]

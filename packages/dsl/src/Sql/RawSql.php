@@ -26,6 +26,8 @@ class RawSql extends NodeAbstract
     #[\Override]
     public function toArray(?ArraySerializableValidatorInterface $validator = null): array
     {
+        $this->refuseTransformedSerialization();
+
         return ['sql' => $this->sql];
     }
 
