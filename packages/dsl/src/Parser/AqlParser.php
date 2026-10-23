@@ -56,8 +56,8 @@ class AqlParser extends AqlParserAbstract
             // A parenthesised query is a SELECT, alone or the first member of a UNION, INTERSECT or EXCEPT.
             '(', QueryInterface::ACTION_SELECT, QueryInterface::ACTION_COUNT
                                                                           => (new Select())->parseTokens($tokens),
-            QueryInterface::ACTION_INSERT                                 => (new Insert())->parseTokens($tokens),
-            QueryInterface::ACTION_UPDATE, QueryInterface::ACTION_REPLACE => (new Update())->parseTokens($tokens),
+            QueryInterface::ACTION_INSERT, QueryInterface::ACTION_REPLACE => (new Insert())->parseTokens($tokens),
+            QueryInterface::ACTION_UPDATE                                 => (new Update())->parseTokens($tokens),
             QueryInterface::ACTION_DELETE                                 => (new Delete())->parseTokens($tokens),
 
             default                                                       => throw new ParseException(
