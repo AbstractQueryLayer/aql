@@ -10,12 +10,16 @@ use IfCastle\AQL\Storage\StorageCollection;
 use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\Storage\StorageCollectionMutableInterface;
 use IfCastle\AQL\Storage\StorageInterface;
-use IfCastle\DesignPatterns\Pool\DecoratorInterface;
 use IfCastle\DI\AutoResolverInterface;
 use IfCastle\DI\ContainerInterface;
-use IfCastle\DI\DisposableInterface;
+use IfCastle\Exceptions\CompositeException;
 use IfCastle\Exceptions\UnexpectedValueType;
 
+/**
+ * A storage collection whose storages come from pools. Each execution context holds the storages it found until the
+ * context ends or releaseStorages() is called, so the context variables must belong to one coroutine and must not be
+ * inherited by the coroutines it starts: two coroutines sharing them would run statements on one connection at once.
+ */
 class StorageCollectionPool implements StorageCollectionMutableInterface, AutoResolverInterface, StorageCollectionPoolInterface
 {
     /**
@@ -27,16 +31,17 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
 
     protected ContextVariablesInterface $contextVariables;
 
+    private static int $instances   = 0;
+
     /**
-     * The decorator a pool lent for each borrowed original storage.
-     *
-     * @var \WeakMap<object, \WeakReference<object>>
+     * The context variable holding this collection's proxy: one per collection, so two collections in one context do
+     * not take storages from each other's pools.
      */
-    private \WeakMap $lentDecorators;
+    private readonly string $contextKey;
 
     public function __construct()
     {
-        $this->lentDecorators       = new \WeakMap();
+        $this->contextKey           = StorageCollectionPoolProxy::class . '#' . ++self::$instances;
     }
 
     #[\Override]
@@ -52,30 +57,43 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
         return $this->defineStorageCollectionProxy()->findStorage($storageName);
     }
 
+    /**
+     * Gives the storages the current context holds back to their pools, for a context that outlives one unit of work,
+     * such as a worker between jobs. A transaction left open is rolled back and reported.
+     *
+     * @throws StorageException|CompositeException after all storages are released, when a transaction was open
+     */
+    public function releaseStorages(): void
+    {
+        $proxy                      = $this->contextVariables->get($this->contextKey);
+
+        if ($proxy instanceof StorageCollectionPoolProxy) {
+            $proxy->release();
+        }
+    }
+
     protected function defineStorageCollectionProxy(): StorageCollectionInterface
     {
-        $proxy                      = $this->contextVariables->get(StorageCollectionPoolProxy::class);
+        $proxy                      = $this->contextVariables->get($this->contextKey);
 
         if ($proxy === null) {
             $proxy                  = new StorageCollectionPoolProxy($this);
-            $this->contextVariables->set(StorageCollectionPoolProxy::class, $proxy);
+            $this->contextVariables->set($this->contextKey, $proxy);
         }
 
         return $proxy;
     }
 
     /**
-     * @throws StorageException
+     * @return object|null the storage, the decorator its pool lent for it, or null for an unknown name
+     * @throws StorageException when the pool of the storage has no free storage
      * @throws UnexpectedValueType
      */
     #[\Override]
     public function borrowStorage(string $storageName): object|null
     {
         if (false === \array_key_exists($storageName, $this->storageCollection)) {
-            throw new StorageException([
-                'template'          => 'Storage {storageName} not found',
-                'storageName'       => $storageName,
-            ]);
+            return null;
         }
 
         $storage                    = $this->storageCollection[$storageName];
@@ -89,48 +107,13 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
             return $storage;
         }
 
-        $decorator                  = $storage->borrow();
-        $originalObject             = $decorator instanceof DecoratorInterface ? $decorator->getOriginalObject() : null;
-
-        if ($originalObject !== null) {
-            $this->lentDecorators[$originalObject] = \WeakReference::create($decorator);
-        }
-
-        return $decorator;
-    }
-
-    /**
-     * Gives a borrowed original storage back to its pool through the decorator the pool lent for it.
-     */
-    #[\Override]
-    public function returnStorage(object $object): void
-    {
-        $decorator                  = $this->lentDecorators[$object]?->get();
-        unset($this->lentDecorators[$object]);
-
-        if ($decorator instanceof DisposableInterface) {
-            $decorator->dispose();
-        }
-    }
-
-    /**
-     * Returns the decorator still lent for a borrowed original storage, so the storage stays borrowed from its pool.
-     *
-     * @throws StorageException
-     */
-    #[\Override]
-    public function createStorageDecorator(object $originalObject): object
-    {
-        $decorator                  = $this->lentDecorators[$originalObject]?->get();
-
-        if ($decorator === null) {
-            throw new StorageException([
-                'template'          => 'Storage {storage} was not borrowed from a pool',
-                'storage'           => $originalObject::class,
-            ]);
-        }
-
-        return $decorator;
+        return $storage->borrow() ?? throw new StorageException([
+            'template'              => 'The pool of the storage {storageName} has no free storage: {used} of {max} '
+                                       . 'are borrowed',
+            'storageName'           => $storageName,
+            'used'                  => $storage->getUsed(),
+            'max'                   => $storage->getMaxPoolSize(),
+        ]);
     }
 
     #[\Override]

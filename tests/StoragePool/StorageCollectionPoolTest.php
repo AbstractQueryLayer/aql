@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace IfCastle\AQL\StoragePool;
 
 use IfCastle\AQL\Executor\Context\ContextVariablesInterface;
-use IfCastle\AQL\StoragePool\ReadWritePool\RecordingSqlStorage;
+use IfCastle\AQL\Transaction\Transaction;
 use IfCastle\DesignPatterns\Factory\FactoryInterface;
 use IfCastle\DesignPatterns\Pool\DecoratorInterface;
 use IfCastle\DI\Container;
@@ -60,27 +60,34 @@ class StorageCollectionPoolTest extends TestCase
         $this->assertSame(1, $this->created);
     }
 
-    public function testReturnStorageGivesDriverBackThroughLentDecorator(): void
-    {
-        $pool                       = new StoragePool($this->driverFactory(), 2);
-        $this->collection->addStoragePool('main', $pool);
-
-        $decorator                  = $this->collection->borrowStorage('main');
-        $driver                     = $decorator->getOriginalObject();
-
-        $this->assertSame($decorator, $this->collection->createStorageDecorator($driver));
-
-        $this->collection->returnStorage($driver);
-
-        $this->assertSame(0, $pool->getUsed());
-        $this->assertSame($driver, $this->collection->borrowStorage('main')->getOriginalObject());
-    }
-
     public function testRegisteredStorageClassIsInstantiatedOnce(): void
     {
         $this->collection->registerStorage('main', NamelessStorage::class);
 
         $this->assertSame($this->collection->borrowStorage('main'), $this->collection->borrowStorage('main'));
+    }
+
+    /** A storage whose transaction failed to roll back is closed and never lent again, though the pool keeps one idle. */
+    public function testStorageWhoseRollbackFailsIsDroppedFromItsPool(): void
+    {
+        $pool                       = new StoragePool($this->driverFactory(), 2);
+        $this->collection->addStoragePool('main', $pool);
+
+        $driver                     = $this->collection->findStorage('main');
+        $this->assertInstanceOf(TransactionalRecordingStorage::class, $driver);
+        $driver->transaction        = new Transaction(static fn() => throw new \RuntimeException('rollback failed'));
+
+        try {
+            $this->collection->releaseStorages();
+            $this->fail('A failed rollback must be reported');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('rollback failed', $exception->getMessage());
+        }
+
+        $this->assertSame(0, $pool->getUsed());
+        $this->assertTrue($driver->disposed);
+        $this->assertNotSame($driver, $this->collection->findStorage('main'));
+        $this->assertSame(2, $this->created);
     }
 
     private function driverFactory(): FactoryInterface
@@ -91,7 +98,7 @@ class StorageCollectionPoolTest extends TestCase
             #[\Override]
             public function createObject(): object
             {
-                return (new RecordingSqlStorage('driver' . ++$this->created))->setStorageName('main');
+                return (new TransactionalRecordingStorage('driver' . ++$this->created))->setStorageName('main');
             }
         };
     }
