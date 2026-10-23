@@ -130,6 +130,12 @@ interface QueryInterface extends NodeInterface, BasicQueryInterface
     public const string PREPARING           = 'preparing';
 
     /**
+     * Marks an UPDATE or DELETE meant for one row named by its primary key. The executor refuses such a query
+     * unless its WHERE fixes every primary key column of the entity with an equality to a constant.
+     */
+    public const string BY_PRIMARY_KEY      = 'by_primary_key';
+
+    /**
      * Current query is not stringable.
      */
     public const string NO_STRINGABLE       = 'no_stringable';

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\DTO;
 
+use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\Sql\Column\Column;
 use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
 use IfCastle\AQL\Dsl\Sql\Constant\Variable;
@@ -438,14 +439,14 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
     #[\Override]
     public static function fetchById(AqlExecutorInterface $aqlExecutor, float|int|string $id): static
     {
-        return static::findOne($aqlExecutor, [EntityFactoryInterface::TYPICAL_PREFIX . 'id' => $id])
+        return static::findOne($aqlExecutor, static::dtoQueryFiltersById($id))
             ?? throw new RecordNotFound(static::getDtoMap()->entityName, $id);
     }
 
     #[\Override]
     public static function findById(AqlExecutorInterface $aqlExecutor, float|int|string $id): ?static
     {
-        return static::findOne($aqlExecutor, [EntityFactoryInterface::TYPICAL_PREFIX . 'id' => $id]);
+        return static::findOne($aqlExecutor, static::dtoQueryFiltersById($id));
     }
 
     #[\Override]
@@ -522,6 +523,7 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
 
         $query                      = new Update($dtoMap->entityName, $this->dtoQueryFiltersForUpdateDelete(), new Limit(1));
         $query->assignKeyValues($this->dtoQueryAssignsGenerator(true));
+        $query->getQueryOptions()->addOption(new QueryOption(QueryInterface::BY_PRIMARY_KEY, true, true));
 
         static::dtoQueryGeneratorAfter($query);
 
@@ -536,6 +538,7 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
         $dtoMap                     = static::getDtoMap();
 
         $query                      = new Delete($dtoMap->entityName, $this->dtoQueryFiltersForUpdateDelete(), new Limit(1));
+        $query->getQueryOptions()->addOption(new QueryOption(QueryInterface::BY_PRIMARY_KEY, true, true));
 
         static::dtoQueryGeneratorAfter($query);
 
@@ -647,6 +650,52 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
     }
 
     /**
+     * The filter of fetchById() and findById(): the DTO's primary key property, or the typical `@id` property of the
+     * entity when the DTO marks none. A DTO whose primary key has several properties has no single id, so it is
+     * refused instead of being matched on one column.
+     *
+     * @return array<string, float|int|string>
+     * @throws MappingException
+     */
+    protected static function dtoQueryFiltersById(float|int|string $id): array
+    {
+        $primaryKey                 = static::dtoPrimaryKeyMaps();
+
+        if (\count($primaryKey) > 1) {
+            throw new MappingException([
+                'template'          => 'The DTO {class} has a primary key of several properties ({properties}):'
+                                       . ' find it with findOne() and a value for each of them',
+                'class'             => static::class,
+                'properties'        => \implode(', ', \array_keys($primaryKey)),
+            ]);
+        }
+
+        $map                        = \reset($primaryKey);
+
+        return [$map === false ? EntityFactoryInterface::TYPICAL_PREFIX . 'id' : $map->property => $id];
+    }
+
+    /**
+     * Whether a primary key value is missing. An empty single-column key (0, '', null) is the one the database
+     * generates on insert; a column of a composite key is a value, and 0 is a valid one (the first position of an
+     * ordered list).
+     */
+    protected static function dtoIsKeyValueMissing(mixed $value, bool $isCompositeKey): bool
+    {
+        return $isCompositeKey ? $value === null : empty($value);
+    }
+
+    /**
+     * The properties marked Map(isPrimaryKey: true), by DTO property name.
+     *
+     * @return array<string, Map>
+     */
+    protected static function dtoPrimaryKeyMaps(): array
+    {
+        return \array_filter(static::getDtoMap()->properties, static fn(Map $map): bool => $map->isPrimaryKey);
+    }
+
+    /**
      * @throws \ReflectionException
      * @throws LoggableException
      * @throws HydratorException
@@ -655,10 +704,11 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
     {
         $dtoMap                     = static::getDtoMap();
         $columns                    = [];
+        $isCompositeKey             = \count(static::dtoPrimaryKeyMaps()) > 1;
 
         foreach ($dtoMap->properties as $property => $map) {
 
-            if ($map->isPrimaryKey && empty($this->$property)) {
+            if ($map->isPrimaryKey && static::dtoIsKeyValueMissing($this->$property, $isCompositeKey)) {
                 continue;
             }
 
@@ -692,24 +742,39 @@ abstract class DataTransferObjectAbstract implements DataTransferObjectInterface
     }
 
     /**
+     * One equality per primary key property of the DTO. update() and delete() mark their query BY_PRIMARY_KEY, so
+     * the executor refuses it when these miss a key column of the entity.
+     *
      * @throws \ReflectionException
      * @throws MappingException
      * @throws LoggableException
      */
     protected function dtoQueryFiltersForUpdateDelete(): array
     {
-        $dtoMap                     = static::getDtoMap();
+        $filters                    = [];
+        $primaryKey                 = static::dtoPrimaryKeyMaps();
 
-        foreach ($dtoMap->properties as $property => $map) {
-            if ($map->isPrimaryKey) {
-                return [new Equal(new Column($map->property, $map->entityName), new Variable($this->$property))];
+        foreach ($primaryKey as $property => $map) {
+            if (static::dtoIsKeyValueMissing($this->$property, \count($primaryKey) > 1)) {
+                throw new MappingException([
+                    'template'      => 'The DTO {class} has no value in its primary key property {property}',
+                    'class'         => static::class,
+                    'property'      => $property,
+                ]);
             }
+
+            $column                 = new Column($map->property, $map->entityName);
+            $filters[]              = new Equal($column, new Variable($this->$property));
         }
 
-        throw new MappingException([
-            'template'              => 'The DTO {class} has no primary key.',
-            'class'                 => static::class,
-        ]);
+        if ($filters === []) {
+            throw new MappingException([
+                'template'          => 'The DTO {class} has no primary key.',
+                'class'             => static::class,
+            ]);
+        }
+
+        return $filters;
     }
 
     protected static function dtoQueryGeneratorAfter(QueryInterface $query): void {}

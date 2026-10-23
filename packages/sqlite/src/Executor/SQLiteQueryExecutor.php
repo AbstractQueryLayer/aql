@@ -6,12 +6,9 @@ namespace IfCastle\AQL\SQLite\Executor;
 
 use IfCastle\AQL\Dsl\BasicQueryInterface;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
-use IfCastle\AQL\Dsl\Sql\Conditions\Conditions;
-use IfCastle\AQL\Dsl\Sql\Constant\ConstantInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\AssignmentListInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Limit;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\LimitInterface;
-use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\SubjectInterface;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Dsl\Sql\Query\SelectInterface;
@@ -110,29 +107,7 @@ class SQLiteQueryExecutor extends SqlQueryExecutor
             return false;
         }
 
-        $primaryKey                 = $context->getCurrentEntity()->getPrimaryKey();
-        $where                      = $query->getWhere();
-
-        if ($primaryKey === null || $where instanceof Conditions === false
-            || $where->getType() !== Conditions::TYPE_AND) {
-            return false;
-        }
-
-        $filtered                   = [];
-
-        foreach ($where->getChildNodes() as $condition) {
-            $column                 = $condition instanceof LROperationInterface
-                                      && $condition->getOperation() === LROperationInterface::EQU
-                                      && $condition->getRightNode() instanceof ConstantInterface
-                ? $condition->getLeftNode()
-                : null;
-
-            if ($column instanceof ColumnInterface) {
-                $filtered[$column->getColumnName()] = true;
-            }
-        }
-
-        return \array_diff($primaryKey->getKeyColumns(), \array_keys($filtered)) === [];
+        return self::filtersEveryPrimaryKeyColumn($query, $context->getCurrentEntity());
     }
 
     #[\Override]

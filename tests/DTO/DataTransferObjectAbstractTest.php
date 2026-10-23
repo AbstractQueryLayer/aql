@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace IfCastle\AQL\DTO;
 
+use IfCastle\AQL\Dsl\Parser\AqlParser;
+use IfCastle\AQL\Dsl\QueryOption;
 use IfCastle\AQL\Dsl\Sql\Column\Column;
 use IfCastle\AQL\Dsl\Sql\Constant\Constant;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\Equal;
+use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Select;
 use IfCastle\AQL\DTO\Exceptions\RecordNotFound;
 use IfCastle\AQL\Entity\EntityAbstract;
@@ -173,6 +176,20 @@ class DataTransferObjectAbstractTest extends TestCaseWithSqlMemoryDb
         $expected                   = $aqlExecutor->executeAql($select)->getFirstOrNull();
 
         $this->assertEmpty($expected, 'Expected record not found');
+    }
+
+    public function testAWriteByTheTypicalIdCountsAsAKeyFilter(): void
+    {
+        $this->defineDataset();
+        $aqlExecutor                = $this->getAqlExecutor();
+
+        $update                     = (new AqlParser())
+            ->parse('UPDATE Example SET fullName = "By Id" WHERE @id = 1 LIMIT 1');
+        $this->assertInstanceOf(QueryInterface::class, $update);
+        $update->getQueryOptions()->addOption(new QueryOption(QueryInterface::BY_PRIMARY_KEY, true, true));
+        $aqlExecutor->executeAql($update);
+
+        $this->assertSame('By Id', ExampleDto::fetchById($aqlExecutor, 1)->name);
     }
 
     public function testDecode(): void
