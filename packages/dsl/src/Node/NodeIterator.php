@@ -38,25 +38,7 @@ class NodeIterator implements \Iterator, IteratorWithPathInterface
     #[\Override]
     public function next(): void
     {
-        ++$this->index;
-
-        if ($this->index >= \count($this->childNodes ?? [])) {
-            $this->current          = null;
-            return;
-        }
-
-        $this->current              = $this->childNodes[$this->index];
-        $this->path[]               = [];
-
-        if ($this->savePath && $this->resolveSubstitution) {
-
-            while ($this->current?->getSubstitution() !== null) {
-                $this->path[]       = $this->current;
-                $this->current      = $this->current->getSubstitution();
-            }
-        } elseif ($this->resolveSubstitution) {
-            $this->current              = $this->current?->resolveSubstitution();
-        }
+        $this->moveTo($this->index + 1);
     }
 
     #[\Override]
@@ -75,11 +57,33 @@ class NodeIterator implements \Iterator, IteratorWithPathInterface
     public function rewind(): void
     {
         $this->childNodes       = \array_values(\array_filter($this->node->getChildNodes(), static fn($node) => $node !== null));
-        $this->current          = null;
-        $this->index            = 0;
+        $this->path             = [];
+        $this->moveTo(0);
+    }
 
-        if ($this->childNodes !== []) {
-            $this->current      = $this->childNodes[0];
+    /**
+     * Makes the child at $index current, resolved through its substitutions when the iterator resolves them.
+     */
+    private function moveTo(int $index): void
+    {
+        $this->index                = $index;
+
+        if ($this->index >= \count($this->childNodes ?? [])) {
+            $this->current          = null;
+            return;
+        }
+
+        $this->current              = $this->childNodes[$this->index];
+        $this->path[]               = [];
+
+        if ($this->savePath && $this->resolveSubstitution) {
+
+            while ($this->current?->getSubstitution() !== null) {
+                $this->path[]       = $this->current;
+                $this->current      = $this->current->getSubstitution();
+            }
+        } elseif ($this->resolveSubstitution) {
+            $this->current              = $this->current?->resolveSubstitution();
         }
     }
 }

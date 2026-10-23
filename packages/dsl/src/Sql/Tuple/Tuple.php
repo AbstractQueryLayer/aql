@@ -11,10 +11,13 @@ use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Exceptions\TransformationException;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\NodeList;
+use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
 use IfCastle\Exceptions\RequiredValueEmpty;
 
 class Tuple extends NodeAbstract implements TupleInterface
 {
+    protected string $nodeName      = QueryInterface::NODE_TUPLE;
+
     /**
      * whether a tuple is a default list of columns.
      */
@@ -31,8 +34,8 @@ class Tuple extends NodeAbstract implements TupleInterface
         parent::__construct();
 
         $this->childNodes = [
-            self::NODE_COLUMNS         => new NodeList(),
-            self::NODE_HIDDEN_COLUMNS  => new NodeList(),
+            self::NODE_COLUMNS         => (new NodeList())->setParentNode($this),
+            self::NODE_HIDDEN_COLUMNS  => (new NodeList())->setParentNode($this),
         ];
 
         foreach ($columns as $column) {

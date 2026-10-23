@@ -6,6 +6,7 @@ namespace IfCastle\AQL\Dsl\Sql\Tuple;
 
 use IfCastle\AQL\Dsl\Node\NodeAbstract;
 use IfCastle\AQL\Dsl\Node\NodeInterface;
+use IfCastle\AQL\Dsl\Sql\Column\Column;
 use IfCastle\AQL\Dsl\Sql\Column\ColumnInterface;
 use IfCastle\Exceptions\UnexpectedMethodMode;
 
@@ -75,6 +76,9 @@ class TupleColumn extends NodeAbstract implements TupleColumnInterface
         if ($expression instanceof ColumnInterface) {
             $expression->markAsPlaceholder();
             $this->setAliasIfUndefined($expression->getColumnName());
+        } elseif ($expression !== null) {
+            // An expression computed elsewhere keeps its alias and renders the placeholder of a column in its place.
+            $expression->setSubstitution(Column::placeholder($this->getAliasOrColumnName()));
         }
 
         return $this;

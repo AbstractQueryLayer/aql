@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace IfCastle\AQL\MySql\Executor;
 
 use IfCastle\AQL\Dsl\Parser\AqlParser;
+use IfCastle\AQL\Dsl\Sql\Query\Count;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Join;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\JoinInterface;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Entities\AqlRoundTripNote;
@@ -25,7 +28,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
  */
 class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
 {
-    private const string NOTES      = '(1, 1, "alpha"), (2, 2, "beta"), (3, 2, "gamma"), (4, 3, "alpha")';
+    /** Note 5 is an orphan: no round trip 9 exists. */
+    private const string NOTES      = '(1, 1, "alpha"), (2, 2, "beta"), (3, 2, "gamma"), (4, 3, "alpha"), (5, 9, "delta")';
+
+    /** Round trip 4 has no notes. */
+    private const string ROUND_TRIPS = '(1, "first"), (2, "second"), (3, "third"), (4, "fourth")';
 
     private \PDO $pdo;
 
@@ -123,6 +130,129 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
     }
 
     /**
+     * Joins across storages: the rows of the other storage are composed with the main ones as one statement joins them,
+     * with their columns, a row repeated for each related row, and a row without one dropped by INNER or kept by LEFT.
+     * Rows worked out by hand from the tables of seed().
+     *
+     * @return iterable<string, array{string, list<array<string, mixed>>}>
+     */
+    public static function joins(): iterable
+    {
+        yield 'a column of the joined round trip' => [
+            'SELECT label, AqlRoundTrip.value FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY id',
+            [
+                ['label' => 'alpha', 'value' => 'first'], ['label' => 'beta', 'value' => 'second'],
+                ['label' => 'gamma', 'value' => 'second'], ['label' => 'alpha', 'value' => 'third'],
+            ],
+        ];
+        yield 'a column of a round trip joined by LEFT keeps the orphan' => [
+            'SELECT label, AqlRoundTrip.value FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip ORDER BY id',
+            [
+                ['label' => 'alpha', 'value' => 'first'], ['label' => 'beta', 'value' => 'second'],
+                ['label' => 'gamma', 'value' => 'second'], ['label' => 'alpha', 'value' => 'third'],
+                ['label' => 'delta', 'value' => null],
+            ],
+        ];
+        yield 'a column of the round trip without a JOIN' => [
+            'SELECT label, AqlRoundTrip.value AS v FROM AqlRoundTripNote ORDER BY id',
+            [
+                ['label' => 'alpha', 'v' => 'first'], ['label' => 'beta', 'v' => 'second'],
+                ['label' => 'gamma', 'v' => 'second'], ['label' => 'alpha', 'v' => 'third'],
+            ],
+        ];
+        yield 'an expression over the round trip' => [
+            'SELECT label, CONCAT(AqlRoundTrip.value, "!") AS v FROM AqlRoundTripNote INNER JOIN AqlRoundTrip WHERE id < 3 ORDER BY id',
+            [['label' => 'alpha', 'v' => 'first!'], ['label' => 'beta', 'v' => 'second!']],
+        ];
+        yield 'an expression over the round trip without a JOIN' => [
+            'SELECT label, CONCAT(AqlRoundTrip.value, "!") AS v FROM AqlRoundTripNote ORDER BY id',
+            [
+                ['label' => 'alpha', 'v' => 'first!'], ['label' => 'beta', 'v' => 'second!'],
+                ['label' => 'gamma', 'v' => 'second!'], ['label' => 'alpha', 'v' => 'third!'],
+            ],
+        ];
+        yield 'orphans by LEFT JOIN and IS NULL' => [
+            'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE AqlRoundTrip.id IS NULL ORDER BY id',
+            [['label' => 'delta']],
+        ];
+        yield 'IS NOT NULL under LEFT JOIN' => [
+            'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE AqlRoundTrip.id IS NOT NULL AND label = "alpha" ORDER BY id',
+            [['label' => 'alpha'], ['label' => 'alpha']],
+        ];
+        yield 'IS NULL under INNER JOIN' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip WHERE AqlRoundTrip.id IS NULL ORDER BY id',
+            [],
+        ];
+        yield 'a round trip repeated for each note' => [
+            'SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote ORDER BY id',
+            [['value' => 'first'], ['value' => 'second'], ['value' => 'second'], ['value' => 'third']],
+        ];
+        yield 'a round trip without notes kept by LEFT' => [
+            'SELECT value FROM AqlRoundTrip LEFT JOIN AqlRoundTripNote ORDER BY id',
+            [['value' => 'first'], ['value' => 'second'], ['value' => 'second'], ['value' => 'third'], ['value' => 'fourth']],
+        ];
+        yield 'round trips without notes' => [
+            'SELECT value FROM AqlRoundTrip LEFT JOIN AqlRoundTripNote WHERE AqlRoundTripNote.id IS NULL ORDER BY id',
+            [['value' => 'fourth']],
+        ];
+        yield 'a round trip repeated for each note that passes the filter' => [
+            'SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote WHERE AqlRoundTripNote.label <> "alpha" ORDER BY id',
+            [['value' => 'second'], ['value' => 'second']],
+        ];
+        yield 'a LEFT JOIN with a filter on the round trip' => [
+            'SELECT label, AqlRoundTrip.value FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE AqlRoundTrip.value = "second" ORDER BY id',
+            [['label' => 'beta', 'value' => 'second'], ['label' => 'gamma', 'value' => 'second']],
+        ];
+        yield 'a LIMIT over a LEFT JOIN with IS NOT NULL, which runs in the query of the round trips' => [
+            'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE AqlRoundTrip.id IS NOT NULL ORDER BY id DESC LIMIT 2',
+            [['label' => 'alpha'], ['label' => 'gamma']],
+        ];
+        yield 'a LIMIT over a LEFT JOIN to one round trip' => [
+            'SELECT label, AqlRoundTrip.value FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip ORDER BY id DESC LIMIT 2',
+            [['label' => 'delta', 'value' => null], ['label' => 'alpha', 'value' => 'third']],
+        ];
+    }
+
+    /**
+     * The rows of each note of a round trip come in no order of their own, in one statement as across storages, so
+     * they are compared sorted.
+     *
+     * @param list<array<string, mixed>> $expected
+     */
+    #[DataProvider('joins')]
+    public function testAJoinAcrossStoragesGivesTheRowsOfOneStatement(string $aql, array $expected): void
+    {
+        $this->assertSame(self::sorted($expected), self::sorted($this->rows(self::local($aql))), 'The single-storage reference differs');
+        $this->assertSame(self::sorted($expected), self::sorted($this->rows($aql)));
+    }
+
+    /**
+     * A note row repeated for each note of its round trip, with the label of each.
+     */
+    public function testAColumnOfTheToManySideRepeatsTheRow(): void
+    {
+        $aql = 'SELECT value, AqlRoundTripNote.label FROM AqlRoundTrip INNER JOIN AqlRoundTripNote ORDER BY id';
+        $expected = [
+            ['value' => 'first', 'label' => 'alpha'], ['value' => 'second', 'label' => 'beta'],
+            ['value' => 'second', 'label' => 'gamma'], ['value' => 'third', 'label' => 'alpha'],
+        ];
+
+        $this->assertSame($expected, self::sorted($this->rows(self::local($aql))), 'The single-storage reference differs');
+        $this->assertSame($expected, self::sorted($this->rows($aql)));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    private static function sorted(array $rows): array
+    {
+        \usort($rows, static fn(array $a, array $b): int => \json_encode($a) <=> \json_encode($b));
+
+        return $rows;
+    }
+
+    /**
      * Rows left by each write, worked out by hand from the tables of seed(): the table, then its rows as
      * "id:roundTripId:label" for notes and "id:value" for round trips.
      *
@@ -133,32 +263,32 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         yield 'update notes filtered on the round trip' => [
             'UPDATE AqlRoundTripNote SET label = "changed" WHERE AqlRoundTrip.value = "second"',
             'aql_round_trip_note',
-            ['1:1:alpha', '2:2:changed', '3:2:changed', '4:3:alpha'],
+            ['1:1:alpha', '2:2:changed', '3:2:changed', '4:3:alpha', '5:9:delta'],
         ];
         yield 'delete notes filtered on the round trip' => [
             'DELETE FROM AqlRoundTripNote WHERE AqlRoundTrip.value <> "second"',
             'aql_round_trip_note',
-            ['2:2:beta', '3:2:gamma'],
+            ['2:2:beta', '3:2:gamma', '5:9:delta'],
         ];
         yield 'update round trips filtered on a note' => [
             'UPDATE AqlRoundTrip SET value = "changed" WHERE AqlRoundTripNote.label = "alpha"',
             'aql_round_trip',
-            ['1:changed', '2:second', '3:changed'],
+            ['1:changed', '2:second', '3:changed', '4:fourth'],
         ];
         yield 'delete round trips filtered on a note' => [
             'DELETE FROM AqlRoundTrip WHERE AqlRoundTripNote.label = "gamma"',
             'aql_round_trip',
-            ['1:first', '3:third'],
+            ['1:first', '3:third', '4:fourth'],
         ];
         yield 'delete with an alias, ORDER BY and LIMIT in one storage' => [
             'DELETE FROM AqlRoundTripNote n WHERE n.label = "alpha" ORDER BY n.id DESC LIMIT 1',
             'aql_round_trip_note',
-            ['1:1:alpha', '2:2:beta', '3:2:gamma'],
+            ['1:1:alpha', '2:2:beta', '3:2:gamma', '5:9:delta'],
         ];
         yield 'update notes with a filter that matches nothing' => [
             'UPDATE AqlRoundTripNote SET label = "changed" WHERE AqlRoundTrip.value = "none"',
             'aql_round_trip_note',
-            ['1:1:alpha', '2:2:beta', '3:2:gamma', '4:3:alpha'],
+            ['1:1:alpha', '2:2:beta', '3:2:gamma', '4:3:alpha', '5:9:delta'],
         ];
     }
 
@@ -186,7 +316,7 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
             'DELETE FROM AqlRoundTripNote WHERE AqlRoundTrip.value = "second" ORDER BY id LIMIT 1'
         ));
 
-        $this->assertSame(['1:1:alpha', '3:2:gamma', '4:3:alpha'], $this->tableRows('aql_round_trip_note'));
+        $this->assertSame(['1:1:alpha', '3:2:gamma', '4:3:alpha', '5:9:delta'], $this->tableRows('aql_round_trip_note'));
     }
 
     /**
@@ -204,6 +334,41 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         ];
         yield 'a condition under OR' => ['SELECT label FROM AqlRoundTripNote WHERE (AqlRoundTrip.value = "first" OR label = "beta")'];
         yield 'a DELETE of orphans' => ['DELETE FROM AqlRoundTripNote WHERE AqlRoundTrip.id IS NULL'];
+        yield 'an aggregate over a join, which would count orphans' => ['SELECT COUNT(id) AS c FROM AqlRoundTripNote INNER JOIN AqlRoundTrip'];
+        yield 'every column of a join' => ['SELECT * FROM AqlRoundTripNote INNER JOIN AqlRoundTrip'];
+        yield 'an expression over columns of both storages' => [
+            'SELECT CONCAT(AqlRoundTrip.value, ":", id) AS v FROM AqlRoundTripNote INNER JOIN AqlRoundTrip',
+        ];
+        yield 'a condition over columns of both storages' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip WHERE AqlRoundTrip.id = id',
+        ];
+        yield 'a LIMIT over an INNER JOIN, which drops orphans after it' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY id LIMIT 2',
+        ];
+        yield 'a LIMIT over a join that repeats rows' => ['SELECT value FROM AqlRoundTrip LEFT JOIN AqlRoundTripNote ORDER BY id LIMIT 2'];
+        yield 'a LIMIT over a join filtered after it' => [
+            'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE AqlRoundTrip.id IS NULL ORDER BY id LIMIT 1',
+        ];
+        yield 'ORDER BY the other storage' => ['SELECT label, AqlRoundTrip.value AS v FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY v'];
+        yield 'ORDER BY a column of the other storage' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY AqlRoundTrip.value',
+        ];
+        yield 'ORDER BY an expression over the other storage' => [
+            'SELECT label, CONCAT(AqlRoundTrip.value, "!") AS v FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY v',
+        ];
+        yield 'an aggregate over the other storage' => [
+            'SELECT label, MAX(AqlRoundTrip.value) AS m FROM AqlRoundTripNote INNER JOIN AqlRoundTrip',
+        ];
+        yield 'a UNION with a join' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip UNION SELECT label FROM AqlRoundTripLocalNote',
+        ];
+        yield 'GROUP BY over a join' => ['SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip GROUP BY label'];
+        yield 'IS NULL under OR in a LEFT JOIN' => [
+            'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE (AqlRoundTrip.id IS NULL OR label = "beta")',
+        ];
+        yield 'a join under a join to the other storage' => [
+            'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip { INNER JOIN AqlRoundTripLocalNote }',
+        ];
     }
 
     #[DataProvider('refusedQueries')]
@@ -215,7 +380,64 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         } catch (QueryException) {
         }
 
-        $this->assertSame(['1:1:alpha', '2:2:beta', '3:2:gamma', '4:3:alpha'], $this->tableRows('aql_round_trip_note'));
+        $this->assertSame(['1:1:alpha', '2:2:beta', '3:2:gamma', '4:3:alpha', '5:9:delta'], $this->tableRows('aql_round_trip_note'));
+    }
+
+    /**
+     * A COUNT counts the rows of its main query: it holds where the join keeps each of them once, and is refused where
+     * the join would drop or repeat them.
+     *
+     * @return iterable<string, array{string, string, string|int}> join type, WHERE, the count or the refusal
+     */
+    public static function counts(): iterable
+    {
+        yield 'INNER restricted by a condition on the round trip' => [JoinInterface::INNER, 'AqlRoundTrip.value = "second"', 2];
+        yield 'LEFT without a condition' => [JoinInterface::LEFT, '', 5];
+        yield 'INNER, which would drop the orphan after counting' => [JoinInterface::INNER, '', 'a COUNT counts the rows'];
+        yield 'LEFT with IS NULL, filtered after counting' => [JoinInterface::LEFT, 'AqlRoundTrip.id IS NULL', 'a COUNT counts the rows'];
+    }
+
+    #[DataProvider('counts')]
+    public function testACountOverAJoinAcrossStorages(string $joinType, string $where, string|int $expected): void
+    {
+        $count = static function (string $note) use ($joinType, $where): Count {
+            $count = new Count($note);
+            $count->getFrom()->addJoin(new Join($joinType, 'AqlRoundTrip'));
+
+            if ($where !== '') {
+                $count->getWhere()->add((new AqlParser())->parse('SELECT id FROM T WHERE ' . $where)->getWhere()->getChildNodes()[0]);
+            }
+
+            return $count;
+        };
+
+        if (\is_string($expected)) {
+            $this->expectException(QueryException::class);
+            $this->expectExceptionMessage($expected);
+        } else {
+            $this->assertSame($expected, $this->countRows($count('AqlRoundTripLocalNote')), 'The single-storage reference differs');
+        }
+
+        $this->assertSame($expected, $this->countRows($count('AqlRoundTripNote')));
+    }
+
+    /**
+     * A join of a type a plan across storages cannot compose is refused, not read as another type.
+     */
+    public function testARightJoinAcrossStoragesIsRefused(): void
+    {
+        $select = (new AqlParser())->parse('SELECT label FROM AqlRoundTripNote');
+        $select->getFrom()->addJoin(new Join(JoinInterface::RIGHT, 'AqlRoundTrip'));
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('cannot be composed row by row');
+
+        $this->getAqlExecutor()->executeAql($select);
+    }
+
+    private function countRows(Count $count): int
+    {
+        return $this->getAqlExecutor()->executeAql($count)->getFirstColumnAsInt();
     }
 
     /**
@@ -240,7 +462,7 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         $this->assertSame([['label' => 'beta'], ['label' => 'gamma']], $first);
         $this->assertSame([['label' => 'beta'], ['label' => 'gamma'], ['label' => 'alpha']], $second);
         $this->assertSame(1, \substr_count((string) $this->remote->lastSql, ' IN '), (string) $this->remote->lastSql);
-        $this->assertSame(['1:first', '2:second', '3:third'], $this->tableRows('aql_round_trip'));
+        $this->assertSame(['1:first', '2:second', '3:third', '4:fourth'], $this->tableRows('aql_round_trip'));
     }
 
     /**
@@ -261,6 +483,22 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
     }
 
     /**
+     * A join with a column of the other storage composes the rows of each run only.
+     */
+    public function testAPreprocessedJoinWithAColumnAcrossStoragesRunsTwice(): void
+    {
+        $query = $this->preprocessed('SELECT label, AqlRoundTrip.value FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY id');
+
+        $first = $this->getAqlExecutor()->executeAql($query)->finalize()->toArray();
+        $this->pdo->exec('UPDATE aql_round_trip SET value = "changed" WHERE id = 1');
+        $this->pdo->exec('DELETE FROM aql_round_trip_note WHERE id IN (2, 3)');
+        $second = $this->getAqlExecutor()->executeAql($query)->finalize()->toArray();
+
+        $this->assertCount(4, $first);
+        $this->assertSame([['label' => 'alpha', 'value' => 'changed'], ['label' => 'alpha', 'value' => 'third']], $second);
+    }
+
+    /**
      * Each run reads the round trips that match when it runs, in its own transaction.
      */
     public function testAPreprocessedUpdateAcrossStoragesRunsInTwoTransactions(): void
@@ -271,7 +509,7 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         $this->pdo->exec('UPDATE aql_round_trip SET value = "first" WHERE id = 3');
         $this->runInTransaction($query);
 
-        $this->assertSame(['1:1:alpha++', '2:2:beta', '3:2:gamma', '4:3:alpha+'], $this->tableRows('aql_round_trip_note'));
+        $this->assertSame(['1:1:alpha++', '2:2:beta', '3:2:gamma', '4:3:alpha+', '5:9:delta'], $this->tableRows('aql_round_trip_note'));
     }
 
     public function testAPreprocessedDeleteAcrossStoragesRunsInTwoTransactions(): void
@@ -279,11 +517,11 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         $query = $this->preprocessed('DELETE FROM AqlRoundTrip WHERE AqlRoundTripNote.label = "alpha"');
 
         $this->runInTransaction($query);
-        $this->assertSame(['2:second'], $this->tableRows('aql_round_trip'));
+        $this->assertSame(['2:second', '4:fourth'], $this->tableRows('aql_round_trip'));
 
         $this->pdo->exec('INSERT INTO aql_round_trip (id, value) VALUES (1, "first")');
         $this->runInTransaction($query);
-        $this->assertSame(['2:second'], $this->tableRows('aql_round_trip'));
+        $this->assertSame(['2:second', '4:fourth'], $this->tableRows('aql_round_trip'));
     }
 
     private function runInTransaction(PreprocessedQuery $query): void
@@ -351,7 +589,7 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         $this->dropTables();
         $this->pdo->exec('CREATE TABLE aql_round_trip (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(64) NOT NULL)'
             . ' ENGINE=InnoDB');
-        $this->pdo->exec('INSERT INTO aql_round_trip (id, value) VALUES (1, "first"), (2, "second"), (3, "third")');
+        $this->pdo->exec('INSERT INTO aql_round_trip (id, value) VALUES ' . self::ROUND_TRIPS);
 
         foreach (['aql_round_trip_note', 'aql_round_trip_local_note'] as $table) {
             $this->pdo->exec('CREATE TABLE ' . $table . ' (id INT AUTO_INCREMENT PRIMARY KEY, roundTripId INT NOT NULL,'

@@ -72,12 +72,14 @@ class NodeHelper
 
     /**
      * The method returns the expression node that is independent of the base query node.
-     * For example, for a column inside a Tuple, this would be the TupleColumn expression.
+     * For example, for a column inside a Tuple, this would be the TupleColumn expression; for a condition, the child of
+     * the Where node that holds it. The basic node itself is ascendToQueryBasicNode().
      *
      * @throws TransformationException
      */
     public static function findBasicExpressionByNode(NodeInterface $node): NodeInterface|null
     {
+        // The nodes from the query down to $node: the basic node first.
         $path                       = [];
 
         $queryNode                  = self::traverseUpUntil($node, function (NodeInterface $node) use (&$path): ?true {
@@ -85,12 +87,12 @@ class NodeHelper
                 return true;
             }
 
-            $path[]             = $node;
+            \array_unshift($path, $node);
             return null;
 
         });
 
-        if ($queryNode === null || $path === []) {
+        if ($queryNode === null || \count($path) < 2) {
             return null;
         }
 
@@ -117,12 +119,9 @@ class NodeHelper
             }
 
             return $path[2];
-        } elseif (\count($path) >= 2) {
-            return $path[1];
         }
 
-        return null;
-
+        return $path[1];
     }
 
     public static function inTuple(NodeInterface $node): bool
@@ -311,14 +310,15 @@ class NodeHelper
 
     /**
      * A copy of the node and its children to be normalized again in another query: the copy of a node that was being
-     * normalized in its own query would otherwise be skipped there and render nothing.
+     * normalized in its own query would otherwise be skipped there and render nothing. A substitution made there (a
+     * function resolved for its storage) is dropped too: the other query makes its own.
      */
     public static function copyToTransformAgain(NodeInterface $node): NodeInterface
     {
-        $copy                       = (clone $node)->needTransform();
+        $copy                       = (clone $node)->needTransform(true);
 
         foreach (new \RecursiveIteratorIterator(new NodeRecursiveIterator($copy), \RecursiveIteratorIterator::SELF_FIRST) as $child) {
-            $child->needTransform();
+            $child->needTransform(true);
         }
 
         return $copy;

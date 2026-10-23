@@ -403,27 +403,54 @@ class SqlQueryExecutorTest extends SqlQueryExecutorTestCase
      */
     public function testSelectWithSeveralStorages(): void
     {
-        $plan                       = new PlanCaseDescriptor(/** @lang aql */ 'SELECT * FROM BookFiles
+        $plan                       = new PlanCaseDescriptor(/** @lang aql */ 'SELECT id, title FROM BookFiles
             INNER JOIN Book
             WHERE Book.title = "The Great Gatsby"',
         );
 
-        $plan->addStoredResult(/** @lang aql */'SELECT *, `t0`.`id` FROM `book` as `t0` WHERE `t0`.`title` = \'The Great Gatsby\'',
+        $plan->addStoredResult(/** @lang aql */'SELECT *, `t0`.`id` as `@0` FROM `book` as `t0` WHERE `t0`.`title` = \'The Great Gatsby\'',
             [
-                ['id' => 1, 'title' => 'The Great Gatsby'],
+                ['id' => 1, 'title' => 'The Great Gatsby', '@0' => 1],
             ],
         );
 
-        // The other storage prints the AQL it got: the keys read from Book replace Book.id when it runs.
+        // The other storage prints the AQL it got: the keys read from Book replace Book.id when it runs. Each query
+        // reads the key of the join as a hidden column, by which the rows of the two are joined.
+        $plan->addStoredResult(/** @lang aql */'SELECT BookFiles.id, BookFiles.title, [[BookFiles.bookId as "@0"]] FROM BookFiles
+        {query: SELECT *, [[Book.id as "@0"]] FROM Book WHERE Book.title = "The Great Gatsby"} WHERE (BookFiles.bookId = Book.id)', [
+            ['id' => 1, 'title' => 'File1', '@0' => 1],
+            ['id' => 2, 'title' => 'File2', '@0' => 1],
+        ], SomeStorageMock::NAME);
+
+        $plan->expectedResult       = [
+            ['id' => 1, 'title' => 'File1'],
+            ['id' => 2, 'title' => 'File2'],
+        ];
+
+        $this->executePlan($plan);
+    }
+
+    /**
+     * A filter on an entity of another storage, without a join, is a semi-join: every column of the main entity, and
+     * nothing of the filtering one.
+     */
+    public function testSelectEveryColumnFilteredInAnotherStorage(): void
+    {
+        $plan                       = new PlanCaseDescriptor(/** @lang aql */ 'SELECT * FROM BookFiles
+            WHERE Book.title = "The Great Gatsby"',
+        );
+
+        $plan->addStoredResult(/** @lang aql */'SELECT *, `t0`.`id` as `@0` FROM `book` as `t0` WHERE `t0`.`title` = \'The Great Gatsby\'', [
+            ['id' => 1, 'title' => 'The Great Gatsby', '@0' => 1],
+        ]);
+
         $plan->addStoredResult(/** @lang aql */'SELECT * FROM BookFiles
-        {query: SELECT *, [[Book.id]] FROM Book WHERE Book.title = "The Great Gatsby"} WHERE (BookFiles.bookId = Book.id)', [
+        {query: SELECT *, [[Book.id as "@0"]] FROM Book WHERE Book.title = "The Great Gatsby"} WHERE (BookFiles.bookId = Book.id)', [
             ['id' => 1, 'title' => 'File1', 'created_at' => '2001-01-01 00:00:00', 'updated_at' => null],
-            ['id' => 2, 'title' => 'File2', 'created_at' => '2002-02-02 00:00:00', 'updated_at' => null],
         ], SomeStorageMock::NAME);
 
         $plan->expectedResult       = [
             ['id' => 1, 'title' => 'File1', 'created_at' => '2001-01-01 00:00:00', 'updated_at' => null],
-            ['id' => 2, 'title' => 'File2', 'created_at' => '2002-02-02 00:00:00', 'updated_at' => null],
         ];
 
         $this->executePlan($plan);
