@@ -195,14 +195,12 @@ abstract class SqlDriverAbstract implements
     }
 
     /**
-     * Executes the statement with the values bound to it and the given ones.
-     *
-     * @param array<string, mixed> $parameters values by placeholder, bound after the statement's own and over them
+     * Executes the statement with the values bound to it.
      */
-    abstract protected function realExecuteStatement(SqlStatementInterface $statement, array $parameters): ResultInterface;
+    abstract protected function realExecuteStatement(SqlStatementInterface $statement): ResultInterface;
 
     #[\Override]
-    public function executeStatement(SqlStatementInterface $statement, array $params = [], ?object $context = null): ResultInterface
+    public function executeStatement(SqlStatementInterface $statement, ?object $context = null): ResultInterface
     {
         $this->openTransactions()->checkUsable();
         if ($this->isDisconnected()) {
@@ -216,7 +214,7 @@ abstract class SqlDriverAbstract implements
         }
 
         try {
-            return $this->realExecuteStatement($statement, $params);
+            return $this->realExecuteStatement($statement);
         } catch (StorageException $exception) {
             $this->noteFailure($exception);
             throw $exception;

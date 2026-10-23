@@ -73,28 +73,17 @@ final class PDOStatementAdapter implements SqlStatementInterface
     }
 
     /**
-     * Passes the values of the bound constants and then the given values to PDO, each with the PDO type of its
-     * value; a given value replaces a bound constant of the same placeholder. A placeholder the statement does not
-     * have fails its execution.
-     *
-     * @param array<string, mixed> $values values by placeholder
+     * Passes the values of the bound parameters to PDO, each with the PDO type of its value. A placeholder the
+     * statement does not have fails its execution.
      *
      * @throws UnexpectedValueType when a value has no SQL form: an array, or an object other than a date,
      *                             a Stringable or a BinaryString
      */
-    public function bindValues(array $values): void
+    public function bindValues(): void
     {
         foreach ($this->parameters as $placeholder => $parameter) {
-            if (\array_key_exists($placeholder, $values)) {
-                continue;
-            }
-
             $isBinary               = $parameter instanceof Constant && $parameter->isBinary();
             $this->bindValue($placeholder, $parameter->getConstantValue(), $isBinary);
-        }
-
-        foreach ($values as $placeholder => $value) {
-            $this->bindValue($placeholder, $value, false);
         }
     }
 

@@ -81,7 +81,7 @@ class MySql extends SqlDriverAbstract
     }
 
     #[\Override]
-    protected function realExecuteStatement(SqlStatementInterface $statement, array $parameters): ResultInterface
+    protected function realExecuteStatement(SqlStatementInterface $statement): ResultInterface
     {
         throw new QueryException(static::class . ' does not prepare statements', $statement->getQuery());
     }

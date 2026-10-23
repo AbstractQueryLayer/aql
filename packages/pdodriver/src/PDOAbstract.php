@@ -100,14 +100,14 @@ abstract class PDOAbstract extends SqlDriverAbstract
     }
 
     #[\Override]
-    protected function realExecuteStatement(SqlStatementInterface $statement, array $parameters): ResultInterface
+    protected function realExecuteStatement(SqlStatementInterface $statement): ResultInterface
     {
         if (false === $statement instanceof PDOStatementAdapter) {
             throw new UnexpectedValueType('$statement', $statement, PDOStatementAdapter::class);
         }
 
         try {
-            $statement->bindValues($parameters);
+            $statement->bindValues();
             $statement->getPdoStatement()->execute();
         } catch (\PDOException $pdoException) {
             throw $this->queryFailed($pdoException, $statement->getQuery());

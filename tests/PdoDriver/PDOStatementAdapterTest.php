@@ -43,7 +43,7 @@ class PDOStatementAdapterTest extends TestCase
         }
 
         $adapter->bindParameter((new Constant('bytes'))->asBinary()->asPlaceholder(':binary'));
-        $adapter->bindValues([]);
+        $adapter->bindValues();
         $adapter->getPdoStatement()->execute();
 
         // A float goes as text: PDO has no float type, and SQLite keeps the text it is given.
@@ -61,16 +61,7 @@ class PDOStatementAdapterTest extends TestCase
 
         $parameter->setParameterValue('second');
 
-        $this->assertSame(['second'], $this->execute($adapter, []));
-    }
-
-    public function testAGivenValueReplacesTheBoundConstantOfItsPlaceholder(): void
-    {
-        $adapter = $this->adapter('SELECT :a, :b');
-        $adapter->bindParameter((new Constant('bound'))->asPlaceholder(':a'));
-
-        $this->assertSame(['given', 'only given'], $this->execute($adapter, [':a' => 'given', ':b' => 'only given']));
-        $this->assertSame([':a'], $adapter->getParameterKeys());
+        $this->assertSame(['second'], $this->execute($adapter));
     }
 
     public function testAConstantWithoutANamedPlaceholderIsRefused(): void
@@ -93,7 +84,7 @@ class PDOStatementAdapterTest extends TestCase
         $adapter->bindParameter((new Constant([1, 2]))->asPlaceholder(':list'));
 
         $this->expectException(UnexpectedValueType::class);
-        $adapter->bindValues([]);
+        $adapter->bindValues();
     }
 
     public function testAPlaceholderTheStatementLacksFailsTheExecution(): void
@@ -102,7 +93,7 @@ class PDOStatementAdapterTest extends TestCase
         $adapter->bindParameter((new Constant(1))->asPlaceholder(':missing'));
 
         $this->expectException(\PDOException::class);
-        $this->execute($adapter, []);
+        $this->execute($adapter);
     }
 
     private function adapter(string $sql): PDOStatementAdapter
@@ -113,12 +104,11 @@ class PDOStatementAdapterTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $values
      * @return list<mixed>
      */
-    private function execute(PDOStatementAdapter $adapter, array $values): array
+    private function execute(PDOStatementAdapter $adapter): array
     {
-        $adapter->bindValues($values);
+        $adapter->bindValues();
         $adapter->getPdoStatement()->execute();
 
         return $adapter->getPdoStatement()->fetch(\PDO::FETCH_NUM);
