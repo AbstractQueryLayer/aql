@@ -34,6 +34,9 @@ final class NodeState
     /** @var array<class-string, array<string, \ReflectionProperty>> */
     private static array $properties = [];
 
+    /** @var array<class-string, \Closure(object, string, mixed): void> */
+    private static array $assigners = [];
+
     /**
      * @return array<string, mixed>
      * @throws LogicalException when a property holds a value that cannot be written
@@ -84,20 +87,11 @@ final class NodeState
                 throw new UnSerializeException('Unknown property ' . $class . '::$' . $name, self::class);
             }
 
-            $property               = $properties[$name];
             $value                  = self::decode($value, $validator);
-
-            // A readonly property can be initialised only from the scope of the class that declares it.
-            $assign                 = \Closure::bind(
-                static function (object $node) use ($name, $value): void {
-                    $node->$name = $value;
-                },
-                null,
-                $property->getDeclaringClass()->getName()
-            );
+            $assign                 = self::assigner($properties[$name]->getDeclaringClass()->getName());
 
             try {
-                $assign($node);
+                $assign($node, $name, $value);
             } catch (\TypeError $error) {
                 throw new UnSerializeException(
                     'Wrong value of ' . $class . '::$' . $name . ': ' . $error->getMessage(),
@@ -109,6 +103,25 @@ final class NodeState
         return $node;
     }
 
+    /**
+     * A function that assigns a property in the scope of the class that declares it.
+     *
+     * A readonly property can be initialised only from that scope. ReflectionProperty::setValue() would reach it too,
+     * but it coerces the value as a non-strict call does ('3' becomes 3), where this assignment raises TypeError.
+     *
+     * @return \Closure(object, string, mixed): void
+     */
+    private static function assigner(string $declaringClass): \Closure
+    {
+        return self::$assigners[$declaringClass] ??= \Closure::bind(
+            static function (object $node, string $name, mixed $value): void {
+                $node->$name        = $value;
+            },
+            null,
+            $declaringClass
+        );
+    }
+
     /** @return array<string, \ReflectionProperty> */
     private static function properties(string $class): array
     {
@@ -118,33 +131,42 @@ final class NodeState
 
         $properties                 = [];
 
-        $reflection                 = new \ReflectionClass($class);
+        foreach (self::declaredProperties($class) as $property) {
+            $name                   = $property->getName();
 
-        for (; $reflection !== false; $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->isStatic()
-                    || $property->getDeclaringClass()->getName() !== $reflection->getName()
-                    || $property->getAttributes(NotSerialized::class) !== []) {
-                    continue;
-                }
-
-                // A redeclared protected or public property is one slot, already taken from the subclass; two private
-                // properties of one name in a class and its parent are two slots that would share a key.
-                if (\array_key_exists($property->getName(), $properties)) {
-                    if (!$property->isPrivate() && !$properties[$property->getName()]->isPrivate()) {
-                        continue;
-                    }
-
-                    throw new LogicalException(
-                        'Property $' . $property->getName() . ' of ' . $class . ' is declared twice in its hierarchy'
-                    );
-                }
-
-                $properties[$property->getName()] = $property;
+            // A redeclared protected or public property is one slot, already taken from the subclass; two private
+            // properties of one name in a class and its parent are two slots that would share a key.
+            if (!\array_key_exists($name, $properties)) {
+                $properties[$name]  = $property;
+            } elseif ($property->isPrivate() || $properties[$name]->isPrivate()) {
+                throw new LogicalException(
+                    'Property $' . $name . ' of ' . $class . ' is declared twice in its hierarchy'
+                );
             }
         }
 
         return self::$properties[$class] = $properties;
+    }
+
+    /**
+     * @return list<\ReflectionProperty> the serialized instance properties each class of the hierarchy declares
+     *                                    itself, the given class first
+     */
+    private static function declaredProperties(string $class): array
+    {
+        $declared                   = [];
+
+        for ($reflection = new \ReflectionClass($class); $reflection !== false; $reflection = $reflection->getParentClass()) {
+            $className              = $reflection->getName();
+            $declared               = [...$declared, ...\array_filter(
+                $reflection->getProperties(),
+                static fn(\ReflectionProperty $property): bool => !$property->isStatic()
+                    && $property->getDeclaringClass()->getName() === $className
+                    && $property->getAttributes(NotSerialized::class) === []
+            )];
+        }
+
+        return $declared;
     }
 
     private static function encode(mixed $value, ?ArraySerializableValidatorInterface $validator, string $path): mixed
@@ -227,10 +249,13 @@ final class NodeState
             throw new UnSerializeException('Unserialize not allowed for type ' . $class, self::class);
         }
 
-        foreach ($class::cases() as $enumCase) {
-            if ($enumCase->name === $case) {
-                return $enumCase;
-            }
+        $constant                   = $class . '::' . $case;
+
+        // A case is a class constant; an enum may also declare constants that are not cases, or alias one.
+        $enumCase                   = \defined($constant) ? \constant($constant) : null;
+
+        if ($enumCase instanceof $class && $enumCase->name === $case) {
+            return $enumCase;
         }
 
         throw new UnSerializeException('Enum ' . $class . ' has no case ' . $case, self::class);
