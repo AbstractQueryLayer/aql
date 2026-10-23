@@ -12,6 +12,7 @@ use IfCastle\AQL\Executor\AdditionalOptions;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Entities\AqlRoundTripNote;
+use IfCastle\AQL\Executor\Exceptions\PropertyNotFound;
 use IfCastle\AQL\Executor\Exceptions\QueryException;
 use IfCastle\AQL\Executor\OptionsWithAdditionalHandler;
 use IfCastle\AQL\Executor\Preprocessing\PreprocessedQuery;
@@ -155,12 +156,16 @@ class AqlPreprocessedQueryMariaDbTest extends TestCaseWithDiContainer
     public function testAQueryThatFailsToPreprocessIsNotStored(): void
     {
         for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $error = null;
+
             try {
                 $this->getAqlExecutor()->executeAql($this->preprocessed('SELECT missing FROM AqlRoundTrip'));
-                $this->fail('A query with an unknown column ran');
             } catch (\Throwable $throwable) {
-                $this->assertStringNotContainsString('not defined', $throwable->getMessage(), 'Attempt ' . $attempt);
+                $error = $throwable;
             }
+
+            $this->assertInstanceOf(PropertyNotFound::class, $error, 'Attempt ' . $attempt . ': the query ran');
+            $this->assertStringNotContainsString('not defined', $error->getMessage(), 'Attempt ' . $attempt);
         }
 
         $this->assertSame([], $this->storage->queries);

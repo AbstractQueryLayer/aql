@@ -7,6 +7,7 @@ namespace IfCastle\AQL\MySql\Storage;
 use Async\Channel;
 use IfCastle\AQL\MySql\MariaDb;
 use IfCastle\AQL\Storage\Exceptions\DuplicateKeysException;
+use IfCastle\AQL\Storage\Exceptions\QueryException;
 use IfCastle\AQL\Storage\Exceptions\RecoverableException;
 use IfCastle\AQL\Storage\Exceptions\ServerHasGoneAwayException;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
@@ -66,8 +67,8 @@ class MySqlErrorsTest extends TestCase
     {
         $exception                  = $this->failureOf('SELECT no_such_column FROM ' . self::TABLE);
 
-        $this->assertNotInstanceOf(RecoverableException::class, $exception);
-        $this->assertNotInstanceOf(DuplicateKeysException::class, $exception);
+        // QueryException, RecoverableException and DuplicateKeysException are siblings under StorageException.
+        $this->assertInstanceOf(QueryException::class, $exception, 'The query ran or raised another StorageException');
     }
 
     public function testDeadlockRaisesRecoverableException(): void

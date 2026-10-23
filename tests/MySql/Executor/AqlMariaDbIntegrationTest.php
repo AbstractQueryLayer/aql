@@ -22,6 +22,7 @@ use IfCastle\AQL\Storage\StorageCollection;
 use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\TestCases\TestCaseWithDiContainer;
 use IfCastle\DI\ContainerBuilder;
+use IfCastle\Exceptions\UnexpectedMethodMode;
 use IfCastle\Exceptions\UnexpectedValue;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -447,12 +448,16 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
 
         $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTripEvent WHERE ownerId = 1 ORDER BY id LIMIT {n}');
 
+        $error = null;
+
         try {
             $this->aqlExecutor->executeAql($delete);
-            $this->fail('The DELETE ran with an unbound LIMIT parameter');
-        } catch (\Throwable) {
-            $this->assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM aql_round_trip_event')->fetchColumn());
+        } catch (\Throwable $exception) {
+            $error = $exception;
         }
+
+        $this->assertInstanceOf(UnexpectedMethodMode::class, $error, 'The DELETE ran with an unbound LIMIT parameter');
+        $this->assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM aql_round_trip_event')->fetchColumn());
     }
 
     public function testSelectLimitParameterReturnsThatManyRows(): void
