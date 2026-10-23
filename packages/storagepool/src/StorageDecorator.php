@@ -45,6 +45,10 @@ final class StorageDecorator implements DecoratorInterface, StorageReturnProxyAb
         return $this->originalObject;
     }
 
+    /**
+     * Gives the storage back. The return proxy may keep a storage that is still inside a transaction: the decorator
+     * then stays borrowed and goes back to the pool when the proxy releases it.
+     */
     #[\Override]
     public function dispose(): void
     {
@@ -52,15 +56,18 @@ final class StorageDecorator implements DecoratorInterface, StorageReturnProxyAb
             return;
         }
 
-        $pool                       = $this->pool?->get();
-        $originalObject             = $this->originalObject;
         $returnProxy                = $this->returnProxy?->get();
-        $this->pool                 = null;
-        $this->originalObject       = null;
         $this->returnProxy          = null;
 
-        if (false !== $returnProxy?->returnStorage($this->originalObject)) {
-            $pool?->return($originalObject);
+        if (false === $returnProxy?->returnStorage($this->originalObject)) {
+            return;
         }
+
+        $pool                       = $this->pool?->get();
+        $this->pool                 = null;
+
+        // The pool takes the original object from the decorator it lent and disposes the decorator again.
+        $pool?->return($this);
+        $this->originalObject       = null;
     }
 }

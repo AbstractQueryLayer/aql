@@ -51,7 +51,7 @@ final class StorageCollectionPoolProxy implements StorageCollectionInterface, St
                 $storage->setReturnProxy($this);
             }
         } else {
-            $storage                = $this->storageCollectionPool?->get()->findStorage($storageName);
+            $storage                = $this->storageCollectionPool->get()?->borrowStorage($storageName);
 
             if ($storage instanceof StorageReturnProxyAbleInterface) {
                 $storage->setReturnProxy($this);
