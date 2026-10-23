@@ -15,6 +15,7 @@ use IfCastle\AQL\Storage\StorageCollectionInterface;
 use IfCastle\AQL\TestCases\TestCaseWithDiContainer;
 use IfCastle\DI\ContainerBuilder;
 use IfCastle\Exceptions\UnexpectedValue;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * A query marked withPreparing() reaches MariaDB as a prepared statement: its SQL holds placeholders, and every
@@ -122,6 +123,37 @@ class AqlPreparedStatementMariaDbTest extends TestCaseWithDiContainer
             $select->applyParameters(['value' => $value]);
             $this->assertSame([['value' => $value]], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
         }
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function preparingModes(): iterable
+    {
+        yield 'prepared' => [true];
+        yield 'plain' => [false];
+    }
+
+    #[DataProvider('preparingModes')]
+    public function testAConditionAddedAfterARunFiltersTheNextRun(bool $preparing): void
+    {
+        $this->insertValues('a', 'b');
+
+        $select = (new AqlParser())->parse('SELECT value FROM AqlRoundTrip WHERE value != {skip} ORDER BY id');
+        $this->assertInstanceOf(QueryInterface::class, $select);
+
+        if ($preparing) {
+            $select->withPreparing();
+        }
+
+        $select->applyParameters(['skip' => 'none']);
+        $this->assertSame(
+            [['value' => 'a'], ['value' => 'b']],
+            $this->aqlExecutor->executeAql($select)->finalize()->toArray()
+        );
+
+        $select->where('id', $this->idOf('b'));
+        $this->assertSame([['value' => 'b']], $this->aqlExecutor->executeAql($select)->finalize()->toArray());
     }
 
     public function testARunAgainTakesTheNewValuesWrittenIntoTheText(): void

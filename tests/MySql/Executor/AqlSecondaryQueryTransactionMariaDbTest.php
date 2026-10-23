@@ -8,6 +8,7 @@ use IfCastle\AQL\Dsl\Parser\AqlParser;
 use IfCastle\AQL\Executor\AqlExecutor;
 use IfCastle\AQL\Executor\AqlExecutorInterface;
 use IfCastle\AQL\Executor\Entities\AqlRoundTripNote;
+use IfCastle\AQL\Executor\Exceptions\QueryException;
 use IfCastle\AQL\Executor\Transaction\WithTransaction;
 use IfCastle\AQL\MySql\MariaDb;
 use IfCastle\AQL\Storage\StorageCollection;
@@ -137,6 +138,18 @@ class AqlSecondaryQueryTransactionMariaDbTest extends TestCaseWithDiContainer
 
         $this->assertSame(['second'], $seen);
         $this->assertSame(['first'], $this->noteOwners($this->getAqlExecutor()), 'The update was not rolled back');
+    }
+
+    public function testAConditionAddedAfterARunOfAPlanIsRefused(): void
+    {
+        $executor = $this->getAqlExecutor();
+        $query = (new AqlParser())->parse('SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote');
+        $this->assertSame(['first'], \array_column($executor->executeAql($query)->finalize()->toArray(), 'value'));
+
+        $query->where('id', 2);
+
+        $this->expectException(QueryException::class);
+        $executor->executeAql($query);
     }
 
     /**
