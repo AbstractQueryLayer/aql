@@ -398,6 +398,21 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame(['worker-1'], $this->pdo->query('SELECT value FROM ' . self::TABLE)->fetchAll(\PDO::FETCH_COLUMN));
     }
 
+    public function testDeleteReportsItsAffectedRowsLikeAnUpdate(): void
+    {
+        $this->insert($this->aqlExecutor, 1);
+        $this->insert($this->aqlExecutor, 2);
+        $this->insert($this->aqlExecutor, 2);
+
+        $delete = (new AqlParser())->parse('DELETE FROM AqlRoundTrip WHERE value = {value}');
+        $delete->applyParameters(['value' => 'worker-2']);
+        $result = $this->aqlExecutor->executeAql($delete);
+
+        $this->assertSame(2, $result->getAffectedRows());
+        $this->assertNull($result->getLastPrimaryKey(), 'A DELETE inserted no row');
+        $this->assertSame([], $result->getInsertedRows());
+    }
+
     /**
      * The shape of a per-owner row cap: the oldest rows of one owner go first, and a tie on the creation time is
      * broken by the key.
