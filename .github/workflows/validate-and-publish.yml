@@ -63,14 +63,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IFCastle/ifcastle
-          ref: a640abc7c4b8f784903cac2ddb7edfafccd8f3fe
+          ref: cb77fd9ac9cf7cf36264d4ae92b404ae63fcc47c
           path: ifcastle
           persist-credentials: false
 
       - name: Keep declared main aliases on the pinned dependency checkout
         run: |
           git -C ifcastle checkout -B main
-          test "$(git -C ifcastle rev-parse HEAD)" = a640abc7c4b8f784903cac2ddb7edfafccd8f3fe
+          test "$(git -C ifcastle rev-parse HEAD)" = cb77fd9ac9cf7cf36264d4ae92b404ae63fcc47c
 
       - name: Define runtime paths
         run: |
