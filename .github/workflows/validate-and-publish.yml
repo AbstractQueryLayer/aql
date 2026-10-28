@@ -135,6 +135,7 @@ jobs:
           - 'executor'
           - 'filesystem'
           - 'generator'
+          - 'jobs'
           - 'migration-tool'
           - 'mysql'
           - 'pdodriver'
