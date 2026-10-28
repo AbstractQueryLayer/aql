@@ -45,7 +45,8 @@
         "ifcastle/aql-storage": "*",
         "ifcastle/aql-storagepool": "*",
         "ifcastle/aql-telemetry": "*",
-        "ifcastle/aql-transaction": "*"
+        "ifcastle/aql-transaction": "*",
+        "ifcastle/jobs": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.2",

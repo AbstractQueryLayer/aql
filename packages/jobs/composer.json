@@ -1,0 +1,44 @@
+{
+  "name": "ifcastle/jobs",
+  "description": "Persistent background jobs on AQL storage: a queue with leases, retries with backoff, an attempts log and a TrueAsync worker",
+  "keywords": [
+    "aql",
+    "jobs",
+    "queue",
+    "worker",
+    "trueasync"
+  ],
+  "type": "ifcastle-aql-package",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Edmond Dantes",
+      "email": "edmondifthen@proton.me"
+    }
+  ],
+  "require": {
+    "php": ">=8.6",
+    "ext-true_async": "*",
+    "ifcastle/aql-aspects": "*",
+    "ifcastle/aql-dsl": "*",
+    "ifcastle/aql-entity": "*",
+    "ifcastle/aql-executor": "*",
+    "ifcastle/aql-result": "*",
+    "ifcastle/aql-storage": "*",
+    "ifcastle/aql-transaction": "*",
+    "ifcastle/di": "^0.8",
+    "ifcastle/exceptions": "^5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "IfCastle\\Jobs\\": [
+        "src/"
+      ]
+    }
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "0.1.x-dev"
+    }
+  }
+}

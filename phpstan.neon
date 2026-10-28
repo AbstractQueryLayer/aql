@@ -10,6 +10,7 @@ parameters:
 		- packages/executor/src
 		- packages/filesystem/src
 		- packages/generator/src
+		- packages/jobs/src
 		- packages/migration-tool/src
 		- packages/mysql/src
 		- packages/pdodriver/src
