@@ -18,7 +18,10 @@ class TableOption extends DdlStatementAbstract implements TableOptionInterface
     {
         $value                      = '';
 
-        if (\is_scalar($this->value)) {
+        // A string is a quoted literal of the source, such as a COMMENT; a name such as an ENGINE is a RawSql.
+        if (\is_string($this->value)) {
+            $value                  = $this->quote($this->value);
+        } elseif (\is_scalar($this->value)) {
             $value                  = (string) $this->value;
         } elseif ($this->value instanceof RawSql) {
             $value                  = $this->value->getResult();

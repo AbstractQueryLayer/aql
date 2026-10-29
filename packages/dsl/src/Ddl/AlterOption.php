@@ -6,8 +6,6 @@ namespace IfCastle\AQL\Dsl\Ddl;
 
 use IfCastle\AQL\Dsl\Node\NodeInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\NodeList;
-use IfCastle\TypeDefinitions\NativeSerialization\ArraySerializableValidatorInterface;
-use IfCastle\TypeDefinitions\NativeSerialization\ArrayTyped;
 
 class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
 {
@@ -20,26 +18,6 @@ class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
 
         $this->childNodes[self::TABLE_OPTIONS]  = new NodeList();
         $this->childNodes[self::DEFINITIONS]    = new NodeList(...$definitions);
-    }
-
-    #[\Override]
-    public static function fromArray(array $array, ?ArraySerializableValidatorInterface $validator = null): static
-    {
-        return new self(
-            $array[self::WHAT] ?? '',
-            $array[self::ACTION] ?? '',
-            ...ArrayTyped::unserialize($array[self::DEFINITIONS] ?? null, $validator)
-        );
-    }
-
-    #[\Override]
-    public function toArray(?ArraySerializableValidatorInterface $validator = null): array
-    {
-        return [
-            self::WHAT        => $this->what,
-            self::ACTION      => $this->action,
-            self::DEFINITIONS => ArrayTyped::serializeList($validator, ...$this->childNodes),
-        ];
     }
 
     public function getWhat(): string

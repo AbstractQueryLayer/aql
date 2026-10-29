@@ -15,4 +15,16 @@ abstract class DdlStatementAbstract extends NodeAbstract
     {
         return $this->generateResult();
     }
+
+    /**
+     * A DDL node renders without a transformation pass, so it is transformed from birth and holds nothing of a run:
+     * only a substitution marks one.
+     */
+    #[\Override]
+    protected function refuseTransformedSerialization(): void
+    {
+        if ($this->substitution !== null) {
+            parent::refuseTransformedSerialization();
+        }
+    }
 }
