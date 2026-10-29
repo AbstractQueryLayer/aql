@@ -16,7 +16,8 @@
         }
     ],
     "require": {
-        "php": ">=8.5"
+        "php": ">=8.5",
+        "ext-true_async": "*"
     },
     "autoload": {
         "psr-4": {

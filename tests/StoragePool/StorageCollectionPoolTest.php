@@ -36,6 +36,10 @@ class StorageCollectionPoolTest extends TestCase
             {
                 $this->variables[$key] = $value;
             }
+
+            // The context of these tests never ends.
+            #[\Override]
+            public function defer(callable $callback): void {}
         };
 
         $this->collection           = new StorageCollectionPool();

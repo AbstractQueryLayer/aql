@@ -17,7 +17,7 @@ use IfCastle\Exceptions\UnexpectedValueType;
 /**
  * The storages one execution context holds. The first findStorage() of a name borrows a storage from its pool, later
  * ones return the same storage, so a transaction and the results it reads stay on one connection. The storages go
- * back to their pools on release(), or when the context drops the proxy.
+ * back to their pools on release(), at the end of the context, or when the context drops the proxy.
  */
 final class StorageCollectionPoolProxy implements StorageCollectionInterface, DisposableInterface
 {
@@ -105,9 +105,12 @@ final class StorageCollectionPoolProxy implements StorageCollectionInterface, Di
         $this->release();
     }
 
-    public function __destruct()
+    /**
+     * Gives every borrowed storage back, as release() does, where no caller can take an exception: at the end of the
+     * context and in the destructor. The errors are reported as a warning.
+     */
+    public function releaseAtEnd(): void
     {
-        // A destructor must not throw: the storages are released, the errors are reported as a warning.
         $messages                   = \array_map(
             static fn(\Throwable $error): string => $error->getMessage(),
             $this->releaseAll()
@@ -116,6 +119,12 @@ final class StorageCollectionPoolProxy implements StorageCollectionInterface, Di
         if ($messages !== []) {
             \trigger_error('Pooled storages released with errors: ' . \implode('; ', $messages), E_USER_WARNING);
         }
+    }
+
+    public function __destruct()
+    {
+        // A destructor must not throw: the storages are released, the errors are reported as a warning.
+        $this->releaseAtEnd();
     }
 
     /**

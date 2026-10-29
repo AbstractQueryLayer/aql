@@ -22,6 +22,7 @@ use IfCastle\Exceptions\UnexpectedValueType;
  * A storage collection whose storages come from pools. Each execution context holds the storages it found until the
  * context ends or releaseStorages() is called, so the context variables must belong to one coroutine and must not be
  * inherited by the coroutines it starts: two coroutines sharing them would run statements on one connection at once.
+ * CoroutineContextVariables are such variables for TrueAsync.
  * A storage that pools its own connections is the exception: every context gets the one instance (addStoragePool()).
  */
 class StorageCollectionPool implements StorageCollectionMutableInterface, AutoResolverInterface, StorageCollectionPoolInterface
@@ -92,6 +93,9 @@ class StorageCollectionPool implements StorageCollectionMutableInterface, AutoRe
         if ($proxy === null) {
             $proxy                  = new StorageCollectionPoolProxy($this);
             $this->contextVariables->set($this->contextKey, $proxy);
+            // Given back when the context ends, not when its variables are freed: a destructor runs, with the rollback
+            // of a transaction left open, at a point nobody controls.
+            $this->contextVariables->defer($proxy->releaseAtEnd(...));
         }
 
         return $proxy;
