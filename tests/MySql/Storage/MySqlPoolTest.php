@@ -78,6 +78,19 @@ class MySqlPoolTest extends TestCase
         $mySql->dispose();
     }
 
+    public function testACoroutineThatOutlivesTheStorageDoesNotKeepIt(): void
+    {
+        // The test's own coroutine runs the query: in a CLI process that is the main coroutine, which never ends.
+        $mySql                      = $this->mySql([]);
+        $mySql->executeSql('SELECT 1');
+        $mySql->dispose();
+        $storage                    = \WeakReference::create($mySql);
+        unset($mySql);
+        \gc_collect_cycles();
+
+        $this->assertNull($storage->get());
+    }
+
     /**
      * @param array<int|string, mixed> $options
      */
