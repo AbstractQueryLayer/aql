@@ -34,6 +34,7 @@ final class QueryRoundTripTest extends TestCase
             . ' GROUP BY id ORDER BY id DESC, name LIMIT 5, 10',
             Select::class,
         ];
+        yield 'select distinct' => ['SELECT DISTINCT first FROM Test ORDER BY first', Select::class];
         yield 'select with having' => [
             'SELECT first, COUNT(*) AS n FROM Test GROUP BY first HAVING COUNT(*) > 1 OR first = "x" ORDER BY first',
             Select::class,
@@ -66,6 +67,10 @@ final class QueryRoundTripTest extends TestCase
         yield 'replace' => ['REPLACE INTO Entity SET name = {name}', Insert::class];
         yield 'update' => [
             'UPDATE Entity SET name = "test", counter = counter + 1 WHERE id = {id} LIMIT 1',
+            Update::class,
+        ];
+        yield 'update with conditions in a function' => [
+            'UPDATE Entity SET bonus = IF(bonus IS NOT NULL AND attempts > 0, ISNULL(name), NULL) WHERE id = {id}',
             Update::class,
         ];
         yield 'update with a join' => [

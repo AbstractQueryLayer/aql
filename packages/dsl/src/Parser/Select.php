@@ -93,7 +93,12 @@ class Select extends AqlParserAbstract
                                     . $tokens->currentTokenAsString() . '")', ['line' => $tokens->getCurrentLine()]);
         }
 
-        $result                     = $this->parseSelect($tokens->nextTokens());
+        $isDistinct                 = $this->parseDistinct($tokens->nextTokens());
+        $result                     = $this->parseSelect($tokens);
+
+        if ($isDistinct && $result instanceof SelectInterface) {
+            $result->setDistinct();
+        }
 
         if ($this->isMainParenthesis) {
 
@@ -105,6 +110,24 @@ class Select extends AqlParserAbstract
         }
 
         return $result;
+    }
+
+    /**
+     * Consumes `DISTINCT` after SELECT; false when the SELECT has none.
+     *
+     * @throws ParseException when DISTINCT is followed by FROM instead of the columns
+     */
+    private function parseDistinct(TokensIteratorInterface $tokens): bool
+    {
+        if (false === $tokens->checkAndConsumeToken('DISTINCT')) {
+            return false;
+        }
+
+        if ($tokens->currentTokenAsString() === QueryInterface::NODE_FROM) {
+            throw new ParseException('DISTINCT needs the columns to select', ['line' => $tokens->getCurrentLine()]);
+        }
+
+        return true;
     }
 
     /**

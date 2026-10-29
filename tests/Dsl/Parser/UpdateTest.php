@@ -56,4 +56,28 @@ class UpdateTest extends TestCase
             /** @lang aql */'UPDATE Entity SET attempts = IF(attempts >= 3, 0, attempts + 1) WHERE id = 5'
         ));
     }
+
+    /** A function argument is a condition, as in SQL: IS NULL, IS NOT NULL, AND and OR, the groups bracketed. */
+    public function testUpdateWithConditionsInsideAFunction(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'UPDATE Entity SET attempts = IF(bonus IS NULL, 0, attempts),'
+            . ' bonus = IF(bonus IS NOT NULL AND attempts > 0, bonus, NULL),'
+            . ' name = IF((bonus = 1 OR bonus = 2) AND name IS NULL, "x", name) WHERE id = 5'
+        ));
+    }
+
+    public function testUpdateWithIsNullFunction(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */'UPDATE Entity SET attempts = IF(ISNULL(bonus), 0, attempts + 1) WHERE id = 5'
+        ));
+    }
+
+    public function testAndMixedWithOrInsideAFunctionIsRefused(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('UPDATE Entity SET attempts = IF(bonus IS NULL AND attempts > 0 OR id = 1, 0, 1)');
+    }
 }

@@ -9,15 +9,13 @@ use IfCastle\AQL\Dsl\Parser\Exceptions\ParseException;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\Count as CountFunction;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReference as FunctionReferenceNode;
 use IfCastle\AQL\Dsl\Sql\FunctionReference\FunctionReferenceInterface;
-use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperation;
+use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\SingleOperation;
 
 /**
  * Parser for FunctionReferences.
  */
 class FunctionReference extends AqlParserAbstract
 {
-    private const array COMPARISONS = ['=', '<', '>', '<=', '>=', '<>', '!='];
-
     /**
      * @throws ParseException
      */
@@ -144,20 +142,23 @@ class FunctionReference extends AqlParserAbstract
     }
 
     /**
-     * A function argument is a value expression, optionally compared with another one:
-     * `IF(windowStart + INTERVAL 5 SECOND <= UTC_TIMESTAMP(6), 1, attempts + 1)`.
+     * A function argument is a condition, as in SQL: a value expression, a comparison or a group of them under AND or
+     * OR: `IF(windowStart + INTERVAL 5 SECOND <= UTC_TIMESTAMP(6), 1, attempts + 1)`,
+     * `IF(bonus IS NULL AND attempts > 0, 0, attempts)`.
+     * A lone expression comes back as its own node and a lone comparison as its operation, so only a group keeps the
+     * Conditions node.
      *
      * @throws ParseException
      */
     private function parseParameter(TokensIteratorInterface $tokens): NodeInterface
     {
-        $left                       = $this->parseExpression($tokens);
-        $operation                  = $tokens->currentTokenAsString();
+        $conditions                 = (new Conditions())->parseTokens($tokens);
+        $operations                 = \array_values($conditions->getChildNodes());
 
-        if (false === \in_array($operation, self::COMPARISONS, true)) {
-            return $left;
+        if (\count($operations) !== 1) {
+            return $conditions;
         }
 
-        return new LROperation($left, $operation, $this->parseExpression($tokens->nextTokens()));
+        return $operations[0] instanceof SingleOperation ? $operations[0]->getExpression() : $operations[0];
     }
 }

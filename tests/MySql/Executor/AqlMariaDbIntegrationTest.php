@@ -131,6 +131,18 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame(\array_sum($ids), (int) $rows[0]['idSum']);
     }
 
+    public function testSelectDistinctReachesMariaDb(): void
+    {
+        $this->pdo->exec('INSERT INTO aql_round_trip_link (roundTripId, label)'
+            . ' VALUES (1, "b"), (2, "a"), (3, "b"), (4, "a")');
+        $rows = $this->aqlExecutor->executeAql((new AqlParser())->parse(
+            'SELECT DISTINCT label FROM AqlRoundTripLink WHERE roundTripId > 1 ORDER BY label'
+        ))->finalize()->toArray();
+
+        $this->assertSame([['label' => 'a'], ['label' => 'b']], $rows);
+        $this->assertStringStartsWith('SELECT DISTINCT ', $this->mySql->lastSql);
+    }
+
     public function testSha2OfNestedConcatPreservesUnicodeBytes(): void
     {
         $value = 'Русский café 😀';
@@ -698,6 +710,29 @@ class AqlMariaDbIntegrationTest extends TestCaseWithDiContainer
         $this->assertSame(15, (int) $row['bonus']);
         $this->assertGreaterThanOrEqual($before + 2 * 86400 - 0.001, $this->microtime($row['expiresAt']));
         $this->assertLessThanOrEqual($after + 2 * 86400 + 0.001, $this->microtime($row['expiresAt']));
+    }
+
+    /**
+     * A function argument is a condition: IS NULL and AND inside IF(), and ISNULL(). MariaDB assigns left to right,
+     * so the IF of attempts reads the bonus before it is assigned.
+     */
+    public function testNullTestsInsideAFunctionReachMariaDb(): void
+    {
+        $this->insertLeases([[1, '+1 hour', null, '+1 hour', 5], [2, '+1 hour', 7, '+1 hour', 5]]);
+
+        $this->aqlExecutor->executeAql((new AqlParser())->parse(
+            'UPDATE AqlRoundTripLease SET attempts = IF(bonus IS NULL AND attempts > 0, 0, attempts + 1),'
+            . ' bonus = IF(ISNULL(bonus), 1, bonus + 1) WHERE ownerId IN (1, 2)'
+        ));
+
+        $this->assertStringContainsString('IF(`t0`.`bonus` IS NULL AND `t0`.`attempts` > 0, 0,', $this->mySql->lastSql);
+        $rows = $this->pdo->query('SELECT attempts, bonus FROM aql_round_trip_lease ORDER BY ownerId')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->assertSame([[0, 1], [6, 8]], \array_map(
+            static fn(array $row): array => [(int) $row['attempts'], (int) $row['bonus']],
+            $rows
+        ));
     }
 
     /** The shape of a counter inside a time window: the counter restarts once the window is over. */

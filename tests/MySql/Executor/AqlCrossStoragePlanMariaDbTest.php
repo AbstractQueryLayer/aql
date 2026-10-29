@@ -101,6 +101,10 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
             'SELECT label FROM AqlRoundTripNote WHERE AqlRoundTrip.value = "none" ORDER BY id',
             [],
         ];
+        yield 'DISTINCT with a filter on the round trip, which joins nothing' => [
+            'SELECT DISTINCT label FROM AqlRoundTripNote WHERE AqlRoundTrip.value <> "second" ORDER BY label',
+            [['label' => 'alpha']],
+        ];
         yield 'join to the notes filtered on a note' => [
             'SELECT value FROM AqlRoundTrip INNER JOIN AqlRoundTripNote WHERE AqlRoundTripNote.label = "alpha" ORDER BY id',
             [['value' => 'first'], ['value' => 'third']],
@@ -362,6 +366,7 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         yield 'a UNION with a join' => [
             'SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip UNION SELECT label FROM AqlRoundTripLocalNote',
         ];
+        yield 'DISTINCT over a join' => ['SELECT DISTINCT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip'];
         yield 'GROUP BY over a join' => ['SELECT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip GROUP BY label'];
         yield 'IS NULL under OR in a LEFT JOIN' => [
             'SELECT label FROM AqlRoundTripNote LEFT JOIN AqlRoundTrip WHERE (AqlRoundTrip.id IS NULL OR label = "beta")',
@@ -381,6 +386,22 @@ class AqlCrossStoragePlanMariaDbTest extends TestCaseWithDiContainer
         }
 
         $this->assertSame(['1:1:alpha', '2:2:beta', '3:2:gamma', '4:3:alpha', '5:9:delta'], $this->tableRows('aql_round_trip_note'));
+    }
+
+    /** One statement removes the repeated rows of a join; a plan across storages refuses to, naming DISTINCT. */
+    public function testDistinctOverAJoinRunsInOneStorageAndIsRefusedAcrossStorages(): void
+    {
+        $aql = 'SELECT DISTINCT label FROM AqlRoundTripNote INNER JOIN AqlRoundTrip ORDER BY label';
+
+        $this->assertSame(
+            [['label' => 'alpha'], ['label' => 'beta'], ['label' => 'gamma']],
+            $this->rows(self::local($aql))
+        );
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('DISTINCT');
+
+        $this->rows($aql);
     }
 
     /**

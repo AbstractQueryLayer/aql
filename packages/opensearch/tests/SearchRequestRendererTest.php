@@ -77,6 +77,7 @@ final class SearchRequestRendererTest extends TestCase
             'no LIMIT with GROUP BY' => ['SELECT id FROM Fragment GROUP BY workId ORDER BY id'],
             'PHRASE over two columns' => ['SELECT id FROM Fragment WHERE PHRASE(text, title, {q}) LIMIT 5'],
             'LIKE' => ['SELECT id FROM Fragment WHERE text LIKE {q} LIMIT 5'],
+            'DISTINCT' => ['SELECT DISTINCT workId FROM Fragment ORDER BY workId LIMIT 5'],
         ];
     }
 

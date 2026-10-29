@@ -571,6 +571,37 @@ class SelectTest extends TestCase
         ));
     }
 
+    public function testDistinct(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT DISTINCT label FROM Test WHERE id > 1 ORDER BY label'
+        ));
+    }
+
+    public function testDistinctInASubqueryAndAUnionMember(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT id FROM Test WHERE id IN (SELECT DISTINCT testId FROM Other)'
+            . ' UNION SELECT DISTINCT id FROM Third'
+        ));
+    }
+
+    /** DISTINCT is a keyword, not a column: a SELECT without FROM takes it too, as SQL does. */
+    public function testDistinctWithoutFrom(): void
+    {
+        $this->executeCase(new ParserCaseDescriptor(
+            /** @lang aql */ 'SELECT DISTINCT 1 AS one',
+            /** @lang aql */ 'SELECT DISTINCT 1 as "one"'
+        ));
+    }
+
+    public function testDistinctWithoutColumnsIsRefused(): void
+    {
+        $this->expectException(Exceptions\ParseException::class);
+
+        $this->parseSql('SELECT DISTINCT FROM Test');
+    }
+
     public function testUnclosedSubqueryAtEndOfInputThrowsParseException(): void
     {
         $this->expectException(Exceptions\ParseException::class);

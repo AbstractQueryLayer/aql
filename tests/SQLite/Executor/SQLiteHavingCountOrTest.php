@@ -12,7 +12,7 @@ use IfCastle\AQL\Entity\Property\PropertyInteger;
 use IfCastle\AQL\Entity\Property\PropertyString;
 use IfCastle\AQL\TestCases\TestCaseWithSqlMemoryDb;
 
-/** HAVING after GROUP BY, a top-level COUNT and a WHERE of ORs, parsed from AQL and run on SQLite. */
+/** HAVING after GROUP BY, a top-level COUNT, a WHERE of ORs and SELECT DISTINCT, parsed from AQL and run on SQLite. */
 final class SQLiteHavingCountOrTest extends TestCaseWithSqlMemoryDb
 {
     public function testHavingFiltersTheGroups(): void
@@ -39,6 +39,14 @@ final class SQLiteHavingCountOrTest extends TestCaseWithSqlMemoryDb
         $this->assertSame([1, 2], $this->column(
             'SELECT id FROM Pair WHERE first = "x" OR second = "x" ORDER BY id', 'id'
         ));
+    }
+
+    public function testDistinctKeepsEachValueOnce(): void
+    {
+        $this->createPairs();
+
+        $this->assertSame(['x', 'z'], $this->column('SELECT DISTINCT first FROM Pair ORDER BY first', 'first'));
+        $this->assertSame(['z'], $this->column('SELECT DISTINCT first FROM Pair WHERE id > 1', 'first'));
     }
 
     /** @return list<int|string> */

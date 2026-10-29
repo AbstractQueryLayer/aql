@@ -64,6 +64,8 @@ class Select extends QueryAbstract implements SelectInterface
 
     protected ?LockWait $lockWait   = null;
 
+    protected bool $distinct        = false;
+
     /**
      * A null $from makes a SELECT without FROM: a row of expressions the server computes.
      *
@@ -122,7 +124,7 @@ class Select extends QueryAbstract implements SelectInterface
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . $results . $this->lockClause();
+        $query                      = $this->selectKeyword() . ' ' . $results . $this->lockClause();
 
         if ($union->isEmpty()) {
 
@@ -192,7 +194,7 @@ class Select extends QueryAbstract implements SelectInterface
             return '';
         }
 
-        $query                      = \strtoupper($this->queryAction) . ' ' . \implode(' ', $results) . $lockClause;
+        $query                      = $this->selectKeyword() . ' ' . \implode(' ', $results) . $lockClause;
 
         $union                      = $this->getUnion();
 
@@ -251,6 +253,20 @@ class Select extends QueryAbstract implements SelectInterface
 
             $tuple->addTupleColumn($column);
         }
+
+        return $this;
+    }
+
+    #[\Override]
+    public function isDistinct(): bool
+    {
+        return $this->distinct;
+    }
+
+    #[\Override]
+    public function setDistinct(bool $distinct = true): static
+    {
+        $this->distinct             = $distinct;
 
         return $this;
     }
@@ -373,6 +389,12 @@ class Select extends QueryAbstract implements SelectInterface
         $this->childNodes[self::NODE_HAVING]    = (new Having())->setParentNode($this);
         $this->childNodes[self::NODE_LIMIT]     = (new Limit())->setParentNode($this);
         $this->childNodes[self::NODE_UNION]     = (new Union())->setParentNode($this);
+    }
+
+    /** `SELECT` or `SELECT DISTINCT`: the words before the columns. */
+    private function selectKeyword(): string
+    {
+        return \strtoupper($this->queryAction) . ($this->distinct ? ' DISTINCT' : '');
     }
 
     /**

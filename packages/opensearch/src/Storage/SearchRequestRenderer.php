@@ -14,6 +14,7 @@ use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\LROperationInterface;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\Operation\SingleOperation;
 use IfCastle\AQL\Dsl\Sql\Query\Expression\OrderItemInterface;
 use IfCastle\AQL\Dsl\Sql\Query\QueryInterface;
+use IfCastle\AQL\Dsl\Sql\Query\SelectInterface;
 use IfCastle\AQL\Storage\Exceptions\StorageException;
 
 /**
@@ -50,6 +51,11 @@ final readonly class SearchRequestRenderer
         $from = $query->getFrom() ?? throw self::refuse('a SELECT without FROM', $query);
         if ($from->getChildJoins() !== []) {
             throw self::refuse('JOIN', $query);
+        }
+
+        // A search request has no DISTINCT: refused rather than read with the repeated rows.
+        if ($query instanceof SelectInterface && $query->isDistinct()) {
+            throw self::refuse('DISTINCT', $query);
         }
 
         $subject = $from->getSubject();

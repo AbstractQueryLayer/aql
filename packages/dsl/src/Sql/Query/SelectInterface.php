@@ -15,6 +15,17 @@ interface SelectInterface extends QueryInterface
     public function fromSelect(SubqueryInterface $select): static;
 
     /**
+     * Whether the query returns each distinct row once: `SELECT DISTINCT`.
+     */
+    public function isDistinct(): bool;
+
+    /**
+     * Makes the query return each distinct row once, `SELECT DISTINCT ...`; false returns every row it reads.
+     * In a UNION it applies to this member only.
+     */
+    public function setDistinct(bool $distinct = true): static;
+
+    /**
      * The locking-read mode, or null for an ordinary read.
      */
     public function getLockMode(): ?LockMode;
