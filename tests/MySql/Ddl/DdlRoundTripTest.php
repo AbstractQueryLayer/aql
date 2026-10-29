@@ -25,14 +25,28 @@ final class DdlRoundTripTest extends TestCase
                 'ALTER TABLE `users` ENGINE = InnoDB, COMMENT = \'People\' RENAME COLUMN `mail` TO `email`,'
                 . ' RENAME INDEX `mail_idx` TO `email_idx`, DROP COLUMN `legacy`, RENAME TO `members`'
             ),
-            "ALTER TABLE `users`\nENGINE InnoDB COMMENT 'People' RENAME COLUMN `mail` TO `email`"
-            . "\nRENAME INDEX `mail_idx` TO `email_idx`\nDROP COLUMN `legacy`\nRENAME TABLE `members`",
+            "ALTER TABLE `users`\nENGINE InnoDB COMMENT 'People', RENAME COLUMN `mail` TO `email`,"
+            . "\nRENAME INDEX `mail_idx` TO `email_idx`,\nDROP COLUMN `legacy`,\nRENAME TO `members`",
         ];
         yield 'alter table with a changed column' => [
             static fn() => (new AlterTable())->parse(
                 'ALTER TABLE `users` CHANGE COLUMN `name` `title` varchar(100) NOT NULL DEFAULT \'\' AFTER `id`'
             ),
             "ALTER TABLE `users`\nCHANGE COLUMN `name` `title` VARCHAR (100) NOT NULL DEFAULT '' AFTER `id`",
+        ];
+        yield 'alter table adding indexes' => [
+            static fn() => (new AlterTable())->parse(
+                'ALTER TABLE `notes` ADD PRIMARY KEY (`id`), ADD INDEX `idx_author` (`author_id`, `created`),'
+                . ' ADD FULLTEXT INDEX `ft_body` (`title`, `body`)'
+            ),
+            "ALTER TABLE `notes`\nADD PRIMARY KEY (`id`),\nADD KEY `idx_author` (`author_id`,`created`),"
+            . "\nADD FULLTEXT KEY `ft_body` (`title`,`body`)",
+        ];
+        yield 'alter table dropping keys' => [
+            static fn() => (new AlterTable())->parse(
+                'ALTER TABLE `notes` DROP PRIMARY KEY, DROP FOREIGN KEY `fk_author`, DROP INDEX `idx_author`'
+            ),
+            "ALTER TABLE `notes`\nDROP PRIMARY KEY,\nDROP FOREIGN KEY `fk_author`,\nDROP INDEX `idx_author`",
         ];
         yield 'show tables' => [static fn() => new ShowTables('user%', 'lib'), "SHOW TABLES IN lib LIKE 'user%'"];
     }

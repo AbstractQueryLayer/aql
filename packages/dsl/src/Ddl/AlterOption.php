@@ -86,13 +86,18 @@ class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
                 }
             }
 
+            // Table options are one item of the comma-separated ALTER TABLE list.
             if ($tableOptions !== []) {
-                $sql[]              = \implode(' ', $tableOptions);
+                $sql[]              = \implode(' ', $tableOptions) . ',';
             }
         }
 
         $sql[]                      = $this->action;
-        $sql[]                      = $this->what;
+        $whatKeyword                = $this->whatKeyword();
+
+        if ($whatKeyword !== '') {
+            $sql[]                  = $whatKeyword;
+        }
 
         if ($this->getDefinitions()->isNotEmpty()) {
 
@@ -106,9 +111,25 @@ class AlterOption extends DdlStatementAbstract implements AlterOptionInterface
                 }
             }
 
-            $sql[]                  = \implode(",\n", $definitions);
+            // Only ADD COLUMN holds several definitions, and SQL takes them as one parenthesised list.
+            $sql[]                  = \count($definitions) > 1
+                                    ? '(' . \implode(', ', $definitions) . ')'
+                                    : \implode('', $definitions);
         }
 
         return \implode(' ', $sql);
+    }
+
+    /**
+     * The words between the action and the definitions in SQL: an added index definition starts with its own keyword
+     * (`ADD UNIQUE KEY ...`, not `ADD INDEX UNIQUE KEY ...`), and a table is renamed by `RENAME TO`.
+     */
+    protected function whatKeyword(): string
+    {
+        return match (true) {
+            $this->action === AlterActionEnum::ADD->value && $this->what === AlterWhatEnum::INDEX->value => '',
+            $this->action === AlterActionEnum::RENAME->value && $this->what === AlterWhatEnum::TABLE->value => 'TO',
+            default                 => $this->what,
+        };
     }
 }
