@@ -77,77 +77,27 @@ class Conditions extends AqlParserAbstract
 
         while (true) {
 
-            $token                  = $tokens->currentTokenAsString();
-
-            // expected expressions:
-            // (sub-conditions)
-            // left operator right
-            // left()
-            // operand comparison_operator ANY (subquery)
-            // operand IN (subquery)
-            // operand NOT IN (subquery)
-            // operand comparison_operator SOME (subquery)
-            // operand comparison_operator ALL (subquery)
-
-            // Case when left side is a row of columns: (a, b) IN (...)
-            if ($tokens->isParenthesisedList()) {
-                $condition          = $this->parseRowIn($tokens);
-            } elseif ($token === '(') {
-                // Case when left side is sub-conditions
-                // sub conditions case
-                $condition          = $this->parseConditions($tokens->nextTokens());
-
-                if ($tokens->currentTokenAsString() !== ')') {
-                    throw new ParseException('Expected close bracket ")"', ['line' => $line]);
-                }
-
-                $tokens->nextTokens();
-
-            } elseif ($token === WhereEntityNode::ENTITY) {
-                // special expression Entity
-                $condition          = (new WhereEntity())->parseTokens($tokens);
-            } else {
-                // LR operation case
-                $left               = $this->parseExpression($tokens);
-                [$operation, $right] = $this->parseRight($tokens);
-
-                if ($operation === null && $right === null) {
-                    $condition      = new SingleOperation($left);
-                } else {
-                    $condition      = new LROperation($left, $operation, $right);
-                }
-            }
+            $conditions[]           = $this->parseCondition($tokens, $line);
 
             // Look logical AND or OR operator
-            [, $token, $line]   = $tokens->currentToken();
+            [, $token, $line]       = $tokens->currentToken();
 
-            if (\array_key_exists($token, $stopTokens)) {
-                $conditions[]       = $condition;
-                break;
-            }
-
-            if ($token === ')') {
-                $conditions[]       = $condition;
+            if (\array_key_exists($token, $stopTokens) || $token === ')') {
                 break;
             }
 
             $token                  = \strtoupper((string) $token);
 
-            if ($token === ConditionsInterface::TYPE_AND || $token === ConditionsInterface::TYPE_OR) {
-                // AQL gives AND no precedence over OR: a group mixing them needs brackets to say which is meant.
-                if ($typeConditions !== '' && $typeConditions !== $token) {
-                    throw new ParseException('Prohibited use AND with OR without bracket', ['line' => $line]);
-                }
-
-                $conditions[]       = $condition;
-            } else {
-                $conditions[]           = $condition;
+            if ($token !== ConditionsInterface::TYPE_AND && $token !== ConditionsInterface::TYPE_OR) {
                 break;
             }
 
-            if ($typeConditions === '') {
-                $typeConditions         = $token;
+            // AQL gives AND no precedence over OR: a group mixing them needs brackets to say which is meant.
+            if ($typeConditions !== '' && $typeConditions !== $token) {
+                throw new ParseException('Prohibited use AND with OR without bracket', ['line' => $line]);
             }
+
+            $typeConditions         = $token;
 
             if (!$tokens->valid()) {
                 break;
@@ -169,6 +119,60 @@ class Conditions extends AqlParserAbstract
         $tokens->decreaseRecursionDepth();
 
         return $expression;
+    }
+
+    /**
+     * Parses one condition of a group: a bracketed group, a row IN, an Entity expression or an operation.
+     *
+     * @param int|false|null $line the line of the token before the condition, for an error
+     *
+     * @throws ParseException
+     */
+    protected function parseCondition(TokensIteratorInterface $tokens, int|false|null $line): NodeInterface
+    {
+        // expected expressions:
+        // (sub-conditions)
+        // left operator right
+        // left()
+        // operand comparison_operator ANY (subquery)
+        // operand IN (subquery)
+        // operand NOT IN (subquery)
+        // operand comparison_operator SOME (subquery)
+        // operand comparison_operator ALL (subquery)
+        $token                      = $tokens->currentTokenAsString();
+
+        // Case when left side is a row of columns: (a, b) IN (...)
+        if ($tokens->isParenthesisedList()) {
+            return $this->parseRowIn($tokens);
+        }
+
+        if ($token === '(') {
+            // Case when left side is sub-conditions
+            $condition              = $this->parseConditions($tokens->nextTokens());
+
+            if ($tokens->currentTokenAsString() !== ')') {
+                throw new ParseException('Expected close bracket ")"', ['line' => $line]);
+            }
+
+            $tokens->nextTokens();
+
+            return $condition;
+        }
+
+        if ($token === WhereEntityNode::ENTITY) {
+            // special expression Entity
+            return (new WhereEntity())->parseTokens($tokens);
+        }
+
+        // LR operation case
+        $left                       = $this->parseExpression($tokens);
+        [$operation, $right]        = $this->parseRight($tokens);
+
+        if ($operation === null && $right === null) {
+            return new SingleOperation($left);
+        }
+
+        return new LROperation($left, $operation, $right);
     }
 
     /**
